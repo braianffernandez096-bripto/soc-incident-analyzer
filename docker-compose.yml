@@ -1,0 +1,12 @@
+services:
+  analyzer:
+    build: .
+    image: soc-incident-analyzer
+    ports:
+      # Solo accesible desde tu equipo: la app no tiene login
+      - "127.0.0.1:8000:8000"
+    environment:
+      # Opcional: se toma de tu entorno o de un archivo .env junto a este archivo
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-}
+    restart: unless-stopped

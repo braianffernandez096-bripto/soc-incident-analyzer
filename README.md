@@ -36,7 +36,7 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 sudo apt update && sudo apt install -y python3 python3-venv python3-pip git
 
 # 2. Clonar el repositorio
-git clone https://github.com/TU_USUARIO/soc-incident-analyzer.git
+git clone https://github.com/braianffernandez096-bripto/soc-incident-analyzer.git
 cd soc-incident-analyzer
 
 # 3. Entorno virtual e instalación

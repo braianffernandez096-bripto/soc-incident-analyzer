@@ -34,7 +34,9 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 **Panel: resumen e incidentes detectados**
 
 ![Panel con las tarjetas de incidentes y la línea de tiempo](img/Dashboard.png)
+
 **Panel: actividad, hallazgos por criticidad e IP con más movimiento**
+
 ![Actividad de la ventana analizada, hallazgos por criticidad e IP](img/Metricas.png)
 
 ## Instalación y ejecución (Ubuntu 24.04)

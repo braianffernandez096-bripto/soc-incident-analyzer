@@ -14,12 +14,14 @@ Aplicación web para el reto final del Bootcamp Analista SOC Nivel 2. Recibe el 
 
 4. **PDF** (`backend/report.py`): resumen ejecutivo, hallazgos, evidencia, criticidad y justificación, impacto, plan de acción (investigar, contener, remediar) y recomendaciones generales.
 
+5. **Reputación (opcional)** (`backend/intel.py`): consulta en VirusTotal y AbuseIPDB las IP y dominios públicos que tú confirmes. Ver [más abajo](#reputación-de-ip-y-dominios-virustotal-y-abuseipdb).
+
 ## Formatos de entrada
 
 | Formato | Extensiones | Detalles |
 |---|---|---|
 | Excel | `.xlsx`, `.xlsm` | Usa la hoja con más filas; detecta la fila de cabecera aunque haya títulos encima. |
-| CSV / TSV | `.csv`, `.tsv`, `.txt`, `.log` | Detecta el separador (`,` `;` tab `|`) y la codificación (UTF-8, UTF-16, Windows-1252). |
+| CSV / TSV | `.csv`, `.tsv`, `.txt`, `.log` | Detecta el separador (`,` `;` tab `\|`) y la codificación (UTF-8, UTF-16, Windows-1252). |
 | JSON | `.json` | Arreglo de eventos, contenedores como `{"events": [...]}` y respuestas de Elasticsearch/OpenSearch (`hits.hits[]._source`). |
 | NDJSON | `.jsonl`, `.ndjson` | Un evento por línea; también el formato de exportación de Splunk (`{"result": {...}}`). |
 
@@ -92,9 +94,9 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# 4. (Opcional) clave de Anthropic para el análisis con IA
+# 4. (Opcional) claves: Anthropic para la redacción con IA; VirusTotal y AbuseIPDB para reputación
 cp .env.example .env
-nano .env                       # ANTHROPIC_API_KEY=...
+nano .env                       # ANTHROPIC_API_KEY=...  VT_API_KEY=...  ABUSEIPDB_API_KEY=...
 
 # 5. Iniciar la aplicación
 uvicorn backend.main:app --host 127.0.0.1 --port 8000
@@ -106,7 +108,7 @@ En Windows, la activación del entorno es `.venv\Scripts\activate`.
 
 ### Con Docker
 
-Si preferís no instalar Python, con Docker y Docker Compose alcanza:
+Si prefieres no instalar Python, con Docker y Docker Compose alcanza:
 
 ```bash
 git clone https://github.com/braianffernandez096-bripto/soc-incident-analyzer.git
@@ -115,16 +117,16 @@ cp .env.example .env            # opcional: tus claves (Anthropic, VirusTotal, A
 docker compose up --build
 ```
 
-Abre http://127.0.0.1:8000. El puerto queda publicado solo en tu equipo (`127.0.0.1`) porque la app no tiene login. La imagen corre con un usuario sin privilegios y no incluye tu `.env`: la clave se pasa como variable de entorno.
+Abre http://127.0.0.1:8000. El puerto queda publicado solo en tu equipo (`127.0.0.1`) porque la app no tiene login. La imagen corre con un usuario sin privilegios y no incluye tu `.env`: las claves se pasan como variables de entorno.
 
 ## Reputación de IP y dominios (VirusTotal y AbuseIPDB)
 
-Opcional. En la pestaña **IoC**, el botón **Consultar reputación** enriquece los indicadores externos con VirusTotal (cuántos motores los marcan como maliciosos) y AbuseIPDB (puntaje de confianza de abuso y reportes de los últimos 90 días). El resultado aparece en la tabla de IoC y en una sección del informe PDF.
+Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputación** enriquece los indicadores externos con VirusTotal (cuántos motores los marcan como maliciosos) y AbuseIPDB (puntaje de confianza de abuso y reportes de los últimos 90 días). El resultado aparece en la tabla de IoC y en una sección del informe PDF.
 
 - **Tú decides qué sale.** Antes de consultar, la app muestra la lista exacta de indicadores que se enviarán y los que se omiten, con el motivo. Solo viajan IP públicas y dominios; nunca IP internas, cuentas, equipos, comandos ni contenido de los logs.
 - **Las IP de documentación (RFC 5737) no se consultan**, porque no tienen reputación real. El export de ejemplo usa solo esas, así que allí no hay nada que enviar; hay una casilla para incluirlas únicamente si quieres probar que tu clave funciona.
 - **No cambia la criticidad.** La reputación es contexto para el analista; el motor de reglas sigue decidiendo.
-- **Claves gratuitas:** crea una cuenta en [VirusTotal](https://www.virustotal.com) y otra en [AbuseIPDB](https://www.abuseipdb.com) y define `VT_API_KEY` y `ABUSEIPDB_API_KEY` en `.env`, o pégalas en la interfaz (solo se usan en esa consulta). Con una sola de las dos funciona igual.
+- **Claves gratuitas:** crea una cuenta en [VirusTotal](https://www.virustotal.com) y otra en [AbuseIPDB](https://www.abuseipdb.com) y define `VT_API_KEY` y `ABUSEIPDB_API_KEY` en `.env`, o pégalas en la interfaz (solo se usan en esa consulta). Con una sola de las dos funciona igual (AbuseIPDB solo consulta IP; los dominios van solo a VirusTotal).
 - **Límites del plan gratuito:** VirusTotal permite 4 consultas por minuto y 500 por día, así que la app consulta una cada ~15 s (25 indicadores como máximo por consulta, ~6 min). AbuseIPDB permite 1.000 por día. Si una clave es rechazada o se agota la cuota, esa consulta se detiene con un aviso.
 
 ## Pruebas
@@ -135,7 +137,7 @@ python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (93 %
 ```
 
 - `tests/unit/`: motor de detección contra el Excel de ejemplo, límites del parser y formatos de entrada (CSV, TSV, JSON, NDJSON, codificaciones y zonas horarias).
-- `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras) capa de IA y consultas de reputación con servidores simulados (las pruebas no usan red ni claves).
+- `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras), capa de IA y consultas de reputación con servidores simulados (las pruebas no usan red ni claves).
 - `tests/e2e/`: arranca el servidor real y recorre carga, análisis y PDF.
 
 ## Seguridad
@@ -155,10 +157,13 @@ python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (93 %
 ## Estructura
 
 ```
-backend/      parser, reglas de detección, correlación, IA, informe PDF y API (FastAPI)
+backend/      parser, reglas de detección, correlación, IA, reputación (VirusTotal/AbuseIPDB), informe PDF y API (FastAPI)
 frontend/     interfaz web sin build (HTML, CSS y JS; fuentes IBM Plex locales)
 sample_data/  export de ejemplo en Excel, CSV y NDJSON
 tests/        unit, integration y e2e
+examples/     informe técnico de ejemplo en PDF
+img/          capturas del README
+Dockerfile, docker-compose.yml y .github/workflows/tests.yml (imagen y pruebas automáticas)
 ```
 
 ## Licencia

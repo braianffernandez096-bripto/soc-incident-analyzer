@@ -1,10 +1,8 @@
    name: Tests
-
    on:
      push:
        branches: [main]
      pull_request:
-
    jobs:
      pytest:
        runs-on: ubuntu-24.04
@@ -16,7 +14,6 @@
              cache: pip
          - run: pip install -r requirements.txt
          - run: python -m pytest --cov=backend --cov-report=term-missing
-
      docker:
        runs-on: ubuntu-24.04
        steps:

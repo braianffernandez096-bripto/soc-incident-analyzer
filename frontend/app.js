@@ -3,7 +3,7 @@
 
 const SEV = ["Crítico", "Alto", "Medio", "Bajo"];
 const SEV_COLOR = { "Crítico": "#b3261e", "Alto": "#e07b00", "Medio": "#d4b100", "Bajo": "#3f8f68" };
-const S = { sid: null, filename: "", client: "", analyst: "", a: null, ai: null, aiConfigured: false,
+const S = { sid: null, filename: "", client: "", analyst: "", a: null, ai: null, aiConfigured: false, intel: null, intelConfirm: false, intelReserved: false,
             findingFilter: "Todos", findingCat: "", findingQ: "", logs: { page: 1, q: "", severity: "", flagged: "", host: "", user: "", event_id: "", finding: "" } };
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -40,6 +40,7 @@ function adopt(res) {
   S.a = res.analysis; S.ai = res.ai; if (res.ai_configured !== undefined) S.aiConfigured = res.ai_configured;
   S.logs = { page: 1, q: "", severity: "", flagged: "", host: "", user: "", event_id: "", finding: "" };
   S.findingFilter = "Todos"; S.findingCat = ""; S.findingQ = "";
+  S.intel = null; S.intelConfirm = false; S.intelReserved = false; clearInterval(S.intelTimer);
   store.set("sid", S.sid);
 }
 async function upload(file, client, analyst) {
@@ -77,7 +78,7 @@ function render() {
   const views = { dashboard, incidents, findings, logs, iocs, report };
   const v = views[r] || dashboard;
   main.innerHTML = `<div class="view">${v()}</div>`; bindHero(); countUp();
-  const bind = { dashboard: bindDashboard, incidents: bindIncidents, findings: bindFindings, logs: bindLogs, iocs: () => {}, report: bindReport }[views[r] ? r : "dashboard"];
+  const bind = { dashboard: bindDashboard, incidents: bindIncidents, findings: bindFindings, logs: bindLogs, iocs: bindIocs, report: bindReport }[views[r] ? r : "dashboard"];
   bind();
   if (!S.keepScroll) window.scrollTo(0, 0);
   S.keepScroll = false;
@@ -372,10 +373,95 @@ function bindLogs() {
 }
 
 /* ---------- IoC ---------- */
+const ipOf = (v) => { const m = String(v || "").match(/\b(\d{1,3}(?:\.\d{1,3}){3})\b/); return m ? m[1] : ""; };
+function repKey(i) {
+  if (i.type === "IP") return ipOf(i.value) || i.value;
+  if (i.type === "URL/URI" && /^https?:\/\//i.test(i.value)) { try { return new URL(i.value).hostname.toLowerCase(); } catch { return ""; } }
+  return "";
+}
+function repCell(r) {
+  if (!r) return `<span class="muted">—</span>`;
+  const vt = r.vt && r.vt.status === "ok" ? `VT ${r.vt.malicious}/${r.vt.total}` : r.vt ? "VT sin datos" : "";
+  const ab = r.abuse && r.abuse.status === "ok" ? `Abuse ${r.abuse.score} %` : r.abuse ? "Abuse sin datos" : "";
+  const links = [r.vt && r.vt.link ? `<a href="${esc(r.vt.link)}" target="_blank" rel="noopener noreferrer">VirusTotal</a>` : "",
+                 r.abuse && r.abuse.link ? `<a href="${esc(r.abuse.link)}" target="_blank" rel="noopener noreferrer">AbuseIPDB</a>` : ""].filter(Boolean).join(" · ");
+  const who = [r.abuse && r.abuse.country, (r.abuse && r.abuse.isp) || (r.vt && (r.vt.owner || r.vt.registrar))].filter(Boolean).join(" · ");
+  return `<span class="rep ${esc(String(r.verdict).replace(/\s+/g, "-"))}">${esc(r.verdict)}</span>${r.reserved ? ` <span class="muted">(prueba)</span>` : ""}
+    <div class="muted" style="font-size:12px;margin-top:3px">${esc([vt, ab].filter(Boolean).join(" · "))}${who ? `<br>${esc(who)}` : ""}${links ? `<br>${links}` : ""}</div>`;
+}
+function intelPanel() {
+  const I = S.intel, job = I && I.job, plan = I && I.plan;
+  const head = `<h3>Reputación de indicadores externos <span class="muted" style="font-weight:400">(VirusTotal y AbuseIPDB, opcional)</span></h3>`;
+  if (!I) return `<div class="panel">${head}<p class="muted">Cargando…</p></div>`;
+  if (job && job.status === "running") {
+    const pct = job.total ? Math.round((job.done / job.total) * 100) : 0;
+    return `<div class="panel">${head}<p>Consultando indicadores… <b>${job.done}</b> de <b>${job.total}</b>. Con el plan gratuito de VirusTotal son 4 consultas por minuto, así que puede tardar unos minutos.</p>
+      <div class="meter" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div></div>`;
+  }
+  const notices = job && (job.notices || []).length ? `<div class="notice" style="margin-top:12px">${job.notices.map(esc).join("<br>")}</div>` : "";
+  if (S.intelConfirm) {
+    const q = plan.queries, prov = I.configured;
+    const need = [!prov.virustotal ? `<label class="f" style="max-width:420px">API key de VirusTotal (solo se usa en esta consulta)<input type="password" id="vtKey" autocomplete="off"></label>` : "",
+                  !prov.abuseipdb ? `<label class="f" style="max-width:420px">API key de AbuseIPDB (solo se usa en esta consulta)<input type="password" id="abKey" autocomplete="off"></label>` : ""].join("");
+    const skipped = plan.skipped.length ? `<details style="margin-top:8px"><summary class="muted">${plan.skipped.length} indicadores no se enviarán</summary><ul>${plan.skipped.map((x) => `<li><span class="mono">${esc(x.value)}</span> — ${esc(x.reason)}</li>`).join("")}</ul></details>` : "";
+    const resv = plan.reserved_available ? `<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="resv" ${S.intelReserved ? "checked" : ""}> Incluir ${plan.reserved_available} IP de documentación (solo para probar la conexión; no tienen reputación real)</label>` : "";
+    const none = !q.length ? `<div class="notice" style="margin-top:10px">No hay indicadores públicos para consultar.</div>` : "";
+    return `<div class="panel">${head}
+      <p><b>Se enviarán ${q.length} indicadores públicos</b> a VirusTotal y AbuseIPDB (solo IP y dominios). No se envían cuentas, equipos, comandos ni contenido de los logs. Cada servicio recibe esos indicadores y puede registrarlos.</p>
+      <div>${q.map((x) => `<span class="tag mono">${esc(x.value)}</span>`).join(" ")}</div>
+      ${plan.truncated ? `<p class="muted">Se consultarán los primeros ${plan.max_indicators}; ${plan.truncated} quedan fuera por el tope por consulta.</p>` : ""}
+      ${skipped}${resv}${none}
+      ${need ? `<div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap">${need}</div>` : ""}
+      <div style="margin-top:14px;display:flex;gap:10px"><button class="btn primary" id="intelGo" ${q.length ? "" : "disabled"}>Confirmar y consultar</button><button class="btn ghost" id="intelCancel">Cancelar</button></div></div>`;
+  }
+  const done = job && job.status === "done";
+  return `<div class="panel">${head}
+    <p class="muted">Añade contexto a los indicadores externos: cuántos motores los marcan como maliciosos y cuántos reportes de abuso tienen. No cambia la criticidad de los hallazgos. Solo se envían IP y dominios públicos, y solo cuando tú lo confirmas.</p>
+    ${done ? `<div class="stat-line"><span>Consultados: <b>${job.results.length}</b></span><span>Maliciosos: <b>${job.results.filter((r) => r.verdict === "Malicioso").length}</b></span><span>Sospechosos: <b>${job.results.filter((r) => r.verdict === "Sospechoso").length}</b></span><span>${esc(job.queried_at || "")}</span></div>` : ""}
+    ${job && job.status === "error" ? `<div class="notice">No se pudo completar la consulta.</div>` : ""}${notices}
+    <div style="margin-top:12px"><button class="btn dark" id="intelOpen">${done ? "Volver a consultar" : "Consultar reputación…"}</button></div></div>`;
+}
 function iocs() {
+  const res = {}; ((S.intel && S.intel.job && S.intel.job.results) || []).forEach((r) => { res[r.indicator] = r; });
+  const hasRep = Object.keys(res).length > 0;
   return `<div class="page-head"><div><h1>Indicadores de compromiso</h1><p>Solo se listan valores presentes en los hallazgos con evidencia.</p></div></div>
-    <div class="tbl-wrap"><table><thead><tr><th>Tipo</th><th>Valor</th><th>Criticidad</th><th>Notas</th><th>Primera vez</th><th>Última vez</th><th>Hallazgos</th></tr></thead><tbody>${S.a.iocs.map((i) =>
-      `<tr><td>${esc(i.type)}</td><td class="mono" style="word-break:break-all">${esc(i.value)}</td><td>${sevPill(i.severity)}</td><td>${(i.notes || []).map(esc).join("<br>")}</td><td class="mono">${esc(hhmmss(i.first_seen))}</td><td class="mono">${esc(hhmmss(i.last_seen))}</td><td>${(i.finding_ids || []).map((f) => `<span class="tag">${esc(f)}</span>`).join("")}</td></tr>`).join("")}</tbody></table></div>`;
+    ${intelPanel()}
+    <div class="tbl-wrap" style="margin-top:16px"><table><thead><tr><th>Tipo</th><th>Valor</th><th>Criticidad</th>${hasRep ? "<th>Reputación</th>" : ""}<th>Notas</th><th>Primera vez</th><th>Última vez</th><th>Hallazgos</th></tr></thead><tbody>${S.a.iocs.map((i) =>
+      `<tr><td>${esc(i.type)}</td><td class="mono" style="word-break:break-all">${esc(i.value)}</td><td>${sevPill(i.severity)}</td>${hasRep ? `<td>${repCell(res[repKey(i)])}</td>` : ""}<td>${(i.notes || []).map(esc).join("<br>")}</td><td class="mono">${esc(hhmmss(i.first_seen))}</td><td class="mono">${esc(hhmmss(i.last_seen))}</td><td>${(i.finding_ids || []).map((f) => `<span class="tag">${esc(f)}</span>`).join("")}</td></tr>`).join("")}</tbody></table></div>`;
+}
+async function loadIntel() {
+  try {
+    S.intel = await api(`/api/sessions/${S.sid}/intel?include_reserved=${S.intelReserved ? "true" : "false"}`);
+    if (S.intel.job && S.intel.job.status === "running") pollIntel();
+  } catch (e) { toast(e.message); }
+  if (route() === "iocs") { S.keepScroll = true; render(); }
+}
+function pollIntel() {
+  clearInterval(S.intelTimer);
+  S.intelTimer = setInterval(async () => {
+    try {
+      S.intel = await api(`/api/sessions/${S.sid}/intel?include_reserved=${S.intelReserved ? "true" : "false"}`);
+      const running = S.intel.job && S.intel.job.status === "running";
+      if (!running) { clearInterval(S.intelTimer); toast("Consulta de reputación terminada"); }
+      if (route() === "iocs") { S.keepScroll = true; render(); }
+    } catch { clearInterval(S.intelTimer); }
+  }, 2500);
+}
+function bindIocs() {
+  if (!S.intel) loadIntel();
+  const open = $("#intelOpen"), cancel = $("#intelCancel"), go = $("#intelGo"), resv = $("#resv");
+  if (open) open.onclick = () => { S.intelConfirm = true; S.keepScroll = true; render(); };
+  if (cancel) cancel.onclick = () => { S.intelConfirm = false; S.keepScroll = true; render(); };
+  if (resv) resv.onchange = async () => { S.intelReserved = resv.checked; S.keepScroll = true; await loadIntel(); };
+  if (go) go.onclick = async () => {
+    const h = {}; const v = $("#vtKey"), a = $("#abKey");
+    if (v && v.value.trim()) h["X-VT-Key"] = v.value.trim();
+    if (a && a.value.trim()) h["X-AbuseIPDB-Key"] = a.value.trim();
+    try {
+      const r = await api(`/api/sessions/${S.sid}/intel?include_reserved=${S.intelReserved ? "true" : "false"}`, { method: "POST", headers: h });
+      S.intel.job = r.job; S.intelConfirm = false; S.keepScroll = true; render(); pollIntel();
+    } catch (e) { toast(e.message); }
+  };
 }
 
 /* ---------- informe ---------- */

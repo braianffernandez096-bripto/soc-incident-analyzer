@@ -9,4 +9,6 @@ services:
       # Opcional: se toma de tu entorno o de un archivo .env junto a este archivo
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-}
+      - VT_API_KEY=${VT_API_KEY:-}
+      - ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY:-}
     restart: unless-stopped

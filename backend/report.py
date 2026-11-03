@@ -208,6 +208,52 @@ def finding_block(f: dict, fa: dict, df: pd.DataFrame, ai_mode: bool) -> list:
     return items
 
 
+def _vt_text(vt: dict | None) -> str:
+    if not vt:
+        return "No consultado"
+    st = vt.get("status")
+    if st == "not_found":
+        return "Sin información"
+    if st != "ok":
+        return "No disponible"
+    txt = f"{vt['malicious']} de {vt['total']} motores lo marcan malicioso" if vt["total"] else "Sin análisis"
+    if vt.get("suspicious"):
+        txt += f"; {vt['suspicious']} sospechoso"
+    return txt
+
+
+def _abuse_text(ab: dict | None) -> str:
+    if not ab:
+        return "No consultado"
+    if ab.get("status") != "ok":
+        return "No disponible"
+    txt = f"Puntaje {ab['score']} %, {ab['reports']} reportes en {ab['window_days']} días"
+    if ab.get("tor"):
+        txt += "; nodo Tor"
+    return txt
+
+
+def intel_section(intel: dict) -> list:
+    """Tabla de reputación de indicadores (VirusTotal / AbuseIPDB). Informativa: no altera ninguna criticidad."""
+    out: list = [Spacer(1, 6), P("Reputación de indicadores externos", "h2"),
+                 P(f"Consulta realizada el {intel.get('queried_at') or 'dato no disponible'} con "
+                   f"{' y '.join({'virustotal': 'VirusTotal', 'abuseipdb': 'AbuseIPDB'}[p] for p in intel.get('providers', []))}. "
+                   "Es información de contexto: no modifica la criticidad de los hallazgos, que la fija el motor de reglas. "
+                   "Una IP sin reportes no prueba que sea legítima.")]
+    rows = [[hcell("Indicador"), hcell("Resumen"), hcell("VirusTotal"), hcell("AbuseIPDB"), hcell("País / propietario")]]
+    for r in intel.get("results", []):
+        vt, ab = r.get("vt") or {}, r.get("abuse") or {}
+        who = " / ".join(x for x in [ab.get("country") or vt.get("country"), ab.get("isp") or vt.get("owner") or vt.get("registrar")] if x)
+        label = escape(D.trunc(r["indicator"], 40)) + ("<br/><i>IP de documentación (consulta de prueba)</i>" if r.get("reserved") else "")
+        rows.append([Paragraph(label, S["cellb"]), Paragraph(escape(r.get("verdict", "")), S["cell"]),
+                     Paragraph(escape(_vt_text(r.get("vt"))), S["cell"]), Paragraph(escape(_abuse_text(r.get("abuse"))), S["cell"]),
+                     Paragraph(escape(D.trunc(who, 60)), S["cell"])])
+    out.append(table(rows, [34 * mm, 20 * mm, 40 * mm, 40 * mm, CONTENT_W - 134 * mm]))
+    for n in intel.get("notices", []):
+        out.append(P(f"Aviso: {n}", "small"))
+    return out
+
+
 def _on_page(canvas, doc, meta):
     canvas.saveState()
     if doc.page > 1:
@@ -229,7 +275,7 @@ def _on_page(canvas, doc, meta):
 # --------------------------------------------------------------------------
 # documento
 # --------------------------------------------------------------------------
-def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict) -> bytes:
+def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: dict | None = None) -> bytes:
     meta = {"client": meta.get("client") or "Cliente", "analyst": meta.get("analyst") or "Analista SOC Nivel 2",
             "filename": meta.get("filename") or "export_siem.xlsx"}
     buf = io.BytesIO()
@@ -360,13 +406,16 @@ def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict) -> bytes:
     # ---- 6. IoC ---------------------------------------------------------------
     story.append(PageBreak())
     story.append(P("6. Indicadores de compromiso (IoC)", "h1"))
-    story.append(P("Indicadores extraídos de las evidencias. El export no contiene hashes de archivos ni reputación de IP; esos datos deben obtenerse en el endpoint o con inteligencia de amenazas."))
+    story.append(P("Indicadores extraídos de las evidencias. El export no contiene hashes de archivos ni reputación de IP; esos datos deben obtenerse en el endpoint o con inteligencia de amenazas."
+                   if not intel else "Indicadores extraídos de las evidencias. El export no contiene hashes de archivos ni reputación de IP; la reputación de los indicadores externos se consultó aparte (ver más abajo)."))
     ir = [[hcell("Tipo"), hcell("Valor"), hcell("Crit."), hcell("Primera vez"), hcell("Contexto"), hcell("Hallazgos")]]
     for i in analysis["iocs"]:
         ctx = "; ".join(i["notes"][:2]) + (f" ({D.pl(i['events'], 'evento', 'eventos')} en el export)" if i.get("events") is not None else "")
         ir.append([Paragraph(escape(i["type"]), S["cell"]), Paragraph(escape(D.trunc(i["value"], 90)), S["cellb"]), Paragraph(i["severity"], S["cell"]),
                    Paragraph(i["first_seen"][11:], S["cell"]), Paragraph(escape(ctx), S["cell"]), Paragraph(escape(", ".join(i["finding_ids"][:4])), S["cell"])])
     story.append(table(ir, [24 * mm, 48 * mm, 13 * mm, 15 * mm, CONTENT_W - 24 * mm - 48 * mm - 13 * mm - 15 * mm - 22 * mm, 22 * mm]))
+    if intel and intel.get("results"):
+        story += intel_section(intel)
 
     # ---- 7. plan de acción ----------------------------------------------------
     story.append(P("7. Plan de acción priorizado", "h1"))

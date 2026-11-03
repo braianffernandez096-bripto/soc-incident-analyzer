@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import ai as ai_mod
 from . import detection as D
+from . import intel as intel_mod
 from .analysis import analyze, rows_for
 from .parser import SUPPORTED_EXT, ParseError, load_events
 from .report import build_pdf
@@ -86,7 +87,7 @@ async def security_headers(request: Request, call_next):
 
 
 # Límite de peticiones por IP (ventana deslizante en memoria). Protege los endpoints costosos.
-RATE_LIMITS = {"/api/upload": (20, 60), "/api/ai": (6, 60)}      # (peticiones, segundos)
+RATE_LIMITS = {"/api/upload": (20, 60), "/api/ai": (6, 60), "/api/intel": (6, 60)}      # (peticiones, segundos)
 _hits: dict[tuple[str, str], deque] = defaultdict(deque)
 _hits_lock = threading.Lock()
 
@@ -113,6 +114,7 @@ class Session:
     client: str = ""
     analyst: str = ""
     created: float = field(default_factory=time.time)
+    intel: dict | None = None      # estado de la consulta de reputación (VirusTotal / AbuseIPDB)
 
 
 SESSIONS: dict[str, Session] = {}
@@ -127,6 +129,17 @@ def _get(sid: str) -> Session:
 
 def _api_key(header_key: str | None) -> str | None:
     return (header_key or "").strip() or os.environ.get("ANTHROPIC_API_KEY", "").strip() or None
+
+
+def _intel_keys(vt_header: str | None = None, abuse_header: str | None = None) -> tuple[str | None, str | None]:
+    vt = (vt_header or "").strip() or os.environ.get("VT_API_KEY", "").strip() or None
+    ab = (abuse_header or "").strip() or os.environ.get("ABUSEIPDB_API_KEY", "").strip() or None
+    return vt, ab
+
+
+def _new_http():
+    """Cliente HTTP para las consultas de reputación (None = el módulo crea el suyo). Punto de inyección para las pruebas."""
+    return None
 
 
 # --------------------------------------------------------------------------
@@ -259,6 +272,48 @@ def run_ai(sid: str, request: Request, x_anthropic_key: str | None = Header(defa
     return {"ai": result}
 
 
+# ---------------------------------------------------------------- inteligencia de amenazas (opcional)
+@app.get("/api/sessions/{sid}/intel")
+def intel_state(sid: str, include_reserved: bool = False):
+    """Qué se consultaría (sin tocar la red), qué proveedores tienen clave en el servidor y el estado de la última consulta."""
+    s = _get(sid)
+    return {"configured": {"virustotal": bool(os.environ.get("VT_API_KEY", "").strip()),
+                           "abuseipdb": bool(os.environ.get("ABUSEIPDB_API_KEY", "").strip())},
+            "plan": intel_mod.build_plan(s.analysis["iocs"], include_reserved), "job": s.intel}
+
+
+def _intel_worker(s: Session, queries: list[dict], vt: str | None, ab: str | None) -> None:
+    def progress(p: dict) -> None:
+        s.intel.update(done=p["done"], results=p["results"], notices=p["notices"])
+    try:
+        out = intel_mod.lookup(queries, vt, ab, http=_new_http(), on_progress=progress)
+        s.intel.update(status="done", done=len(out["results"]), results=out["results"], notices=out["notices"], queried_at=out["queried_at"])
+    except Exception:  # error inesperado: detalle al log (sin claves), mensaje genérico al usuario
+        log.exception("intel_failed")
+        s.intel.update(status="error", notices=["No se pudo completar la consulta de reputación."])
+
+
+@app.post("/api/sessions/{sid}/intel")
+def intel_start(sid: str, request: Request, include_reserved: bool = False, x_vt_key: str | None = Header(default=None),
+                x_abuseipdb_key: str | None = Header(default=None)):
+    _rate_limit(request, "/api/intel", *RATE_LIMITS["/api/intel"])
+    s = _get(sid)
+    if s.intel and s.intel.get("status") == "running":
+        raise HTTPException(409, "Ya hay una consulta de reputación en curso.")
+    vt, ab = _intel_keys(x_vt_key, x_abuseipdb_key)
+    if not (vt or ab):
+        raise HTTPException(400, "No hay claves de VirusTotal ni de AbuseIPDB. Defínelas en el archivo .env (VT_API_KEY, ABUSEIPDB_API_KEY) o pégalas en la interfaz.")
+    plan = intel_mod.build_plan(s.analysis["iocs"], include_reserved)
+    if not plan["queries"]:
+        raise HTTPException(400, "No hay indicadores públicos para consultar: todas las IP son internas o de documentación.")
+    providers = intel_mod.available_providers(vt, ab)
+    s.intel = {"status": "running", "started": time.time(), "total": len(plan["queries"]), "done": 0, "results": [],
+               "notices": [], "providers": providers, "queried_at": ""}
+    log.info("intel_start session=%s indicators=%d providers=%s", sid, len(plan["queries"]), ",".join(providers))   # nunca las claves
+    threading.Thread(target=_intel_worker, args=(s, plan["queries"], vt, ab), daemon=True).start()
+    return {"job": s.intel}
+
+
 @app.get("/api/sessions/{sid}/report.pdf")
 def report_pdf(sid: str, client: str | None = None, analyst: str | None = None):
     s = _get(sid)
@@ -266,7 +321,8 @@ def report_pdf(sid: str, client: str | None = None, analyst: str | None = None):
         s.client = client.strip()
     if analyst is not None:
         s.analyst = analyst.strip()
-    pdf = build_pdf(s.analysis, s.ai, s.df, {"client": s.client, "analyst": s.analyst, "filename": s.filename})
+    intel = s.intel if s.intel and s.intel.get("results") else None
+    pdf = build_pdf(s.analysis, s.ai, s.df, {"client": s.client, "analyst": s.analyst, "filename": s.filename}, intel=intel)
     return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": 'attachment; filename="informe_incidentes_seguridad.pdf"'})
 

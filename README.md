@@ -111,26 +111,36 @@ Si preferís no instalar Python, con Docker y Docker Compose alcanza:
 ```bash
 git clone https://github.com/braianffernandez096-bripto/soc-incident-analyzer.git
 cd soc-incident-analyzer
-cp .env.example .env            # opcional: tu ANTHROPIC_API_KEY
+cp .env.example .env            # opcional: tus claves (Anthropic, VirusTotal, AbuseIPDB)
 docker compose up --build
 ```
 
 Abre http://127.0.0.1:8000. El puerto queda publicado solo en tu equipo (`127.0.0.1`) porque la app no tiene login. La imagen corre con un usuario sin privilegios y no incluye tu `.env`: la clave se pasa como variable de entorno.
 
+## Reputación de IP y dominios (VirusTotal y AbuseIPDB)
+
+Opcional. En la pestaña **IoC**, el botón **Consultar reputación** enriquece los indicadores externos con VirusTotal (cuántos motores los marcan como maliciosos) y AbuseIPDB (puntaje de confianza de abuso y reportes de los últimos 90 días). El resultado aparece en la tabla de IoC y en una sección del informe PDF.
+
+- **Tú decides qué sale.** Antes de consultar, la app muestra la lista exacta de indicadores que se enviarán y los que se omiten, con el motivo. Solo viajan IP públicas y dominios; nunca IP internas, cuentas, equipos, comandos ni contenido de los logs.
+- **Las IP de documentación (RFC 5737) no se consultan**, porque no tienen reputación real. El export de ejemplo usa solo esas, así que allí no hay nada que enviar; hay una casilla para incluirlas únicamente si quieres probar que tu clave funciona.
+- **No cambia la criticidad.** La reputación es contexto para el analista; el motor de reglas sigue decidiendo.
+- **Claves gratuitas:** crea una cuenta en [VirusTotal](https://www.virustotal.com) y otra en [AbuseIPDB](https://www.abuseipdb.com) y define `VT_API_KEY` y `ABUSEIPDB_API_KEY` en `.env`, o pégalas en la interfaz (solo se usan en esa consulta). Con una sola de las dos funciona igual.
+- **Límites del plan gratuito:** VirusTotal permite 4 consultas por minuto y 500 por día, así que la app consulta una cada ~15 s (25 indicadores como máximo por consulta, ~6 min). AbuseIPDB permite 1.000 por día. Si una clave es rechazada o se agota la cuota, esa consulta se detiene con un aviso.
+
 ## Pruebas
 
 ```bash
-python -m pytest                                           # 88 pruebas
+python -m pytest                                           # 155 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (93 %)
 ```
 
 - `tests/unit/`: motor de detección contra el Excel de ejemplo, límites del parser y formatos de entrada (CSV, TSV, JSON, NDJSON, codificaciones y zonas horarias).
-- `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras) y capa de IA con un servidor simulado.
+- `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras) capa de IA y consultas de reputación con servidores simulados (las pruebas no usan red ni claves).
 - `tests/e2e/`: arranca el servidor real y recorre carga, análisis y PDF.
 
 ## Seguridad
 
-- La clave de Anthropic vive en `.env` (excluido de Git) o se pega en la interfaz; nunca se guarda ni se registra.
+- Las claves (Anthropic, VirusTotal, AbuseIPDB) viven en `.env` (excluido de Git) o se pegan en la interfaz; nunca se guardan, se registran ni se devuelven al navegador.
 - Todo dato del archivo se escapa antes de mostrarse y antes de entrar al PDF. La interfaz aplica una CSP estricta (`script-src 'self'`).
 - Límites: 25 MB de subida (lectura acotada), 300 MB descomprimidos, 100.000 filas y límite de peticiones por IP.
 - La app no tiene login: úsala en local. Si la expones en red, ponla detrás de un proxy con autenticación.
@@ -139,7 +149,7 @@ python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (93 %
 
 - Si las marcas de tiempo no traen zona horaria, se usan tal cual; si la traen, se convierten a UTC.
 - Los rangos 192.0.2.0/24, 198.51.100.0/24 y 203.0.113.0/24 (documentación) se tratan como externos.
-- El mapeo MITRE ATT&CK es orientativo. No hay reputación de IP ni geolocalización.
+- El mapeo MITRE ATT&CK es orientativo. La reputación de IP es opcional y orientativa; no hay geolocalización propia.
 - Los archivos de sesión viven en memoria (máx. 10) y se pierden al reiniciar el servidor.
 
 ## Estructura

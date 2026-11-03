@@ -36,8 +36,13 @@ def _profile(df: pd.DataFrame, meta: dict) -> dict:
 
 
 def _limitations(df: pd.DataFrame, profile: dict) -> list[str]:
+    tz_note = (
+        "Las marcas de tiempo del export traían zona horaria (u hora epoch); se convirtieron a UTC para unificarlas."
+        if profile["load"].get("timezone_converted")
+        else "Las marcas de tiempo del export no indican zona horaria; se usaron tal como vienen."
+    )
     out = [
-        "Las marcas de tiempo del export no indican zona horaria; se usaron tal como vienen.",
+        tz_note,
         f"El export cubre solo {profile['duration']} de un único día ({profile['time_start'][:10]}). No hay línea base histórica, por lo que no "
         "se evaluó 'horario inusual' ni desvíos respecto del comportamiento normal de cada usuario.",
         "Las rutas, hashes de archivos, nombres de proceso padre y tipo de inicio de sesión solo están cuando el SIEM los incluyó en "

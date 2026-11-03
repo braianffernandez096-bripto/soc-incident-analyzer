@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from . import ai as ai_mod
 from . import detection as D
 from .analysis import analyze, rows_for
-from .parser import ParseError, load_events
+from .parser import SUPPORTED_EXT, ParseError, load_events
 from .report import build_pdf
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -138,7 +138,7 @@ def health():
 
 def _create_session(data: bytes, name: str, client: str, analyst: str) -> dict:
     try:
-        df, meta = load_events(data)
+        df, meta = load_events(data, name)
     except ParseError as exc:
         raise HTTPException(422, str(exc)) from exc
     t0 = time.perf_counter()
@@ -158,8 +158,8 @@ def _create_session(data: bytes, name: str, client: str, analyst: str) -> dict:
 async def upload(request: Request, file: UploadFile = File(...), client: str = Form(""), analyst: str = Form("")):
     _rate_limit(request, "/api/upload", *RATE_LIMITS["/api/upload"])
     name = os.path.basename(file.filename or "export.xlsx")[:120]
-    if not name.lower().endswith((".xlsx", ".xlsm")):
-        raise HTTPException(400, "El archivo debe ser un Excel (.xlsx).")
+    if not name.lower().endswith(SUPPORTED_EXT):
+        raise HTTPException(400, "Formato no soportado. Usa Excel (.xlsx), CSV/TSV o JSON/NDJSON.")
     chunks, size = [], 0
     while chunk := await file.read(1024 * 1024):   # lectura acotada: no carga archivos enormes completos en memoria
         size += len(chunk)

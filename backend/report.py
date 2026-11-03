@@ -271,7 +271,7 @@ def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict) -> bytes:
     story.append(P("Este informe fue generado por la aplicación SOC Incident Analyzer. Los hallazgos y su criticidad se determinan con reglas "
                    "aplicadas directamente sobre los registros y cada conclusión cita los Log_ID que la sustentan. "
                    + ("La explicación técnica y el plan de acción fueron redactados con asistencia de IA (" + str(ai.get("model")) + ") y verificados "
-                      "contra el Excel: se descartan las citas o direcciones que no existan en los datos." if ai_mode
+                      "contra el archivo de logs: se descartan las citas o direcciones que no existan en los datos." if ai_mode
                       else "La redacción corresponde al modo determinista (sin IA)."), "small"))
     story.append(PageBreak())
 
@@ -299,7 +299,7 @@ def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict) -> bytes:
     story.append(P(f"Se analizó el export del SIEM «{meta['filename']}» ({D.fmt_int(p['rows'])} eventos, {p['hosts']} hosts, {p['users']} cuentas, "
                    f"{p['time_start']} a {p['time_end']}, {p['duration']}). El análisis combina tres pasos:"))
     story += bullets([
-        "Detección determinista: reglas explícitas sobre los campos del Excel (fuerza bruta, inicios de sesión sospechosos, escalamiento, comandos y "
+        "Detección determinista: reglas explícitas sobre los campos del archivo (fuerza bruta, inicios de sesión sospechosos, escalamiento, comandos y "
         "procesos, movimiento lateral, exfiltración, persistencia, ataques web y anomalías de calidad de datos). Cada hallazgo conserva sus Log_ID.",
         "Correlación: los hallazgos se agrupan en incidentes si comparten un actor (IP externa o cuenta). Compartir solo un host o un recurso NO fusiona incidentes; "
         "esos casos se reportan como hipótesis de baja confianza.",

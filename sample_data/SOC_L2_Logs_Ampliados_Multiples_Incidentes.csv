@@ -1,0 +1,716 @@
+Log_ID,Timestamp,Hostname,Event_ID,User,Source_IP,Destination,Log_Source,Event_Description,Process_CommandLine,Result,Severity
+EVT-00001,2026-10-23 07:46:07,WS-018,7036,CORP\helpdesk,10.10.3.18,DC-01,System,Service entered running state,,Success,Informational
+EVT-00002,2026-10-23 07:46:08,WEB-01,4625,CORP\jlopez,10.10.1.22,FS-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00003,2026-10-23 07:47:29,DB-SRV01,4688,CORP\jlopez,10.10.1.22,DC-01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00004,2026-10-23 07:47:37,WEB-01,4634,CORP\dtorres,10.10.1.44,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00005,2026-10-23 07:48:11,DC-01,4625,CORP\slopez,10.10.2.24,FS-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00006,2026-10-23 07:48:42,WS-014,4624,CORP\mgarcia,10.10.3.18,APP-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00007,2026-10-23 07:50:27,WS-018,7036,CORP\rrojas,10.10.3.18,,System,Service entered running state,,Success,Informational
+EVT-00008,2026-10-23 07:51:51,WS-031,4663,CORP\rrojas,10.10.1.44,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00009,2026-10-23 07:52:19,FS-SRV01,5156,CORP\rrojas,10.10.1.44,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00010,2026-10-23 07:53:36,WS-023,4625,CORP\helpdesk,10.10.2.15,,Security,An account failed to log on,,Failure,Informational
+EVT-00011,2026-10-23 07:53:42,WS-031,4663,CORP\slopez,10.10.2.15,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00012,2026-10-23 07:53:57,WS-014,4663,CORP\jlopez,10.10.2.15,,Security,An attempt was made to access an object,,Success,Informational
+EVT-00013,2026-10-23 07:54:43,DB-SRV01,4634,CORP\slopez,10.10.1.31,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00014,2026-10-23 07:55:07,DC-01,5140,CORP\rrojas,10.10.2.24,APP-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00015,2026-10-23 07:56:31,FS-SRV01,4624,CORP\slopez,10.10.1.31,,Security,An account was successfully logged on,,Success,Informational
+EVT-00016,2026-10-23 07:57:38,DB-SRV01,4663,CORP\helpdesk,10.10.2.24,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00017,2026-10-23 07:57:47,DB-SRV01,5156,CORP\rrojas,10.10.1.44,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00018,2026-10-23 07:58:00,WS-023,4634,CORP\jlopez,10.10.2.15,APP-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00019,2026-10-23 07:59:09,DC-01,4624,CORP\backupsvc,10.10.1.31,FS-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00020,2026-10-23 07:59:17,DC-01,7036,CORP\slopez,10.10.3.18,APP-SRV01,System,Service entered running state,,Success,Informational
+EVT-00021,2026-10-23 08:01:54,WEB-01,4688,CORP\helpdesk,10.10.1.22,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00022,2026-10-23 08:02:52,FS-SRV01,4634,CORP\mgarcia,10.10.1.31,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00023,2026-10-23 08:03:08,DB-SRV01,4663,CORP\jlopez,10.10.3.18,DC-01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00024,2026-10-23 08:03:31,WS-031,5156,CORP\mgarcia,10.10.2.24,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00025,2026-10-23 08:04:41,APP-SRV01,5140,CORP\jlopez,10.10.2.24,,Security,A network share object was accessed,,Success,Informational
+EVT-00026,2026-10-23 08:05:04,DB-SRV01,4634,CORP\jlopez,10.10.3.18,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00027,2026-10-23 08:05:45,APP-SRV01,4624,CORP\aperez,10.10.1.44,APP-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00028,2026-10-23 08:07:04,WS-018,4624,CORP\helpdesk,10.10.3.18,FS-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00029,2026-10-23 08:08:02,WEB-01,4634,CORP\jlopez,10.10.1.44,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00030,2026-10-23 08:10:58,WS-031,5140,CORP\backupsvc,10.10.2.15,APP-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00031,2026-10-23 08:10:59,DC-01,4634,CORP\dtorres,10.10.2.24,APP-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00032,2026-10-23 08:11:31,WEB-01,4688,CORP\jlopez,10.10.3.18,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00033,2026-10-23 08:11:53,WEB-01,4625,CORP\slopez,10.10.2.24,FS-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00034,2026-10-23 08:12:11,WEB-01,4624,CORP\dtorres,10.10.3.18,FS-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00035,2026-10-23 08:12:38,WS-023,4634,CORP\helpdesk,10.10.3.18,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00036,2026-10-23 08:13:16,WS-018,4688,CORP\rrojas,10.10.1.31,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00037,2026-10-23 08:13:19,DC-01,5156,CORP\slopez,10.10.2.24,,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00038,2026-10-23 08:13:37,DB-SRV01,4634,CORP\backupsvc,10.10.1.31,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00039,2026-10-23 08:13:43,WEB-01,4634,CORP\aperez,10.10.1.22,,Security,An account was logged off,,Success,Informational
+EVT-00040,2026-10-23 08:14:48,WS-031,4624,CORP\slopez,10.10.3.18,,Security,An account was successfully logged on,,Success,Informational
+EVT-00041,2026-10-23 08:15:42,WS-023,7036,CORP\dtorres,10.10.1.31,DC-01,System,Service entered running state,,Success,Informational
+EVT-00042,2026-10-23 08:15:44,DC-01,4663,CORP\backupsvc,10.10.1.44,FS-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00043,2026-10-23 08:16:27,WS-031,7036,CORP\rrojas,10.10.1.44,FS-SRV01,System,Service entered running state,,Success,Informational
+EVT-00044,2026-10-23 08:17:21,WS-018,5140,CORP\aperez,10.10.3.18,,Security,A network share object was accessed,,Success,Informational
+EVT-00045,2026-10-23 08:19:51,WEB-01,7036,CORP\dtorres,10.10.3.18,APP-SRV01,System,Service entered running state,,Success,Informational
+EVT-00046,2026-10-23 08:20:12,WS-014,4625,CORP\dtorres,10.10.1.44,APP-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00047,2026-10-23 08:20:18,FS-SRV01,4688,CORP\mgarcia,10.10.1.22,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00048,2026-10-23 08:20:20,WS-014,5156,CORP\helpdesk,10.10.1.22,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00049,2026-10-23 08:20:42,WS-023,4624,CORP\rrojas,10.10.1.44,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00050,2026-10-23 08:21:02,DC-01,4634,CORP\rrojas,10.10.1.31,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00051,2026-10-23 08:21:31,DC-01,5156,CORP\jlopez,10.10.1.22,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00052,2026-10-23 08:21:32,WS-031,4634,CORP\dtorres,10.10.2.24,FS-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00053,2026-10-23 08:21:51,DC-01,7036,CORP\aperez,10.10.3.18,,System,Service entered running state,,Success,Informational
+EVT-00054,2026-10-23 08:22:24,DB-SRV01,7036,CORP\aperez,10.10.1.44,APP-SRV01,System,Service entered running state,,Success,Informational
+EVT-00055,2026-10-23 08:23:52,WS-018,4663,CORP\aperez,10.10.1.31,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00056,2026-10-23 08:24:55,DB-SRV01,4688,CORP\mgarcia,10.10.2.15,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00057,2026-10-23 08:25:00,DC-01,4625,CORP\jlopez,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00058,2026-10-23 08:25:19,DC-01,4625,CORP\aperez,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00059,2026-10-23 08:25:25,WS-023,4663,CORP\slopez,10.10.2.24,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00060,2026-10-23 08:25:38,DC-01,4625,CORP\helpdesk,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00061,2026-10-23 08:25:57,DC-01,4625,CORP\mgarcia,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00062,2026-10-23 08:26:02,WS-014,4625,CORP\rrojas,10.10.2.24,FS-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00063,2026-10-23 08:26:16,DC-01,4625,CORP\rrojas,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00064,2026-10-23 08:26:17,WS-031,4625,CORP\backupsvc,10.10.2.15,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00065,2026-10-23 08:26:35,DC-01,4625,CORP\slopez,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00066,2026-10-23 08:26:54,DC-01,4625,CORP\backupsvc,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00067,2026-10-23 08:27:08,WEB-01,4688,CORP\slopez,10.10.2.15,DC-01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00068,2026-10-23 08:27:13,DC-01,4625,CORP\dtorres,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00069,2026-10-23 08:27:32,DC-01,4625,CORP\jlopez,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00070,2026-10-23 08:27:43,WEB-01,4634,CORP\helpdesk,10.10.2.15,FS-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00071,2026-10-23 08:27:51,DC-01,4625,CORP\aperez,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00072,2026-10-23 08:27:55,WS-023,4663,CORP\jlopez,10.10.2.15,,Security,An attempt was made to access an object,,Success,Informational
+EVT-00073,2026-10-23 08:28:10,DC-01,4625,CORP\helpdesk,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00074,2026-10-23 08:28:29,DC-01,4625,CORP\mgarcia,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00075,2026-10-23 08:28:48,DC-01,4625,CORP\rrojas,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00076,2026-10-23 08:29:06,WS-031,4625,CORP\rrojas,10.10.1.31,APP-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00077,2026-10-23 08:29:07,DC-01,4625,CORP\slopez,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00078,2026-10-23 08:29:26,DC-01,4625,CORP\backupsvc,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00079,2026-10-23 08:29:45,DC-01,4625,CORP\dtorres,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00080,2026-10-23 08:29:51,APP-SRV01,4625,CORP\mgarcia,10.10.3.18,FS-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00081,2026-10-23 08:30:04,DC-01,4625,CORP\jlopez,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00082,2026-10-23 08:30:10,APP-SRV01,4625,CORP\jlopez,10.10.2.24,,Security,An account failed to log on,,Failure,Informational
+EVT-00083,2026-10-23 08:30:13,APP-SRV01,4624,CORP\mgarcia,10.10.3.18,,Security,An account was successfully logged on,,Success,Informational
+EVT-00084,2026-10-23 08:30:23,DC-01,4625,CORP\aperez,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00085,2026-10-23 08:30:42,DC-01,4625,CORP\helpdesk,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00086,2026-10-23 08:31:01,DC-01,4625,CORP\mgarcia,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00087,2026-10-23 08:31:07,WS-023,4624,CORP\jlopez,10.10.3.18,,Security,An account was successfully logged on,,Success,Informational
+EVT-00088,2026-10-23 08:31:20,DC-01,4625,CORP\rrojas,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00089,2026-10-23 08:31:25,WS-023,4625,CORP\dtorres,10.10.1.22,,Security,An account failed to log on,,Failure,Informational
+EVT-00090,2026-10-23 08:31:35,WS-023,5156,CORP\dtorres,10.10.3.18,,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00091,2026-10-23 08:31:37,WS-014,4663,CORP\jlopez,10.10.2.15,FS-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00092,2026-10-23 08:31:39,DC-01,4625,CORP\slopez,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00093,2026-10-23 08:31:54,WS-031,4624,CORP\mgarcia,10.10.2.24,FS-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00094,2026-10-23 08:31:58,DC-01,4625,CORP\backupsvc,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00095,2026-10-23 08:32:08,FS-SRV01,4688,CORP\aperez,10.10.1.31,,Security,A new process has been created,taskhostw.exe,Success,Informational
+EVT-00096,2026-10-23 08:32:17,DC-01,4625,CORP\dtorres,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00097,2026-10-23 08:32:24,WS-014,4624,CORP\helpdesk,10.10.1.22,,Security,An account was successfully logged on,,Success,Informational
+EVT-00098,2026-10-23 08:32:26,WEB-01,4634,CORP\rrojas,10.10.2.15,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00099,2026-10-23 08:32:36,DC-01,4625,CORP\jlopez,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00100,2026-10-23 08:32:55,DC-01,4625,CORP\aperez,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00101,2026-10-23 08:33:14,DC-01,4625,CORP\helpdesk,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00102,2026-10-23 08:33:16,WS-023,5156,CORP\rrojas,10.10.3.18,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00103,2026-10-23 08:33:33,APP-SRV01,5140,CORP\jlopez,10.10.2.15,,Security,A network share object was accessed,,Success,Informational
+EVT-00104,2026-10-23 08:33:33,DC-01,4625,CORP\mgarcia,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00105,2026-10-23 08:33:52,DC-01,4625,CORP\rrojas,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00106,2026-10-23 08:34:10,APP-SRV01,7036,CORP\aperez,10.10.1.31,DC-01,System,Service entered running state,,Success,Informational
+EVT-00107,2026-10-23 08:34:11,DC-01,4625,CORP\slopez,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00108,2026-10-23 08:34:30,DC-01,4625,CORP\backupsvc,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00109,2026-10-23 08:34:35,WS-014,4624,CORP\aperez,10.10.2.24,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00110,2026-10-23 08:34:49,DC-01,4625,CORP\dtorres,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00111,2026-10-23 08:35:08,DC-01,4625,CORP\jlopez,203.0.113.74,DC-01,Security,An account failed to log on - bad password,,Failure,Warning
+EVT-00112,2026-10-23 08:36:11,APP-SRV01,5140,CORP\jlopez,10.10.3.18,,Security,A network share object was accessed,,Success,Informational
+EVT-00113,2026-10-23 08:36:28,APP-SRV01,4625,CORP\mruiz,10.10.1.14,,Security,An account failed to log on,,Failure,Informational
+EVT-00114,2026-10-23 08:36:46,WS-022,4634,CORP\jlopez,10.10.1.14,,Security,An account was logged off,,Success,Informational
+EVT-00115,2026-10-23 08:37:10,DB-SRV01,4634,CORP\jlopez,10.10.1.22,FS-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00116,2026-10-23 08:37:23,FS-SRV01,4634,CORP\backupsvc,10.10.1.44,APP-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00117,2026-10-23 08:37:33,FS-SRV01,5156,CORP\backupsvc,10.10.2.15,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00118,2026-10-23 08:37:42,WS-018,5140,CORP\helpdesk,10.10.1.31,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00119,2026-10-23 08:37:56,FS-SRV01,4624,CORP\slopez,10.10.1.44,APP-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00120,2026-10-23 08:38:27,WS-014,5140,CORP\jlopez,10.10.2.15,APP-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00121,2026-10-23 08:38:31,WS-023,5156,CORP\jlopez,10.10.2.15,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00122,2026-10-23 08:38:54,APP-SRV01,4688,CORP\aperez,10.10.2.15,,Security,A new process has been created,taskhostw.exe,Success,Informational
+EVT-00123,2026-10-23 08:39:00,DC-01,4624,CORP\mgarcia,203.0.113.74,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00124,2026-10-23 08:39:17,APP-SRV01,4624,CORP\mruiz,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00125,2026-10-23 08:39:48,DC01,4624,CORP\svc_backup,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00126,2026-10-23 08:40:00,WS-031,4672,CORP\mgarcia,203.0.113.74,WS-031,Security,Special privileges assigned to new logon,,Success,Informational
+EVT-00127,2026-10-23 08:40:10,DB-SRV01,5156,CORP\slopez,10.10.2.15,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00128,2026-10-23 08:40:13,DB-SRV01,5140,CORP\slopez,10.10.1.31,,Security,A network share object was accessed,,Success,Informational
+EVT-00129,2026-10-23 08:40:37,WS-014,4625,CORP\svc_backup,10.10.2.24,,Security,An account failed to log on,,Failure,Informational
+EVT-00130,2026-10-23 08:41:29,WS-031,4663,CORP\helpdesk,10.10.3.18,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00131,2026-10-23 08:41:51,WS-022,5140,CORP\aperez,10.10.2.24,,Security,A network share object was accessed,,Success,Informational
+EVT-00132,2026-10-23 08:43:01,APP-SRV01,4624,CORP\svc_backup,10.10.1.22,,Security,An account was successfully logged on,,Success,Informational
+EVT-00133,2026-10-23 08:43:07,APP-SRV01,4625,CORP\helpdesk,10.10.1.22,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00134,2026-10-23 08:44:34,APP-SRV01,4634,CORP\svc_backup,10.10.1.14,,Security,An account was logged off,,Success,Informational
+EVT-00135,2026-10-23 08:44:41,WS-031,7036,CORP\slopez,10.10.1.31,DC-01,System,Service entered running state,,Success,Informational
+EVT-00136,2026-10-23 08:45:15,DC01,4624,CORP\mruiz,10.10.1.14,,Security,An account was successfully logged on,,Success,Informational
+EVT-00137,2026-10-23 08:45:18,WS-023,4688,CORP\jlopez,10.10.1.44,DC-01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00138,2026-10-23 08:45:38,DC-01,7036,CORP\rrojas,10.10.1.44,DC-01,System,Service entered running state,,Success,Informational
+EVT-00139,2026-10-23 08:46:07,WS-031,5156,CORP\aperez,10.10.1.31,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00140,2026-10-23 08:46:26,WS-014,4634,CORP\aperez,10.10.1.14,,Security,An account was logged off,,Success,Informational
+EVT-00141,2026-10-23 08:46:53,APP-SRV01,4624,CORP\mruiz,10.10.1.22,,Security,An account was successfully logged on,,Success,Informational
+EVT-00142,2026-10-23 08:47:04,APP-SRV01,5140,CORP\aperez,10.10.1.22,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00143,2026-10-23 08:47:20,APP-SRV01,4672,CORP\helpdesk,10.10.1.31,,Security,Special privileges assigned to new logon,,Success,Informational
+EVT-00144,2026-10-23 08:48:01,WS-014,4624,CORP\mruiz,10.10.1.31,,Security,An account was successfully logged on,,Success,Informational
+EVT-00145,2026-10-23 08:49:05,WS-014,4663,CORP\jlopez,10.10.1.31,DC-01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00146,2026-10-23 08:49:23,FS-SRV01,4663,CORP\slopez,10.10.1.22,DC-01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00147,2026-10-23 08:50:03,WS-023,5156,CORP\dtorres,10.10.1.31,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00148,2026-10-23 08:50:12,FS-SRV01,4624,CORP\aperez,10.10.1.31,,Security,An account was successfully logged on,,Success,Informational
+EVT-00149,2026-10-23 08:50:12,DC01,4634,CORP\jlopez,10.10.1.14,,Security,An account was logged off,,Success,Informational
+EVT-00150,2026-10-23 08:51:03,FS-SRV01,4634,CORP\helpdesk,10.10.1.31,,Security,An account was logged off,,Success,Informational
+EVT-00151,2026-10-23 08:51:07,WS-014,5140,CORP\mruiz,10.10.1.31,,Security,A network share object was accessed,,Success,Informational
+EVT-00152,2026-10-23 08:51:55,APP-SRV01,5140,CORP\dtorres,10.10.3.18,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00153,2026-10-23 08:52:25,FS-SRV01,4624,CORP\jlopez,10.10.1.22,,Security,An account was successfully logged on,,Success,Informational
+EVT-00154,2026-10-23 08:52:37,WS-022,4624,CORP\helpdesk,10.10.2.24,,Security,An account was successfully logged on,,Success,Informational
+EVT-00155,2026-10-23 08:52:45,WS-018,5140,CORP\aperez,10.10.2.24,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00156,2026-10-23 08:53:17,DB-SRV01,4624,CORP\slopez,10.10.1.44,,Security,An account was successfully logged on,,Success,Informational
+EVT-00157,2026-10-23 08:53:31,DC01,4688,CORP\helpdesk,10.10.2.24,,Security,A new process has been created,taskhostw.exe,Success,Informational
+EVT-00158,2026-10-23 08:54:10,WS-014,4625,CORP\jlopez,10.10.1.14,,Security,An account failed to log on,,Failure,Informational
+EVT-00159,2026-10-23 08:54:11,WS-023,4688,CORP\jlopez,10.10.1.31,FS-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00160,2026-10-23 08:54:51,WS-014,4624,CORP\jlopez,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00161,2026-10-23 08:55:24,WS-014,4634,CORP\slopez,10.10.3.18,,Security,An account was logged off,,Success,Informational
+EVT-00162,2026-10-23 08:55:31,APP-SRV01,4688,CORP\slopez,10.10.2.24,DC-01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00163,2026-10-23 08:55:58,WS-018,4688,CORP\helpdesk,10.10.1.31,DC-01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00164,2026-10-23 08:56:21,WS-022,5140,CORP\svc_backup,10.10.2.24,,Security,A network share object was accessed,,Success,Informational
+EVT-00165,2026-10-23 08:57:26,WEB-01,7036,CORP\jlopez,10.10.2.15,,System,Service entered running state,,Success,Informational
+EVT-00166,2026-10-23 08:57:48,WS-023,5156,CORP\aperez,10.10.2.24,,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00167,2026-10-23 08:58:18,WEB-01,5156,CORP\jlopez,10.10.1.44,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00168,2026-10-23 08:58:29,APP-SRV01,4688,CORP\aperez,10.10.1.44,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00169,2026-10-23 08:59:10,APP-SRV01,4625,CORP\helpdesk,10.10.1.31,,Security,An account failed to log on,,Failure,Informational
+EVT-00170,2026-10-23 08:59:50,DC01,4625,CORP\jlopez,10.10.2.15,,Security,An account failed to log on,,Failure,Informational
+EVT-00171,2026-10-23 09:01:02,APP-SRV01,4624,CORP\helpdesk,10.10.1.22,,Security,An account was successfully logged on,,Success,Informational
+EVT-00172,2026-10-23 09:01:29,APP-SRV01,4624,CORP\aperez,10.10.1.14,,Security,An account was successfully logged on,,Success,Informational
+EVT-00173,2026-10-23 09:01:54,DC01,5140,CORP\svc_backup,10.10.1.31,,Security,A network share object was accessed,,Success,Informational
+EVT-00174,2026-10-23 09:02:00,APP-SRV01,4625,CORP\admin,198.51.100.77,APP-SRV01,Security,An account failed to log on (LogonType=10; RDP),,Failure,Medium
+EVT-00175,2026-10-23 09:03:00,APP-SRV01,4625,CORP\admin,198.51.100.77,APP-SRV01,Security,An account failed to log on (LogonType=10; RDP),,Failure,Medium
+EVT-00176,2026-10-23 09:03:06,WS-014,7036,CORP\backupsvc,10.10.1.44,DC-01,System,Service entered running state,,Success,Informational
+EVT-00177,2026-10-23 09:03:58,DC01,4688,CORP\svc_backup,10.10.2.15,,Security,A new process has been created,notepad.exe,Success,Informational
+EVT-00178,2026-10-23 09:04:00,APP-SRV01,4625,CORP\admin,198.51.100.77,APP-SRV01,Security,An account failed to log on (LogonType=10; RDP),,Failure,Medium
+EVT-00179,2026-10-23 09:04:14,DC01,4624,CORP\aperez,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00180,2026-10-23 09:05:00,APP-SRV01,4625,CORP\admin,198.51.100.77,APP-SRV01,Security,An account failed to log on (LogonType=10; RDP),,Failure,Medium
+EVT-00181,2026-10-23 09:05:05,DB-SRV01,5140,CORP\jlopez,10.10.2.15,,Security,A network share object was accessed,,Success,Informational
+EVT-00182,2026-10-23 09:05:16,WS-014,4624,CORP\slopez,10.10.1.44,FS-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00183,2026-10-23 09:05:16,FS-SRV01,4624,CORP\dtorres,10.10.1.31,,Security,An account was successfully logged on,,Success,Informational
+EVT-00184,2026-10-23 09:05:25,WS-023,4624,CORP\backupsvc,10.10.3.18,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00185,2026-10-23 09:05:37,DB-SRV01,4634,CORP\slopez,10.10.1.22,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00186,2026-10-23 09:05:41,APP-SRV01,4624,CORP\helpdesk,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00187,2026-10-23 09:05:51,FS-SRV01,4663,CORP\slopez,10.10.1.31,FS-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00188,2026-10-23 09:06:00,APP-SRV01,4624,CORP\admin,198.51.100.77,APP-SRV01,Security,An account was successfully logged on (LogonType=10; RDP),,Success,High
+EVT-00189,2026-10-23 09:06:01,DC-01,5140,CORP\rrojas,10.10.3.18,APP-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00190,2026-10-23 09:06:15,DC01,4624,CORP\jlopez,10.10.1.22,,Security,An account was successfully logged on,,Success,Informational
+EVT-00191,2026-10-23 09:06:26,WS-014,5156,CORP\jlopez,10.10.2.15,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00192,2026-10-23 09:06:59,DC01,4634,CORP\jlopez,10.10.1.22,,Security,An account was logged off,,Success,Informational
+EVT-00193,2026-10-23 09:07:00,APP-SRV01,4672,CORP\admin,198.51.100.77,APP-SRV01,Security,Special privileges assigned to new logon,,Success,Medium
+EVT-00194,2026-10-23 09:07:45,WS-014,4624,CORP\jlopez,10.10.2.24,,Security,An account was successfully logged on,,Success,Informational
+EVT-00195,2026-10-23 09:08:11,WS-022,4634,CORP\jlopez,10.10.1.14,,Security,An account was logged off,,Success,Informational
+EVT-00196,2026-10-23 09:08:14,DC01,4624,CORP\mruiz,10.10.1.14,,Security,An account was successfully logged on,,Success,Informational
+EVT-00197,2026-10-23 09:08:18,DB-SRV01,5140,CORP\helpdesk,10.10.1.31,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00198,2026-10-23 09:09:00,APP-SRV01,4688,CORP\admin,198.51.100.77,,Security,New process created; parent=cmd.exe,powershell.exe -NoProfile -EncodedCommand [REDACTED_SYNTHETIC],Success,High
+EVT-00199,2026-10-23 09:09:09,WS-022,4625,CORP\mruiz,10.10.1.14,,Security,An account failed to log on,,Failure,Informational
+EVT-00200,2026-10-23 09:09:23,WS-031,4663,CORP\jlopez,10.10.3.18,DC-01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00201,2026-10-23 09:09:26,APP-SRV01,4624,CORP\rrojas,10.10.2.24,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00202,2026-10-23 09:09:29,FS-SRV01,4688,CORP\mruiz,10.10.2.15,,Security,A new process has been created,notepad.exe,Success,Informational
+EVT-00203,2026-10-23 09:09:33,DC01,5140,CORP\aperez,10.10.1.22,,Security,A network share object was accessed,,Success,Informational
+EVT-00204,2026-10-23 09:09:44,WS-014,4624,CORP\mgarcia,10.10.2.24,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00205,2026-10-23 09:10:26,WS-022,4624,CORP\aperez,10.10.1.14,,Security,An account was successfully logged on,,Success,Informational
+EVT-00206,2026-10-23 09:10:49,APP-SRV01,4624,CORP\mruiz,10.10.1.14,,Security,An account was successfully logged on,,Success,Informational
+EVT-00207,2026-10-23 09:11:00,APP-SRV01,4104,CORP\admin,198.51.100.77,,PowerShell,PowerShell Script Block: Get-LocalGroupMember Administrators; Get-SmbShare,powershell.exe,Success,High
+EVT-00208,2026-10-23 09:11:15,DC-01,4625,CORP\helpdesk,10.10.1.31,FS-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00209,2026-10-23 09:11:18,DC-01,4688,CORP\aperez,10.10.2.24,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00210,2026-10-23 09:11:24,WS-014,4624,CORP\svc_backup,10.10.1.22,,Security,An account was successfully logged on,,Success,Informational
+EVT-00211,2026-10-23 09:12:01,DC01,4688,CORP\mruiz,10.10.2.15,,Security,A new process has been created,svchost.exe,Success,Informational
+EVT-00212,2026-10-23 09:12:03,DB-SRV01,4634,CORP\mgarcia,10.10.1.44,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00213,2026-10-23 09:12:22,APP-SRV01,4688,CORP\aperez,10.10.2.24,,Security,A new process has been created,taskhostw.exe,Success,Informational
+EVT-00214,2026-10-23 09:13:00,APP-SRV01,4688,CORP\admin,198.51.100.77,,Security,New process created; parent=powershell.exe,net.exe view \\FS-SRV01,Success,Medium
+EVT-00215,2026-10-23 09:13:23,FS-SRV01,4634,CORP\helpdesk,10.10.1.14,,Security,An account was logged off,,Success,Informational
+EVT-00216,2026-10-23 09:13:56,FS-SRV01,4672,CORP\mruiz,10.10.1.14,,Security,Special privileges assigned to new logon,,Success,Informational
+EVT-00217,2026-10-23 09:14:08,APP-SRV01,4688,CORP\mruiz,10.10.1.14,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00218,2026-10-23 09:14:29,APP-SRV01,4634,CORP\mgarcia,10.10.1.22,APP-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00219,2026-10-23 09:14:31,FS-SRV01,5140,CORP\mruiz,10.10.1.22,,Security,A network share object was accessed,,Success,Informational
+EVT-00220,2026-10-23 09:14:32,WS-031,5140,CORP\aperez,10.10.2.24,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00221,2026-10-23 09:14:41,WS-022,4625,CORP\helpdesk,10.10.1.22,,Security,An account failed to log on,,Failure,Informational
+EVT-00222,2026-10-23 09:15:00,FS-SRV01,4625,CORP\admin,10.10.2.15,FS-SRV01,Security,An account failed to log on (LogonType=3; source=APP-SRV01),,Failure,Medium
+EVT-00223,2026-10-23 09:15:40,WEB-01,5156,CORP\slopez,10.10.1.22,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00224,2026-10-23 09:15:41,DC-01,4624,CORP\jlopez,10.10.1.22,APP-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00225,2026-10-23 09:16:00,FS-SRV01,4624,CORP\admin,10.10.2.15,FS-SRV01,Security,An account was successfully logged on (LogonType=3; source=APP-SRV01),,Success,High
+EVT-00226,2026-10-23 09:16:24,WS-014,4625,CORP\mgarcia,10.10.1.31,,Security,An account failed to log on,,Failure,Informational
+EVT-00227,2026-10-23 09:17:00,FS-SRV01,5140,CORP\admin,10.10.2.15,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Finance,,Success,High
+EVT-00228,2026-10-23 09:17:13,FS-SRV01,4688,CORP\svc_backup,10.10.1.31,,Security,A new process has been created,notepad.exe,Success,Informational
+EVT-00229,2026-10-23 09:17:19,WS-014,4624,CORP\helpdesk,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00230,2026-10-23 09:17:30,DB-SRV01,4634,CORP\mgarcia,10.10.1.22,APP-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00231,2026-10-23 09:18:00,FS-SRV01,5145,CORP\admin,10.10.2.15,FS-SRV01,Security,Detailed file share access: Finance\Budget2027.xlsx,,Success,High
+EVT-00232,2026-10-23 09:20:00,APP-SRV01,4688,CORP\admin,198.51.100.77,,Security,New process created; possible staging archive,tar.exe -a -c -f C:\Temp\finance.zip C:\Temp\reports,Success,High
+EVT-00233,2026-10-23 09:20:01,FS-SRV01,5156,CORP\mgarcia,10.10.1.44,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00234,2026-10-23 09:20:03,WS-022,4688,CORP\mruiz,10.10.2.24,,Security,A new process has been created,svchost.exe,Success,Informational
+EVT-00235,2026-10-23 09:21:00,APP-SRV01,5156,CORP\admin,10.10.2.15,203.0.113.88:443,Firewall,Allowed outbound connection to 203.0.113.88:443 (process=powershell.exe),powershell.exe,Success,High
+EVT-00236,2026-10-23 09:21:02,DC-01,4663,CORP\aperez,10.10.1.31,,Security,An attempt was made to access an object,,Success,Informational
+EVT-00237,2026-10-23 09:22:00,APP-SRV01,4634,CORP\admin,198.51.100.77,,Security,An account was logged off,,Success,Informational
+EVT-00238,2026-10-23 09:22:01,DC01,4688,CORP\mruiz,10.10.1.22,,Security,A new process has been created,notepad.exe,Success,Informational
+EVT-00239,2026-10-23 09:22:21,WS-018,5156,CORP\dtorres,10.10.1.44,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00240,2026-10-23 09:22:27,APP-SRV01,4672,CORP\svc_backup,10.10.1.31,,Security,Special privileges assigned to new logon,,Success,Informational
+EVT-00241,2026-10-23 09:22:29,APP-SRV01,5140,CORP\aperez,10.10.2.15,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00242,2026-10-23 09:22:33,WS-031,4688,CORP\aperez,10.10.2.24,FS-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00243,2026-10-23 09:22:58,DC01,4634,CORP\jlopez,10.10.1.22,,Security,An account was logged off,,Success,Informational
+EVT-00244,2026-10-23 09:23:24,DB-SRV01,4625,CORP\jlopez,10.10.1.44,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00245,2026-10-23 09:24:20,WS-023,5140,CORP\dtorres,10.10.2.24,,Security,A network share object was accessed,,Success,Informational
+EVT-00246,2026-10-23 09:25:20,APP-SRV01,4624,CORP\dtorres,10.10.2.15,APP-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00247,2026-10-23 09:25:30,WS-018,4688,CORP\dtorres,10.10.1.31,FS-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00248,2026-10-23 09:26:46,WS-014,4625,CORP\aperez,10.10.2.24,,Security,An account failed to log on,,Failure,Informational
+EVT-00249,2026-10-23 09:27:29,APP-SRV01,4634,CORP\helpdesk,10.10.1.31,,Security,An account was logged off,,Success,Informational
+EVT-00250,2026-10-23 09:27:36,DC-01,7036,CORP\helpdesk,10.10.3.18,DC-01,System,Service entered running state,,Success,Informational
+EVT-00251,2026-10-23 09:27:40,WEB-01,5140,CORP\jlopez,10.10.3.18,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00252,2026-10-23 09:28:02,WS-031,5140,CORP\backupsvc,10.10.2.15,APP-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00253,2026-10-23 09:28:32,APP-SRV01,5156,CORP\jlopez,10.10.1.22,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00254,2026-10-23 09:29:03,DC01,4672,CORP\mruiz,10.10.1.14,,Security,Special privileges assigned to new logon,,Success,Informational
+EVT-00255,2026-10-23 09:29:10,WS-022,4688,CORP\svc_backup,10.10.1.14,,Security,A new process has been created,notepad.exe,Success,Informational
+EVT-00256,2026-10-23 09:29:25,DC-01,4634,CORP\slopez,10.10.3.18,APP-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00257,2026-10-23 09:29:58,FS-SRV01,4634,CORP\jlopez,10.10.1.44,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00258,2026-10-23 09:30:38,FS-SRV01,4688,CORP\svc_backup,10.10.2.24,,Security,A new process has been created,svchost.exe,Success,Informational
+EVT-00259,2026-10-23 09:30:49,DC01,4625,CORP\mruiz,10.10.2.15,,Security,An account failed to log on,,Failure,Informational
+EVT-00260,2026-10-23 09:31:27,WS-014,4688,CORP\mruiz,10.10.1.14,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00261,2026-10-23 09:31:48,WS-014,4688,CORP\dtorres,10.10.1.31,FS-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00262,2026-10-23 09:32:08,WS-023,4634,CORP\rrojas,10.10.2.15,APP-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00263,2026-10-23 09:32:11,WS-018,5156,CORP\mgarcia,10.10.1.22,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00264,2026-10-23 09:32:25,FS-SRV01,5140,CORP\aperez,10.10.1.22,,Security,A network share object was accessed,,Success,Informational
+EVT-00265,2026-10-23 09:32:26,APP-SRV01,4688,CORP\helpdesk,10.10.1.14,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00266,2026-10-23 09:32:28,FS-SRV01,4624,CORP\helpdesk,10.10.1.22,,Security,An account was successfully logged on,,Success,Informational
+EVT-00267,2026-10-23 09:32:35,DB-SRV01,7036,CORP\jlopez,10.10.1.44,DC-01,System,Service entered running state,,Success,Informational
+EVT-00268,2026-10-23 09:32:56,DC01,4624,CORP\aperez,10.10.2.24,,Security,An account was successfully logged on,,Success,Informational
+EVT-00269,2026-10-23 09:32:57,APP-SRV01,7036,CORP\dtorres,10.10.1.31,DC-01,System,Service entered running state,,Success,Informational
+EVT-00270,2026-10-23 09:33:08,DC01,4624,CORP\aperez,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00271,2026-10-23 09:33:48,WS-014,4634,CORP\mgarcia,10.10.1.44,,Security,An account was logged off,,Success,Informational
+EVT-00272,2026-10-23 09:34:06,WS-014,4634,CORP\aperez,10.10.1.22,,Security,An account was logged off,,Success,Informational
+EVT-00273,2026-10-23 09:34:08,WS-018,5156,CORP\mgarcia,10.10.2.15,,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00274,2026-10-23 09:34:09,WS-022,4625,CORP\svc_backup,10.10.1.22,,Security,An account failed to log on,,Failure,Informational
+EVT-00275,2026-10-23 09:34:14,FS-SRV01,5140,CORP\aperez,10.10.1.31,,Security,A network share object was accessed,,Success,Informational
+EVT-00276,2026-10-23 09:34:28,WS-022,4634,CORP\jlopez,10.10.1.14,,Security,An account was logged off,,Success,Informational
+EVT-00277,2026-10-23 09:34:44,DC01,4625,CORP\jlopez,10.10.1.22,,Security,An account failed to log on,,Failure,Informational
+EVT-00278,2026-10-23 09:34:52,WS-014,4688,CORP\mruiz,10.10.2.24,,Security,A new process has been created,taskhostw.exe,Success,Informational
+EVT-00279,2026-10-23 09:35:25,WS-014,4624,CORP\aperez,10.10.1.22,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00280,2026-10-23 09:36:00,WS-023,4688,CORP\backupsvc,10.10.1.44,,Security,A new process has been created,powershell.exe -NoProfile -EncodedCommand <base64_redacted>,Success,Warning
+EVT-00281,2026-10-23 09:36:03,DC01,4634,CORP\helpdesk,10.10.1.31,,Security,An account was logged off,,Success,Informational
+EVT-00282,2026-10-23 09:36:18,FS-SRV01,4688,CORP\helpdesk,10.10.2.15,DC-01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00283,2026-10-23 09:36:42,WS-014,5140,CORP\backupsvc,10.10.2.24,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00284,2026-10-23 09:37:00,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_000.xlsx,Success,Warning
+EVT-00285,2026-10-23 09:37:13,APP-SRV01,4624,CORP\mruiz,10.10.1.31,,Security,An account was successfully logged on,,Success,Informational
+EVT-00286,2026-10-23 09:37:16,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_001.xlsx,Success,Warning
+EVT-00287,2026-10-23 09:37:20,WS-014,4624,CORP\mruiz,10.10.1.14,,Security,An account was successfully logged on,,Success,Informational
+EVT-00288,2026-10-23 09:37:26,APP-SRV01,4634,CORP\jlopez,10.10.1.14,,Security,An account was logged off,,Success,Informational
+EVT-00289,2026-10-23 09:37:32,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_002.xlsx,Success,Warning
+EVT-00290,2026-10-23 09:37:48,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_003.xlsx,Success,Warning
+EVT-00291,2026-10-23 09:38:04,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_004.xlsx,Success,Warning
+EVT-00292,2026-10-23 09:38:16,DB-SRV01,4634,CORP\dtorres,10.10.2.24,,Security,An account was logged off,,Success,Informational
+EVT-00293,2026-10-23 09:38:20,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_005.xlsx,Success,Warning
+EVT-00294,2026-10-23 09:38:24,DC-01,4634,CORP\backupsvc,10.10.2.24,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00295,2026-10-23 09:38:25,WS-031,4625,CORP\backupsvc,10.10.3.18,APP-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00296,2026-10-23 09:38:36,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_006.xlsx,Success,Warning
+EVT-00297,2026-10-23 09:38:44,WS-014,4634,CORP\mruiz,10.10.1.14,,Security,An account was logged off,,Success,Informational
+EVT-00298,2026-10-23 09:38:52,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_007.xlsx,Success,Warning
+EVT-00299,2026-10-23 09:39:08,WS-031,4688,CORP\aperez,10.10.2.15,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00300,2026-10-23 09:39:08,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_008.xlsx,Success,Warning
+EVT-00301,2026-10-23 09:39:23,FS-SRV01,4625,CORP\backupsvc,10.10.1.22,,Security,An account failed to log on,,Failure,Informational
+EVT-00302,2026-10-23 09:39:24,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_009.xlsx,Success,Warning
+EVT-00303,2026-10-23 09:39:40,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_010.xlsx,Success,Warning
+EVT-00304,2026-10-23 09:39:55,WS-018,5140,CORP\helpdesk,10.10.2.24,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00305,2026-10-23 09:39:56,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_011.xlsx,Success,Warning
+EVT-00306,2026-10-23 09:40:12,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_012.xlsx,Success,Warning
+EVT-00307,2026-10-23 09:40:28,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_013.xlsx,Success,Warning
+EVT-00308,2026-10-23 09:40:44,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_014.xlsx,Success,Warning
+EVT-00309,2026-10-23 09:41:00,FS-SRV01,4663,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\FY2026\document_015.xlsx,Success,Warning
+EVT-00310,2026-10-23 09:41:20,APP-SRV01,4624,CORP\mruiz,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00311,2026-10-23 09:41:24,WEB-01,4663,CORP\backupsvc,10.10.2.15,,Security,An attempt was made to access an object,,Success,Informational
+EVT-00312,2026-10-23 09:41:45,FS-SRV01,4624,CORP\svc_backup,10.10.1.22,,Security,An account was successfully logged on,,Success,Informational
+EVT-00313,2026-10-23 09:42:00,DC-01,4663,CORP\backupsvc,10.10.2.15,FS-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00314,2026-10-23 09:42:00,WS-023,4688,CORP\backupsvc,10.10.1.44,,Security,A new process has been created,vssadmin.exe delete shadows /all /quiet,Success,Warning
+EVT-00315,2026-10-23 09:43:00,FS-SRV01,5145,CORP\backupsvc,10.10.1.44,\\FS-SRV01\Finance,Security,A network share object was checked to see whether client can be granted desired access,,Success,Informational
+EVT-00316,2026-10-23 09:44:37,DB-SRV01,5156,CORP\slopez,10.10.3.18,,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00317,2026-10-23 09:45:08,WS-018,4634,CORP\aperez,10.10.1.31,FS-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00318,2026-10-23 09:45:53,DB-SRV01,5156,CORP\rrojas,10.10.2.15,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00319,2026-10-23 09:46:02,WS-018,4634,CORP\backupsvc,10.10.1.44,,Security,An account was logged off,,Success,Informational
+EVT-00320,2026-10-23 09:47:08,DB-SRV01,4624,CORP\backupsvc,10.10.1.22,,Security,An account was successfully logged on,,Success,Informational
+EVT-00321,2026-10-23 09:47:31,WS-022,4624,CORP\jlopez,10.10.1.22,,Security,An account was successfully logged on,,Success,Informational
+EVT-00322,2026-10-23 09:47:42,DB-SRV01,4624,CORP\aperez,10.10.2.15,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00323,2026-10-23 09:47:43,WS-014,4688,CORP\jlopez,10.10.1.31,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00324,2026-10-23 09:47:44,DB-SRV01,4688,CORP\dtorres,10.10.1.31,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00325,2026-10-23 09:47:47,WEB-01,5140,CORP\dtorres,10.10.3.18,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00326,2026-10-23 09:48:10,FS-SRV01,4672,CORP\mruiz,10.10.1.14,,Security,Special privileges assigned to new logon,,Success,Informational
+EVT-00327,2026-10-23 09:48:54,DC01,4624,CORP\helpdesk,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00328,2026-10-23 09:49:28,WS-023,4624,CORP\aperez,10.10.1.44,,Security,An account was successfully logged on,,Success,Informational
+EVT-00329,2026-10-23 09:50:08,DB-SRV01,4624,CORP\slopez,10.10.2.24,FS-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00330,2026-10-23 09:50:35,WS-018,4634,CORP\aperez,10.10.2.15,FS-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00331,2026-10-23 09:51:00,DC-01,4625,CORP\rrojas,10.10.1.31,APP-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00332,2026-10-23 09:51:16,DC01,5140,CORP\mruiz,10.10.2.24,,Security,A network share object was accessed,,Success,Informational
+EVT-00333,2026-10-23 09:51:23,WS-022,4624,CORP\helpdesk,10.10.2.24,,Security,An account was successfully logged on,,Success,Informational
+EVT-00334,2026-10-23 09:52:06,DC-01,4624,CORP\mgarcia,10.10.2.24,,Security,An account was successfully logged on,,Success,Informational
+EVT-00335,2026-10-23 09:53:02,WS-014,7036,CORP\jlopez,10.10.3.18,FS-SRV01,System,Service entered running state,,Success,Informational
+EVT-00336,2026-10-23 09:53:33,DB-SRV01,7036,CORP\rrojas,10.10.1.22,DC-01,System,Service entered running state,,Success,Informational
+EVT-00337,2026-10-23 09:54:18,APP-SRV01,4624,CORP\helpdesk,10.10.2.24,,Security,An account was successfully logged on,,Success,Informational
+EVT-00338,2026-10-23 09:54:26,WS-018,4688,CORP\backupsvc,10.10.1.22,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00339,2026-10-23 09:54:45,WS-022,4688,CORP\jlopez,10.10.1.14,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00340,2026-10-23 09:54:47,APP-SRV01,5156,CORP\backupsvc,10.10.2.15,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00341,2026-10-23 09:55:01,FS-SRV01,4624,CORP\svc_backup,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00342,2026-10-23 09:56:59,APP-SRV01,4688,CORP\slopez,10.10.2.15,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00343,2026-10-23 09:57:05,WS-022,4634,CORP\mruiz,10.10.2.24,,Security,An account was logged off,,Success,Informational
+EVT-00344,2026-10-23 09:57:22,FS-SRV01,4634,CORP\svc_backup,10.10.1.14,,Security,An account was logged off,,Success,Informational
+EVT-00345,2026-10-23 09:57:55,FS-SRV01,4625,CORP\helpdesk,10.10.1.22,,Security,An account failed to log on,,Failure,Informational
+EVT-00346,2026-10-23 09:59:27,WS-022,4624,CORP\helpdesk,10.10.2.24,,Security,An account was successfully logged on,,Success,Informational
+EVT-00347,2026-10-23 10:01:00,FS-SRV01,4625,CORP\jlopez,10.10.1.22,,Security,An account failed to log on,,Failure,Informational
+EVT-00348,2026-10-23 10:01:16,DC01,5140,CORP\helpdesk,10.10.1.22,,Security,A network share object was accessed,,Success,Informational
+EVT-00349,2026-10-23 10:01:25,WS-014,4688,CORP\aperez,10.10.1.31,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00350,2026-10-23 10:01:25,WS-031,5156,CORP\backupsvc,10.10.2.15,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00351,2026-10-23 10:01:59,WS-014,4624,CORP\aperez,10.10.2.24,APP-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00352,2026-10-23 10:02:21,DB-SRV01,4625,CORP\backupsvc,10.10.1.44,FS-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00353,2026-10-23 10:02:38,WS-018,5156,CORP\jlopez,10.10.2.15,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00354,2026-10-23 10:02:57,WS-022,4688,CORP\mruiz,10.10.1.14,,Security,A new process has been created,notepad.exe,Success,Informational
+EVT-00355,2026-10-23 10:02:57,WEB-01,4663,CORP\slopez,10.10.1.31,,Security,An attempt was made to access an object,,Success,Informational
+EVT-00356,2026-10-23 10:03:14,WS-031,4625,CORP\helpdesk,10.10.1.44,APP-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00357,2026-10-23 10:04:06,WEB-01,7036,CORP\jlopez,10.10.3.18,,System,Service entered running state,,Success,Informational
+EVT-00358,2026-10-23 10:05:52,APP-SRV01,4625,CORP\svc_backup,10.10.1.14,,Security,An account failed to log on,,Failure,Informational
+EVT-00359,2026-10-23 10:07:35,WS-023,4634,CORP\backupsvc,10.10.1.44,,Security,An account was logged off,,Success,Informational
+EVT-00360,2026-10-23 10:08:03,DC-01,5156,CORP\backupsvc,10.10.3.18,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00361,2026-10-23 10:08:20,APP-SRV01,4634,CORP\mruiz,10.10.2.24,,Security,An account was logged off,,Success,Informational
+EVT-00362,2026-10-23 10:08:37,WEB-01,5140,CORP\mgarcia,10.10.1.44,,Security,A network share object was accessed,,Success,Informational
+EVT-00363,2026-10-23 10:08:44,DC01,4634,CORP\mruiz,10.10.2.15,,Security,An account was logged off,,Success,Informational
+EVT-00364,2026-10-23 10:09:22,WS-022,4688,CORP\svc_backup,10.10.1.31,,Security,A new process has been created,taskhostw.exe,Success,Informational
+EVT-00365,2026-10-23 10:09:53,WS-022,4634,CORP\jlopez,10.10.1.22,,Security,An account was logged off,,Success,Informational
+EVT-00366,2026-10-23 10:09:59,WS-014,4634,CORP\mruiz,10.10.1.31,,Security,An account was logged off,,Success,Informational
+EVT-00367,2026-10-23 10:10:08,WS-014,4624,CORP\svc_backup,10.10.2.24,,Security,An account was successfully logged on,,Success,Informational
+EVT-00368,2026-10-23 10:10:23,WEB-01,5156,CORP\aperez,10.10.2.15,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00369,2026-10-23 10:11:35,WS-023,5156,CORP\mgarcia,10.10.2.24,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00370,2026-10-23 10:12:14,WS-022,4634,CORP\svc_backup,10.10.1.14,,Security,An account was logged off,,Success,Informational
+EVT-00371,2026-10-23 10:12:20,APP-SRV01,4624,CORP\helpdesk,10.10.1.31,,Security,An account was successfully logged on,,Success,Informational
+EVT-00372,2026-10-23 10:12:35,WS-018,5140,CORP\mgarcia,10.10.1.44,,Security,A network share object was accessed,,Success,Informational
+EVT-00373,2026-10-23 10:12:48,DC01,4624,CORP\mruiz,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00374,2026-10-23 10:13:22,FS-SRV01,4624,CORP\svc_backup,10.10.2.24,,Security,An account was successfully logged on,,Success,Informational
+EVT-00375,2026-10-23 10:13:31,WS-022,4625,CORP\mruiz,10.10.1.22,,Security,An account failed to log on,,Failure,Informational
+EVT-00376,2026-10-23 10:14:14,DC-01,4634,CORP\mgarcia,10.10.2.15,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00377,2026-10-23 10:15:23,WS-014,4688,CORP\helpdesk,10.10.3.18,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00378,2026-10-23 10:16:10,DC-01,4634,CORP\slopez,10.10.3.18,,Security,An account was logged off,,Success,Informational
+EVT-00379,2026-10-23 10:16:32,DC-01,4688,CORP\helpdesk,10.10.1.44,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00380,2026-10-23 10:16:35,DB-SRV01,5140,CORP\jlopez,10.10.1.31,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00381,2026-10-23 10:17:32,DC01,4624,CORP\svc_backup,10.10.1.14,,Security,An account was successfully logged on,,Success,Informational
+EVT-00382,2026-10-23 10:19:14,WS-022,4634,CORP\helpdesk,10.10.1.14,,Security,An account was logged off,,Success,Informational
+EVT-00383,2026-10-23 10:20:16,WS-014,4624,CORP\helpdesk,10.10.1.14,,Security,An account was successfully logged on,,Success,Informational
+EVT-00384,2026-10-23 10:21:42,WS-014,5140,CORP\jlopez,10.10.2.24,,Security,A network share object was accessed,,Success,Informational
+EVT-00385,2026-10-23 10:22:26,DC01,4634,CORP\helpdesk,10.10.1.14,,Security,An account was logged off,,Success,Informational
+EVT-00386,2026-10-23 10:23:15,APP-SRV01,4634,CORP\aperez,10.10.1.31,,Security,An account was logged off,,Success,Informational
+EVT-00387,2026-10-23 10:23:30,WEB-01,4624,CORP\backupsvc,10.10.2.24,,Security,An account was successfully logged on,,Success,Informational
+EVT-00388,2026-10-23 10:24:14,DC01,4672,CORP\svc_backup,10.10.1.22,,Security,Special privileges assigned to new logon,,Success,Informational
+EVT-00389,2026-10-23 10:24:22,FS-SRV01,4688,CORP\jlopez,10.10.2.24,,Security,A new process has been created,svchost.exe,Success,Informational
+EVT-00390,2026-10-23 10:24:35,APP-SRV01,5140,CORP\svc_backup,10.10.1.22,,Security,A network share object was accessed,,Success,Informational
+EVT-00391,2026-10-23 10:24:38,WS-023,4634,CORP\helpdesk,10.10.1.22,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00392,2026-10-23 10:25:07,WS-022,4634,CORP\helpdesk,10.10.1.22,,Security,An account was logged off,,Success,Informational
+EVT-00393,2026-10-23 10:25:26,DC01,4624,CORP\helpdesk,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00394,2026-10-23 10:25:30,FS-SRV01,4624,CORP\mgarcia,10.10.2.24,,Security,An account was successfully logged on,,Success,Informational
+EVT-00395,2026-10-23 10:25:50,APP-SRV01,4625,CORP\mruiz,10.10.1.22,,Security,An account failed to log on,,Failure,Informational
+EVT-00396,2026-10-23 10:26:03,WS-031,4634,CORP\backupsvc,10.10.1.31,APP-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00397,2026-10-23 10:26:06,WS-023,7036,CORP\dtorres,10.10.1.22,,System,Service entered running state,,Success,Informational
+EVT-00398,2026-10-23 10:26:59,WS-018,5156,CORP\jlopez,10.10.3.18,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00399,2026-10-23 10:27:18,WS-023,7036,CORP\dtorres,10.10.2.24,FS-SRV01,System,Service entered running state,,Success,Informational
+EVT-00400,2026-10-23 10:27:34,DB-SRV01,4624,CORP\mgarcia,10.10.3.18,,Security,An account was successfully logged on,,Success,Informational
+EVT-00401,2026-10-23 10:27:50,WS-014,4625,CORP\rrojas,10.10.3.18,APP-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00402,2026-10-23 10:29:06,WS-018,7036,CORP\aperez,10.10.1.31,APP-SRV01,System,Service entered running state,,Success,Informational
+EVT-00403,2026-10-23 10:29:21,DC-01,4625,CORP\mgarcia,10.10.1.22,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00404,2026-10-23 10:29:38,WS-022,4624,CORP\helpdesk,10.10.1.14,,Security,An account was successfully logged on,,Success,Informational
+EVT-00405,2026-10-23 10:30:02,DB-SRV01,5156,CORP\backupsvc,10.10.2.15,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00406,2026-10-23 10:30:04,DC-01,7036,CORP\helpdesk,10.10.1.22,FS-SRV01,System,Service entered running state,,Success,Informational
+EVT-00407,2026-10-23 10:30:06,WS-018,5156,CORP\jlopez,10.10.2.24,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00408,2026-10-23 10:30:12,APP-SRV01,7036,CORP\aperez,10.10.1.44,FS-SRV01,System,Service entered running state,,Success,Informational
+EVT-00409,2026-10-23 10:30:45,DC-01,4624,CORP\dtorres,10.10.2.15,FS-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00410,2026-10-23 10:31:13,WS-018,5156,CORP\slopez,10.10.2.24,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00411,2026-10-23 10:33:30,DB-SRV01,5140,CORP\jlopez,10.10.1.44,,Security,A network share object was accessed,,Success,Informational
+EVT-00412,2026-10-23 10:33:32,WS-014,4688,CORP\dtorres,10.10.1.44,FS-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00413,2026-10-23 10:33:56,WS-018,5156,CORP\aperez,10.10.1.31,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00414,2026-10-23 10:35:09,WS-014,4624,CORP\rrojas,10.10.1.22,,Security,An account was successfully logged on,,Success,Informational
+EVT-00415,2026-10-23 10:36:08,DB-SRV01,4634,CORP\jlopez,10.10.1.31,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00416,2026-10-23 10:37:08,DB-SRV01,5140,CORP\dtorres,10.10.1.44,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00417,2026-10-23 10:37:25,WS-023,4663,CORP\backupsvc,10.10.1.44,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00418,2026-10-23 10:39:21,WS-018,4663,CORP\backupsvc,10.10.1.44,FS-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00419,2026-10-23 10:40:00,FS-SRV01,5140,CORP\rrojas,10.10.1.31,\\FS-SRV01\Legal,Security,A network share object was accessed,,Success,Informational
+EVT-00420,2026-10-23 10:40:01,WEB-01,5156,CORP\aperez,10.10.1.31,,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00421,2026-10-23 10:40:11,DC-01,5156,CORP\slopez,10.10.1.44,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00422,2026-10-23 10:40:27,DC-01,5140,CORP\slopez,10.10.1.22,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00423,2026-10-23 10:40:33,DB-SRV01,4634,CORP\backupsvc,10.10.2.24,APP-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00424,2026-10-23 10:40:41,DC-01,4624,CORP\jlopez,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00425,2026-10-23 10:41:14,DB-SRV01,7036,CORP\jlopez,10.10.1.31,DC-01,System,Service entered running state,,Success,Informational
+EVT-00426,2026-10-23 10:41:50,WS-023,4625,CORP\helpdesk,10.10.2.15,,Security,An account failed to log on,,Failure,Informational
+EVT-00427,2026-10-23 10:41:53,WS-031,4688,CORP\helpdesk,10.10.1.22,FS-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00428,2026-10-23 10:42:00,WS-018,4688,CORP\rrojas,10.10.1.31,,Security,A new process has been created,7z.exe a C:\Users\Public\archive.7z C:\Legal\*.docx,Success,Informational
+EVT-00429,2026-10-23 10:42:38,WS-018,4663,CORP\dtorres,10.10.2.15,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00430,2026-10-23 10:43:00,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=6737085 uri=/upload/session/1,Allowed,Warning
+EVT-00431,2026-10-23 10:43:18,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=17278017 uri=/upload/session/2,Allowed,Warning
+EVT-00432,2026-10-23 10:43:36,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=13916972 uri=/upload/session/3,Allowed,Warning
+EVT-00433,2026-10-23 10:43:41,FS-SRV01,4688,CORP\slopez,10.10.1.31,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00434,2026-10-23 10:43:46,WEB-01,5140,CORP\jlopez,10.10.2.24,,Security,A network share object was accessed,,Success,Informational
+EVT-00435,2026-10-23 10:43:54,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=16895186 uri=/upload/session/4,Allowed,Warning
+EVT-00436,2026-10-23 10:44:12,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=7196949 uri=/upload/session/5,Allowed,Warning
+EVT-00437,2026-10-23 10:44:28,WS-023,4688,CORP\slopez,10.10.1.22,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00438,2026-10-23 10:44:30,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=14427680 uri=/upload/session/6,Allowed,Warning
+EVT-00439,2026-10-23 10:44:48,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=10427823 uri=/upload/session/7,Allowed,Warning
+EVT-00440,2026-10-23 10:45:06,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=12043158 uri=/upload/session/8,Allowed,Warning
+EVT-00441,2026-10-23 10:45:24,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=6167521 uri=/upload/session/9,Allowed,Warning
+EVT-00442,2026-10-23 10:45:41,WS-031,4624,CORP\slopez,10.10.1.22,,Security,An account was successfully logged on,,Success,Informational
+EVT-00443,2026-10-23 10:45:42,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=10696100 uri=/upload/session/10,Allowed,Warning
+EVT-00444,2026-10-23 10:46:00,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=10360030 uri=/upload/session/11,Allowed,Warning
+EVT-00445,2026-10-23 10:46:18,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=12453076 uri=/upload/session/12,Allowed,Warning
+EVT-00446,2026-10-23 10:46:32,DC-01,7036,CORP\aperez,10.10.2.24,FS-SRV01,System,Service entered running state,,Success,Informational
+EVT-00447,2026-10-23 10:46:36,WEB-01,5156,CORP\helpdesk,10.10.1.22,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00448,2026-10-23 10:46:36,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=10366942 uri=/upload/session/13,Allowed,Warning
+EVT-00449,2026-10-23 10:46:48,DB-SRV01,4625,CORP\backupsvc,10.10.2.24,FS-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00450,2026-10-23 10:46:54,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=7997679 uri=/upload/session/14,Allowed,Warning
+EVT-00451,2026-10-23 10:47:12,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=11952743 uri=/upload/session/15,Allowed,Warning
+EVT-00452,2026-10-23 10:47:12,WS-014,5140,CORP\dtorres,10.10.1.22,,Security,A network share object was accessed,,Success,Informational
+EVT-00453,2026-10-23 10:47:30,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=16798883 uri=/upload/session/16,Allowed,Warning
+EVT-00454,2026-10-23 10:47:48,WS-014,7036,CORP\jlopez,10.10.3.18,,System,Service entered running state,,Success,Informational
+EVT-00455,2026-10-23 10:47:48,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=5846865 uri=/upload/session/17,Allowed,Warning
+EVT-00456,2026-10-23 10:48:06,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=7860805 uri=/upload/session/18,Allowed,Warning
+EVT-00457,2026-10-23 10:48:24,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=13060665 uri=/upload/session/19,Allowed,Warning
+EVT-00458,2026-10-23 10:48:42,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=10726312 uri=/upload/session/20,Allowed,Warning
+EVT-00459,2026-10-23 10:48:55,FS-SRV01,4624,CORP\jlopez,10.10.2.24,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00460,2026-10-23 10:49:00,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=13316765 uri=/upload/session/21,Allowed,Warning
+EVT-00461,2026-10-23 10:49:18,WS-018,PROXY_ACCESS,CORP\rrojas,10.10.1.31,198.51.100.88:443,Proxy,HTTPS POST outbound,bytes_out=16778302 uri=/upload/session/22,Allowed,Warning
+EVT-00462,2026-10-23 10:49:24,WS-023,7036,CORP\dtorres,10.10.2.24,APP-SRV01,System,Service entered running state,,Success,Informational
+EVT-00463,2026-10-23 10:50:58,WS-018,4634,CORP\aperez,10.10.3.18,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00464,2026-10-23 10:51:51,DC-01,4688,CORP\slopez,10.10.2.15,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00465,2026-10-23 10:52:39,WEB-01,4663,CORP\mgarcia,10.10.3.18,FS-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00466,2026-10-23 10:52:54,WEB-01,4663,CORP\slopez,10.10.1.22,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00467,2026-10-23 10:54:43,WS-023,4688,CORP\helpdesk,10.10.2.15,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00468,2026-10-23 10:55:01,WS-018,4663,CORP\helpdesk,10.10.2.15,DC-01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00469,2026-10-23 10:55:54,WS-018,4634,CORP\rrojas,10.10.2.24,,Security,An account was logged off,,Success,Informational
+EVT-00470,2026-10-23 10:56:24,WS-018,4624,CORP\dtorres,10.10.2.15,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00471,2026-10-23 10:57:38,WS-023,4624,CORP\backupsvc,10.10.1.22,FS-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00472,2026-10-23 10:58:45,APP-SRV01,4625,CORP\backupsvc,10.10.1.44,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00473,2026-10-23 10:58:45,WS-014,4624,CORP\aperez,10.10.2.15,APP-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00474,2026-10-23 10:59:48,WEB-01,5140,CORP\backupsvc,10.10.3.18,APP-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00475,2026-10-23 11:01:26,WEB-01,5140,CORP\mgarcia,10.10.1.31,APP-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00476,2026-10-23 11:02:15,DB-SRV01,5156,CORP\helpdesk,10.10.1.22,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00477,2026-10-23 11:05:24,FS-SRV01,7036,CORP\aperez,10.10.1.44,APP-SRV01,System,Service entered running state,,Success,Informational
+EVT-00478,2026-10-23 11:05:33,WS-023,4624,CORP\dtorres,10.10.1.31,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00479,2026-10-23 11:05:51,DB-SRV01,7036,CORP\backupsvc,10.10.3.18,DC-01,System,Service entered running state,,Success,Informational
+EVT-00480,2026-10-23 11:06:52,WS-031,5140,CORP\jlopez,10.10.2.24,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00481,2026-10-23 11:06:52,WEB-01,4688,CORP\rrojas,10.10.2.15,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00482,2026-10-23 11:09:05,WEB-01,4624,CORP\helpdesk,10.10.1.22,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00483,2026-10-23 11:10:19,FS-SRV01,4688,CORP\helpdesk,10.10.1.44,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00484,2026-10-23 11:11:11,WS-014,4625,CORP\dtorres,10.10.2.24,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00485,2026-10-23 11:11:21,WEB-01,4634,CORP\mgarcia,10.10.1.44,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00486,2026-10-23 11:12:07,WEB-01,4634,CORP\jlopez,10.10.3.18,FS-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00487,2026-10-23 11:13:34,DB-SRV01,4624,CORP\aperez,10.10.3.18,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00488,2026-10-23 11:14:25,APP-SRV01,4634,CORP\helpdesk,10.10.1.22,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00489,2026-10-23 11:15:27,WS-031,5140,CORP\helpdesk,10.10.1.31,,Security,A network share object was accessed,,Success,Informational
+EVT-00490,2026-10-23 11:15:45,WS-031,4688,CORP\mgarcia,10.10.3.18,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00491,2026-10-23 11:15:54,FS-SRV01,4663,CORP\rrojas,10.10.2.15,DC-01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00492,2026-10-23 11:16:52,WS-023,4688,CORP\aperez,10.10.1.31,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00493,2026-10-23 11:17:03,DC-01,4688,CORP\rrojas,10.10.1.31,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00494,2026-10-23 11:17:14,WS-023,4634,CORP\slopez,10.10.1.22,,Security,An account was logged off,,Success,Informational
+EVT-00495,2026-10-23 11:17:29,FS-SRV01,4625,CORP\jlopez,10.10.3.18,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00496,2026-10-23 11:17:46,WS-014,7036,CORP\mgarcia,10.10.1.44,FS-SRV01,System,Service entered running state,,Success,Informational
+EVT-00497,2026-10-23 11:17:52,WS-023,4634,CORP\slopez,10.10.3.18,FS-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00498,2026-10-23 11:17:52,DC-01,4625,CORP\rrojas,10.10.2.24,APP-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00499,2026-10-23 11:20:08,WS-023,5156,CORP\mgarcia,10.10.1.44,,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00500,2026-10-23 11:20:59,WEB-01,4663,CORP\rrojas,10.10.2.24,FS-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00501,2026-10-23 11:21:07,DB-SRV01,7036,CORP\mgarcia,10.10.2.15,FS-SRV01,System,Service entered running state,,Success,Informational
+EVT-00502,2026-10-23 11:21:16,FS-SRV01,4663,CORP\jlopez,10.10.2.24,,Security,An attempt was made to access an object,,Success,Informational
+EVT-00503,2026-10-23 11:22:35,WS-031,4688,CORP\dtorres,10.10.1.22,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00504,2026-10-23 11:23:27,DC-01,4624,CORP\aperez,10.10.3.18,FS-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00505,2026-10-23 11:23:58,WEB-01,4624,CORP\jlopez,10.10.2.15,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00506,2026-10-23 11:24:01,DB-SRV01,4634,CORP\slopez,10.10.1.31,,Security,An account was logged off,,Success,Informational
+EVT-00507,2026-10-23 11:25:14,WS-018,4634,CORP\slopez,10.10.1.31,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00508,2026-10-23 11:26:06,WS-014,4625,CORP\jlopez,10.10.1.44,APP-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00509,2026-10-23 11:26:12,WS-014,4634,CORP\dtorres,10.10.1.44,,Security,An account was logged off,,Success,Informational
+EVT-00510,2026-10-23 11:29:06,APP-SRV01,5156,CORP\helpdesk,10.10.1.44,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00511,2026-10-23 11:30:10,WS-018,4688,CORP\slopez,10.10.1.31,FS-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00512,2026-10-23 11:30:15,WS-018,5140,CORP\helpdesk,10.10.1.22,APP-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00513,2026-10-23 11:30:59,WS-031,4688,CORP\mgarcia,10.10.1.31,DC-01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00514,2026-10-23 11:31:34,APP-SRV01,4625,CORP\jlopez,10.10.2.24,,Security,An account failed to log on,,Failure,Informational
+EVT-00515,2026-10-23 11:31:42,WEB-01,4688,CORP\rrojas,10.10.2.15,DC-01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00516,2026-10-23 11:31:56,WEB-01,5156,CORP\slopez,10.10.2.15,,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00517,2026-10-23 11:32:33,WEB-01,4688,CORP\rrojas,10.10.2.24,FS-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00518,2026-10-23 11:34:34,WEB-01,4663,CORP\jlopez,10.10.2.24,DC-01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00519,2026-10-23 11:35:00,APP-SRV01,4624,CORP\helpdesk,10.10.3.18,,Security,An account was successfully logged on,,Success,Informational
+EVT-00520,2026-10-23 11:35:49,DB-SRV01,4634,CORP\helpdesk,10.10.2.15,FS-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00521,2026-10-23 11:36:00,WS-023,4624,CORP\dtorres,10.10.1.31,APP-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00522,2026-10-23 11:36:28,WS-031,4634,CORP\backupsvc,10.10.3.18,FS-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00523,2026-10-23 11:37:00,APP-SRV01,4698,CORP\helpdesk,10.10.3.18,,Security,A scheduled task was created,TaskName=\Microsoft\Windows\UpdateCheck; Action=powershell.exe -File C:\ProgramData\updatecheck.ps1,Success,Warning
+EVT-00524,2026-10-23 11:38:00,APP-SRV01,7045,CORP\helpdesk,10.10.3.18,,System,A service was installed in the system,ServiceName=WinUpdateHelper; ImagePath=C:\ProgramData\wuhelper.exe,Success,Warning
+EVT-00525,2026-10-23 11:39:14,DB-SRV01,7036,CORP\backupsvc,10.10.2.24,,System,Service entered running state,,Success,Informational
+EVT-00526,2026-10-23 11:39:34,DB-SRV01,4624,CORP\helpdesk,10.10.2.15,FS-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00527,2026-10-23 11:40:00,DC-01,4688,CORP\slopez,10.10.1.44,FS-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00528,2026-10-23 11:40:00,APP-SRV01,4688,CORP\helpdesk,10.10.3.18,,Security,A new process has been created,C:\ProgramData\wuhelper.exe,Success,Informational
+EVT-00529,2026-10-23 11:40:05,DC-01,4625,CORP\slopez,10.10.3.18,FS-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00530,2026-10-23 11:40:21,WS-014,5156,CORP\jlopez,10.10.1.22,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00531,2026-10-23 11:40:27,FS-SRV01,4688,CORP\aperez,10.10.1.31,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00532,2026-10-23 11:40:41,FS-SRV01,4624,CORP\aperez,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00533,2026-10-23 11:40:47,WEB-01,5140,CORP\aperez,10.10.1.44,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00534,2026-10-23 11:41:20,WS-023,5156,CORP\mgarcia,10.10.1.31,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00535,2026-10-23 11:42:24,WS-018,4663,CORP\slopez,10.10.3.18,FS-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00536,2026-10-23 11:43:24,APP-SRV01,4634,CORP\helpdesk,10.10.2.24,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00537,2026-10-23 11:43:54,DC-01,4688,CORP\helpdesk,10.10.2.24,DC-01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00538,2026-10-23 11:44:16,WEB-01,4625,CORP\aperez,10.10.1.31,,Security,An account failed to log on,,Failure,Informational
+EVT-00539,2026-10-23 11:45:01,DB-SRV01,4663,CORP\jlopez,10.10.1.44,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00540,2026-10-23 11:45:08,WEB-01,4624,CORP\dtorres,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00541,2026-10-23 11:45:28,DC-01,4625,CORP\aperez,10.10.2.24,APP-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00542,2026-10-23 11:46:00,APP-SRV01,4688,CORP\helpdesk,10.10.3.18,,Security,A new process has been created,C:\ProgramData\wuhelper.exe,Success,Informational
+EVT-00543,2026-10-23 11:48:46,WEB-01,4624,CORP\helpdesk,10.10.1.44,,Security,An account was successfully logged on,,Success,Informational
+EVT-00544,2026-10-23 11:49:56,FS-SRV01,5156,CORP\jlopez,10.10.1.44,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00545,2026-10-23 11:50:20,WS-031,4624,CORP\backupsvc,10.10.1.44,,Security,An account was successfully logged on,,Success,Informational
+EVT-00546,2026-10-23 11:50:30,WS-031,7036,CORP\slopez,10.10.2.24,DC-01,System,Service entered running state,,Success,Informational
+EVT-00547,2026-10-23 11:51:02,WEB-01,4624,CORP\dtorres,10.10.3.18,APP-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00548,2026-10-23 11:52:00,APP-SRV01,4688,CORP\helpdesk,10.10.3.18,,Security,A new process has been created,C:\ProgramData\wuhelper.exe,Success,Informational
+EVT-00549,2026-10-23 11:53:10,WS-018,4634,CORP\mgarcia,10.10.1.22,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00550,2026-10-23 11:53:13,WS-023,4624,CORP\mgarcia,10.10.1.31,APP-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00551,2026-10-23 11:53:37,FS-SRV01,5156,CORP\rrojas,10.10.1.44,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00552,2026-10-23 11:53:55,WS-031,4624,CORP\aperez,10.10.2.15,APP-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00553,2026-10-23 11:56:02,WS-018,5140,CORP\dtorres,10.10.1.22,APP-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00554,2026-10-23 11:56:02,WS-018,4625,CORP\helpdesk,10.10.1.31,,Security,An account failed to log on,,Failure,Informational
+EVT-00555,2026-10-23 11:56:03,WS-031,5140,CORP\aperez,10.10.2.15,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00556,2026-10-23 11:56:11,WS-014,4663,CORP\jlopez,10.10.1.44,,Security,An attempt was made to access an object,,Success,Informational
+EVT-00557,2026-10-23 11:57:44,WEB-01,4634,CORP\rrojas,10.10.1.31,APP-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00558,2026-10-23 11:57:44,WS-023,5140,CORP\slopez,10.10.2.15,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00559,2026-10-23 11:58:00,APP-SRV01,4688,CORP\helpdesk,10.10.3.18,,Security,A new process has been created,C:\ProgramData\wuhelper.exe,Success,Informational
+EVT-00560,2026-10-23 11:58:08,FS-SRV01,5156,CORP\backupsvc,10.10.2.15,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00561,2026-10-23 11:58:12,FS-SRV01,4625,CORP\aperez,10.10.1.22,APP-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00562,2026-10-23 11:59:30,WS-031,4624,CORP\slopez,10.10.3.18,,Security,An account was successfully logged on,,Success,Informational
+EVT-00563,2026-10-23 12:03:15,DB-SRV01,5140,CORP\mgarcia,10.10.2.15,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00564,2026-10-23 12:04:00,APP-SRV01,4688,CORP\helpdesk,10.10.3.18,,Security,A new process has been created,C:\ProgramData\wuhelper.exe,Success,Informational
+EVT-00565,2026-10-23 12:05:12,WS-023,4624,CORP\slopez,10.10.2.24,,Security,An account was successfully logged on,,Success,Informational
+EVT-00566,2026-10-23 12:05:57,WEB-01,4634,CORP\jlopez,10.10.2.24,,Security,An account was logged off,,Success,Informational
+EVT-00567,2026-10-23 12:06:57,WS-014,4634,CORP\helpdesk,10.10.1.31,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00568,2026-10-23 12:07:38,WS-018,4625,CORP\backupsvc,10.10.3.18,,Security,An account failed to log on,,Failure,Informational
+EVT-00569,2026-10-23 12:09:13,APP-SRV01,4688,CORP\slopez,10.10.1.22,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00570,2026-10-23 12:09:56,DB-SRV01,4688,CORP\jlopez,10.10.3.18,FS-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00571,2026-10-23 12:10:00,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/uploads/test.aspx?cmd=whoami,200,Warning
+EVT-00572,2026-10-23 12:10:12,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/login?user=admin,200,Warning
+EVT-00573,2026-10-23 12:10:24,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/uploads/test.aspx?cmd=whoami,404,Warning
+EVT-00574,2026-10-23 12:10:36,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/uploads/test.aspx?cmd=whoami,404,Warning
+EVT-00575,2026-10-23 12:10:47,DB-SRV01,5140,CORP\slopez,10.10.2.24,APP-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00576,2026-10-23 12:10:48,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/admin/,500,Warning
+EVT-00577,2026-10-23 12:11:00,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/api/v1/export,200,Warning
+EVT-00578,2026-10-23 12:11:06,WS-023,4663,CORP\backupsvc,10.10.1.44,DC-01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00579,2026-10-23 12:11:12,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/login?user=admin,200,Warning
+EVT-00580,2026-10-23 12:11:17,WS-023,4634,CORP\jlopez,10.10.3.18,FS-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00581,2026-10-23 12:11:24,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/admin/,500,Warning
+EVT-00582,2026-10-23 12:11:36,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/api/v1/export,404,Warning
+EVT-00583,2026-10-23 12:11:48,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/admin/,500,Warning
+EVT-00584,2026-10-23 12:12:00,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/admin/,500,Warning
+EVT-00585,2026-10-23 12:12:12,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/admin/,404,Warning
+EVT-00586,2026-10-23 12:12:24,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/login?user=admin,500,Warning
+EVT-00587,2026-10-23 12:12:33,WS-031,4625,CORP\dtorres,10.10.1.44,FS-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00588,2026-10-23 12:12:36,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/api/v1/export,404,Warning
+EVT-00589,2026-10-23 12:12:48,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/login?user=admin,500,Warning
+EVT-00590,2026-10-23 12:13:00,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/api/v1/export,500,Warning
+EVT-00591,2026-10-23 12:13:12,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/login?user=admin,404,Warning
+EVT-00592,2026-10-23 12:13:24,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/login?user=admin,200,Warning
+EVT-00593,2026-10-23 12:13:36,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/login?user=admin,500,Warning
+EVT-00594,2026-10-23 12:13:43,FS-SRV01,7036,CORP\mgarcia,10.10.3.18,FS-SRV01,System,Service entered running state,,Success,Informational
+EVT-00595,2026-10-23 12:13:48,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/login?user=admin,500,Warning
+EVT-00596,2026-10-23 12:14:00,WEB-01,HTTP_ACCESS,-,192.0.2.91,WEB-01:443,IIS,HTTP request,/api/v1/export,200,Warning
+EVT-00597,2026-10-23 12:14:27,WS-014,7036,CORP\jlopez,10.10.2.24,APP-SRV01,System,Service entered running state,,Success,Informational
+EVT-00598,2026-10-23 12:14:49,WS-031,7036,CORP\mgarcia,10.10.1.31,APP-SRV01,System,Service entered running state,,Success,Informational
+EVT-00599,2026-10-23 12:15:00,WEB-01,4688,IIS APPPOOL\DefaultAppPool,192.0.2.91,,Security,A new process has been created,cmd.exe /c whoami,Success,Warning
+EVT-00600,2026-10-23 12:16:18,WS-018,5140,CORP\rrojas,10.10.3.18,,Security,A network share object was accessed,,Success,Informational
+EVT-00601,2026-10-23 12:17:07,WS-023,5156,CORP\helpdesk,10.10.1.31,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00602,2026-10-23 12:18:06,FS-SRV01,4624,CORP\aperez,10.10.3.18,FS-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00603,2026-10-23 12:18:31,DC-01,4663,CORP\slopez,10.10.3.18,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00604,2026-10-23 12:18:40,WS-014,5156,CORP\slopez,10.10.1.22,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00605,2026-10-23 12:19:58,FS-SRV01,4624,CORP\dtorres,10.10.2.24,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00606,2026-10-23 12:20:03,WS-023,7036,CORP\mgarcia,10.10.1.44,,System,Service entered running state,,Success,Informational
+EVT-00607,2026-10-23 12:20:25,APP-SRV01,4624,CORP\helpdesk,10.10.1.22,,Security,An account was successfully logged on,,Success,Informational
+EVT-00608,2026-10-23 12:20:42,FS-SRV01,4634,CORP\jlopez,10.10.1.44,FS-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00609,2026-10-23 12:23:28,DB-SRV01,4624,CORP\mgarcia,10.10.1.22,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00610,2026-10-23 12:24:58,DB-SRV01,4634,CORP\mgarcia,10.10.1.22,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00611,2026-10-23 12:26:20,WS-014,4663,CORP\jlopez,10.10.2.15,DC-01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00612,2026-10-23 12:27:06,DC-01,4663,CORP\mgarcia,10.10.1.44,,Security,An attempt was made to access an object,,Success,Informational
+EVT-00613,2026-10-23 12:28:24,DC-01,5140,CORP\jlopez,10.10.3.18,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00614,2026-10-23 12:28:28,WEB-01,5140,CORP\backupsvc,10.10.1.22,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00615,2026-10-23 12:32:09,WS-018,5156,CORP\helpdesk,10.10.2.24,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00616,2026-10-23 12:33:21,DC-01,4663,CORP\jlopez,10.10.1.44,,Security,An attempt was made to access an object,,Success,Informational
+EVT-00617,2026-10-23 12:34:02,WS-018,4634,CORP\aperez,10.10.3.18,,Security,An account was logged off,,Success,Informational
+EVT-00618,2026-10-23 12:35:20,DC-01,4663,CORP\helpdesk,10.10.3.18,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00619,2026-10-23 12:38:21,DC-01,4688,CORP\mgarcia,10.10.2.24,FS-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00620,2026-10-23 12:38:31,APP-SRV01,4688,CORP\backupsvc,10.10.2.24,DC-01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00621,2026-10-23 12:39:52,WS-014,4634,CORP\jlopez,10.10.1.31,FS-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00622,2026-10-23 12:40:22,FS-SRV01,7036,CORP\slopez,10.10.1.44,APP-SRV01,System,Service entered running state,,Success,Informational
+EVT-00623,2026-10-23 12:40:49,WEB-01,5140,CORP\helpdesk,10.10.2.24,APP-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00624,2026-10-23 12:41:27,APP-SRV01,7036,CORP\aperez,10.10.1.22,APP-SRV01,System,Service entered running state,,Success,Informational
+EVT-00625,2026-10-23 12:42:14,DC-01,4625,CORP\backupsvc,10.10.1.22,FS-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00626,2026-10-23 12:42:32,APP-SRV01,5156,CORP\aperez,10.10.1.44,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00627,2026-10-23 12:42:44,WEB-01,4625,CORP\slopez,10.10.2.15,,Security,An account failed to log on,,Failure,Informational
+EVT-00628,2026-10-23 12:43:54,WS-023,7036,CORP\backupsvc,10.10.1.44,FS-SRV01,System,Service entered running state,,Success,Informational
+EVT-00629,2026-10-23 12:44:20,WS-031,5156,CORP\aperez,10.10.2.24,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00630,2026-10-23 12:44:43,APP-SRV01,5140,CORP\dtorres,10.10.1.22,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00631,2026-10-23 12:46:19,WS-014,4625,CORP\helpdesk,10.10.3.18,FS-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00632,2026-10-23 12:47:08,WS-023,7036,CORP\helpdesk,10.10.1.22,FS-SRV01,System,Service entered running state,,Success,Informational
+EVT-00633,2026-10-23 12:47:24,WS-031,5140,CORP\rrojas,10.10.2.15,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00634,2026-10-23 12:47:37,WS-031,4688,CORP\backupsvc,10.10.1.22,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00635,2026-10-23 12:47:54,FS-SRV01,5140,CORP\aperez,10.10.3.18,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00636,2026-10-23 12:48:31,WS-014,4688,CORP\slopez,10.10.1.44,FS-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00637,2026-10-23 12:48:38,FS-SRV01,4624,CORP\mgarcia,10.10.1.44,FS-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00638,2026-10-23 12:48:53,WS-031,5140,CORP\rrojas,10.10.1.22,,Security,A network share object was accessed,,Success,Informational
+EVT-00639,2026-10-23 12:48:57,WS-031,7036,CORP\mgarcia,10.10.2.24,APP-SRV01,System,Service entered running state,,Success,Informational
+EVT-00640,2026-10-23 12:51:29,DB-SRV01,5140,CORP\dtorres,10.10.1.31,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00641,2026-10-23 12:51:46,FS-SRV01,4663,CORP\rrojas,10.10.3.18,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00642,2026-10-23 12:51:56,DB-SRV01,4688,CORP\jlopez,10.10.1.22,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00643,2026-10-23 12:52:08,WS-023,4634,CORP\jlopez,10.10.2.24,,Security,An account was logged off,,Success,Informational
+EVT-00644,2026-10-23 12:52:22,WEB-01,4663,CORP\backupsvc,10.10.2.24,FS-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00645,2026-10-23 12:52:26,DC-01,5140,CORP\rrojas,10.10.2.24,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00646,2026-10-23 12:52:39,WS-014,5156,CORP\slopez,10.10.1.31,,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00647,2026-10-23 12:52:58,WS-018,4663,CORP\rrojas,10.10.2.24,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00648,2026-10-23 12:53:26,WS-018,5156,CORP\helpdesk,10.10.1.44,,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00649,2026-10-23 12:53:49,WS-023,4663,CORP\slopez,10.10.1.31,DC-01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00650,2026-10-23 12:54:27,WEB-01,5156,CORP\mgarcia,10.10.1.31,,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00651,2026-10-23 12:56:45,FS-SRV01,4663,CORP\slopez,10.10.1.22,,Security,An attempt was made to access an object,,Success,Informational
+EVT-00652,2026-10-23 12:57:12,WS-031,5140,CORP\dtorres,10.10.2.24,,Security,A network share object was accessed,,Success,Informational
+EVT-00653,2026-10-23 12:57:16,WEB-01,5156,CORP\mgarcia,10.10.2.24,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00654,2026-10-23 13:01:20,DC-01,7036,CORP\rrojas,10.10.1.44,DC-01,System,Service entered running state,,Success,Informational
+EVT-00655,2026-10-23 13:02:35,DB-SRV01,5140,CORP\mgarcia,10.10.1.44,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00656,2026-10-23 13:03:10,WEB-01,7036,CORP\aperez,10.10.1.22,APP-SRV01,System,Service entered running state,,Success,Informational
+EVT-00657,2026-10-23 13:03:12,FS-SRV01,5156,CORP\slopez,10.10.1.44,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00658,2026-10-23 13:04:10,WS-018,4625,CORP\rrojas,10.10.2.15,,Security,An account failed to log on,,Failure,Informational
+EVT-00659,2026-10-23 13:04:45,FS-SRV01,5156,CORP\rrojas,10.10.1.44,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00660,2026-10-23 13:05:10,WEB-01,4634,CORP\slopez,10.10.2.15,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00661,2026-10-23 13:05:11,WEB-01,4688,CORP\backupsvc,10.10.3.18,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00662,2026-10-23 13:05:26,DC-01,7036,CORP\backupsvc,10.10.2.15,APP-SRV01,System,Service entered running state,,Success,Informational
+EVT-00663,2026-10-23 13:05:44,FS-SRV01,4663,CORP\aperez,10.10.2.15,,Security,An attempt was made to access an object,,Success,Informational
+EVT-00664,2026-10-23 13:06:32,WS-023,5156,CORP\jlopez,10.10.1.22,,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00665,2026-10-23 13:06:53,WEB-01,7036,CORP\backupsvc,10.10.1.31,DC-01,System,Service entered running state,,Success,Informational
+EVT-00666,2026-10-23 13:07:04,DC-01,4625,CORP\mgarcia,10.10.2.15,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00667,2026-10-23 13:08:03,WS-018,4624,CORP\dtorres,10.10.1.44,DC-01,Security,An account was successfully logged on,,Success,Informational
+EVT-00668,2026-10-23 13:08:28,WS-023,7036,CORP\jlopez,10.10.2.24,DC-01,System,Service entered running state,,Success,Informational
+EVT-00669,2026-10-23 13:09:07,WS-014,7036,CORP\jlopez,10.10.2.15,DC-01,System,Service entered running state,,Success,Informational
+EVT-00670,2026-10-23 13:10:04,FS-SRV01,7036,CORP\mgarcia,10.10.1.44,DC-01,System,Service entered running state,,Success,Informational
+EVT-00671,2026-10-23 13:10:30,DC-01,4625,CORP\mgarcia,10.10.2.24,FS-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00672,2026-10-23 13:11:22,DB-SRV01,4624,CORP\jlopez,10.10.1.31,FS-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00673,2026-10-23 13:13:25,WS-023,7036,CORP\mgarcia,10.10.2.24,APP-SRV01,System,Service entered running state,,Success,Informational
+EVT-00674,2026-10-23 13:14:21,FS-SRV01,4634,CORP\dtorres,10.10.1.44,FS-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00675,2026-10-23 13:14:26,DC-01,7036,CORP\rrojas,10.10.2.24,DC-01,Security,Service entered running state,,Success,Informational
+EVT-00676,2026-10-23 13:14:33,FS-SRV01,4688,CORP\aperez,10.10.2.24,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00677,2026-10-23 13:15:47,DB-SRV01,5156,CORP\helpdesk,10.10.1.44,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00678,2026-10-23 13:15:50,WS-018,5140,CORP\helpdesk,10.10.1.44,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00679,2026-10-23 13:15:53,DC-01,5140,CORP\backupsvc,10.10.1.44,APP-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00680,2026-10-23 13:16:45,FS-SRV01,5156,CORP\mgarcia,10.10.1.22,,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00681,2026-10-23 13:16:50,APP-SRV01,4624,CORP\mgarcia,10.10.2.15,,Security,An account was successfully logged on,,Success,Informational
+EVT-00682,2026-10-23 13:16:54,WEB-01,4663,CORP\dtorres,10.10.3.18,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00683,2026-10-23 13:16:56,DC-01,4688,CORP\dtorres,10.10.3.18,APP-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00684,2026-10-23 13:17:24,FS-SRV01,4663,CORP\dtorres,10.10.1.22,DC-01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00685,2026-10-23 13:18:26,FS-SRV01,4634,CORP\dtorres,10.10.2.24,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00686,2026-10-23 13:18:42,DB-SRV01,7036,CORP\aperez,10.10.1.44,DC-01,System,Service entered running state,,Success,Informational
+EVT-00687,2026-10-23 13:19:04,DB-SRV01,5156,CORP\backupsvc,10.10.1.31,DC-01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00688,2026-10-23 13:20:17,FS-SRV01,5156,CORP\helpdesk,10.10.1.22,FS-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00689,2026-10-23 13:22:12,WS-031,4634,CORP\jlopez,10.10.2.24,DC-01,Security,An account was logged off,,Success,Informational
+EVT-00690,2026-10-23 13:22:20,DB-SRV01,4634,CORP\slopez,10.10.2.15,APP-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00691,2026-10-23 13:23:15,WEB-01,4663,CORP\mgarcia,10.10.3.18,APP-SRV01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00692,2026-10-23 13:24:19,WS-023,4625,CORP\aperez,10.10.1.44,APP-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00693,2026-10-23 13:25:23,DB-SRV01,4634,CORP\dtorres,10.10.3.18,APP-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00694,2026-10-23 13:25:23,APP-SRV01,4688,CORP\helpdesk,10.10.1.44,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00695,2026-10-23 13:25:39,WS-014,5140,CORP\rrojas,10.10.2.24,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00696,2026-10-23 13:27:30,WS-014,4663,CORP\aperez,10.10.1.44,DC-01,Security,An attempt was made to access an object,,Success,Informational
+EVT-00697,2026-10-23 13:28:26,WEB-01,5140,CORP\jlopez,10.10.1.44,,Security,A network share object was accessed,,Success,Informational
+EVT-00698,2026-10-23 13:29:11,FS-SRV01,4624,CORP\dtorres,10.10.1.31,APP-SRV01,Security,An account was successfully logged on,,Success,Informational
+EVT-00699,2026-10-23 13:29:45,WS-031,4688,CORP\mgarcia,10.10.2.15,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00700,2026-10-23 13:29:55,WS-014,5156,CORP\slopez,10.10.1.31,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00701,2026-10-23 13:31:08,WS-023,5156,CORP\slopez,10.10.1.22,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00702,2026-10-23 13:32:05,DB-SRV01,4625,CORP\jlopez,10.10.2.15,FS-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00703,2026-10-23 13:32:31,WEB-01,7036,CORP\helpdesk,10.10.2.24,FS-SRV01,System,Service entered running state,,Success,Informational
+EVT-00704,2026-10-23 13:33:21,DB-SRV01,5140,CORP\jlopez,10.10.1.31,FS-SRV01,Security,A network share object was accessed,,Success,Informational
+EVT-00705,2026-10-23 13:34:20,WEB-01,4688,CORP\rrojas,10.10.2.24,FS-SRV01,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00706,2026-10-23 13:35:27,WS-023,5140,CORP\aperez,10.10.1.31,DC-01,Security,A network share object was accessed,,Success,Informational
+EVT-00707,2026-10-23 13:35:59,DB-SRV01,7036,CORP\dtorres,10.10.1.44,,System,Service entered running state,,Success,Informational
+EVT-00708,2026-10-23 13:38:00,WS-031,4625,CORP\mgarcia,10.10.1.22,,Security,An account failed to log on,,Failure,Informational
+EVT-00709,2026-10-23 13:38:55,WEB-01,5156,CORP\mgarcia,10.10.2.24,APP-SRV01,Security,Windows Filtering Platform permitted a connection,,Success,Informational
+EVT-00710,2026-10-23 13:40:33,DC-01,4634,CORP\slopez,10.10.1.44,FS-SRV01,Security,An account was logged off,,Success,Informational
+EVT-00711,2026-10-23 13:42:01,WEB-01,4688,CORP\dtorres,10.10.1.22,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00712,2026-10-23 13:42:46,WS-018,4625,CORP\backupsvc,10.10.1.44,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00713,2026-10-23 13:43:27,WEB-01,4688,CORP\slopez,10.10.2.15,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00714,2026-10-23 13:43:39,APP-SRV01,4625,CORP\jlopez,10.10.2.15,APP-SRV01,Security,An account failed to log on,,Failure,Informational
+EVT-00715,2026-10-23 13:44:06,WS-031,4688,CORP\mgarcia,10.10.3.18,,Security,A new process has been created,explorer.exe,Success,Informational

@@ -97,3 +97,53 @@ def test_upload_mayor_al_limite_devuelve_413(monkeypatch):
     monkeypatch.setattr(main, "MAX_UPLOAD_BYTES", 1024)
     r = client.post("/api/upload", files={"file": ("a.xlsx", b"x" * 5000, "application/octet-stream")})
     assert r.status_code == 413
+
+
+# ---- formatos de entrada -------------------------------------------------------
+
+DATA_DIR = SAMPLE.parent
+
+
+@pytest.mark.parametrize("fname", [
+    "SOC_L2_Logs_Ampliados_Multiples_Incidentes.csv",
+    "SOC_L2_Logs_Ampliados_Multiples_Incidentes.ndjson",
+])
+def test_upload_csv_y_ndjson_dan_el_mismo_resultado_que_el_excel(fname):
+    f = DATA_DIR / fname
+    r = client.post("/api/upload", data={"client": "Cliente ejemplo"},
+                    files={"file": (f.name, f.read_bytes(), "application/octet-stream")})
+    assert r.status_code == 200, r.text
+    a = r.json()["analysis"]
+    assert len(a["incidents"]) == 6 and len(a["findings"]) == 25 and a["profile"]["rows"] == 715
+
+
+def test_pdf_desde_un_csv():
+    f = DATA_DIR / "SOC_L2_Logs_Ampliados_Multiples_Incidentes.csv"
+    sid = client.post("/api/upload", files={"file": (f.name, f.read_bytes(), "text/csv")}).json()["session_id"]
+    r = client.get(f"/api/sessions/{sid}/report.pdf")
+    assert r.status_code == 200 and r.content[:4] == b"%PDF"
+
+
+def test_upload_json_en_txt_se_detecta_por_contenido():
+    body = b'[{"Log_ID":"E1","Timestamp":"2026-10-23 08:00:00","Hostname":"H","Event_ID":4625,"User":"u","Source_IP":"1.2.3.4"}]'
+    r = client.post("/api/upload", files={"file": ("salida.txt", body, "text/plain")})
+    assert r.status_code == 200 and r.json()["analysis"]["profile"]["rows"] == 1
+
+
+def test_upload_formato_no_soportado_lista_los_formatos_validos():
+    r = client.post("/api/upload", files={"file": ("a.pdf", b"%PDF", "application/pdf")})
+    assert r.status_code == 400 and "CSV" in r.json()["detail"] and "JSON" in r.json()["detail"]
+
+
+def test_upload_csv_con_marcado_en_celdas_no_se_ejecuta():
+    body = (b"Log_ID,Timestamp,Hostname,Event_ID,User,Source_IP,Event_Description\n"
+            b'E1,2026-10-23 08:00:00,H,4625,"<script>alert(1)</script>",1.2.3.4,"<img src=x onerror=alert(1)>"\n')
+    r = client.post("/api/upload", data={"client": "<b>x</b>"}, files={"file": ("a.csv", body, "text/csv")})
+    assert r.status_code == 200
+    sid = r.json()["session_id"]
+    assert client.get(f"/api/sessions/{sid}/report.pdf").status_code == 200   # el escape del PDF también aplica a CSV
+
+
+def test_upload_json_roto_da_422_con_mensaje():
+    r = client.post("/api/upload", files={"file": ("a.json", b'{"a":1}\n{roto}', "application/json")})
+    assert r.status_code == 422 and "Traceback" not in r.text

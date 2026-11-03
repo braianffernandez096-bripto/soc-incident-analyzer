@@ -88,11 +88,11 @@ window.addEventListener("hashchange", render);
 function landing() {
   return `<section class="landing">
     <h1>Del export del SIEM al informe de incidentes</h1>
-    <p class="lead">Carga el Excel con los eventos. La aplicación detecta indicadores de compromiso, correlaciona los eventos en incidentes y prepara el informe técnico en PDF. Cada conclusión cita los Log_ID que la respaldan.</p>
-    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Seleccionar archivo Excel">
-      <strong id="dropTitle">Arrastra el archivo .xlsx aquí o haz clic para elegirlo</strong>
-      <span>Hasta 25 MB. Columnas esperadas: Log_ID, Timestamp, Hostname, Event_ID, User, Source_IP y similares.</span>
-      <input type="file" id="file" accept=".xlsx,.xlsm" hidden>
+    <p class="lead">Carga el export de tu SIEM (Excel, CSV o JSON). La aplicación detecta indicadores de compromiso, correlaciona los eventos en incidentes y prepara el informe técnico en PDF. Cada conclusión cita los Log_ID que la respaldan.</p>
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Seleccionar archivo de eventos">
+      <strong id="dropTitle">Arrastra el archivo aquí o haz clic para elegirlo</strong>
+      <span>Excel (.xlsx), CSV/TSV o JSON/NDJSON, hasta 25 MB. Columnas esperadas: Log_ID, Timestamp, Hostname, Event_ID, User, Source_IP y similares (también campos tipo Elastic ECS).</span>
+      <input type="file" id="file" accept=".xlsx,.xlsm,.csv,.tsv,.txt,.log,.json,.jsonl,.ndjson" hidden>
     </div>
     <div class="fields">
       <label class="f">Cliente<input type="text" id="client" placeholder="Nombre del cliente" autocomplete="off"></label>
@@ -293,7 +293,7 @@ function findings() {
         <div class="plan"><div><h4>Investigar</h4><ul>${li(ap.investigate)}</ul></div><div><h4>Contener</h4><ul>${li(ap.contain)}</ul></div><div><h4>Remediar</h4><ul>${li(ap.remediate)}</ul></div></div>
       </div></details>`;
   }).join("");
-  return `<div class="page-head"><div><h1>Hallazgos</h1><p>Cada hallazgo cita los Log_ID del Excel que lo sustentan.</p></div></div>
+  return `<div class="page-head"><div><h1>Hallazgos</h1><p>Cada hallazgo cita los Log_ID del archivo que lo sustentan.</p></div></div>
     <div class="filters"><input type="search" id="fq" placeholder="Buscar por nombre, técnica (T1110) o táctica" value="${esc(S.findingQ)}" aria-label="Buscar hallazgos">
       <select id="fcat" aria-label="Categoría"><option value="">Todas las categorías</option>${cats.map((c) => `<option ${c === S.findingCat ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
       <span class="muted">${list.length} de ${S.a.findings.length} hallazgos</span></div>
@@ -338,7 +338,7 @@ function openDialog(title, body) {
 /* ---------- eventos ---------- */
 let logsData = null;
 function logs() {
-  return `<div class="page-head"><div><h1>Eventos</h1><p>Todos los registros del Excel. Los eventos que forman parte de un incidente llevan una marca de color.</p></div></div>
+  return `<div class="page-head"><div><h1>Eventos</h1><p>Todos los registros del archivo. Los eventos que forman parte de un incidente llevan una marca de color.</p></div></div>
     <div class="filters">
       <input type="search" id="q" placeholder="Buscar por Log_ID, usuario, IP, comando…" value="${esc(S.logs.q)}" aria-label="Buscar eventos">
       <select id="fHost" aria-label="Equipo"><option value="">Todos los equipos</option></select>
@@ -387,7 +387,7 @@ function report() {
       <div class="row" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" id="pdf">Descargar informe en PDF</button></div></div>
     <div class="panel"><h3>Redacción con IA</h3>
       <p>Modo actual: <span class="mode-badge ${isAI ? "ia" : "determinista"}">${isAI ? "IA (" + esc(A.model) + ")" : "Reglas deterministas"}</span></p>
-      <p class="muted">La IA redacta el análisis de cada incidente a partir de los hallazgos ya detectados. No puede cambiar la criticidad ni agregar eventos: toda cita a un Log_ID o IP que no exista en el Excel se descarta y se informa abajo.</p>
+      <p class="muted">La IA redacta el análisis de cada incidente a partir de los hallazgos ya detectados. No puede cambiar la criticidad ni agregar eventos: toda cita a un Log_ID o IP que no exista en el archivo se descarta y se informa abajo.</p>
       ${S.aiConfigured ? "" : `<label class="f" style="max-width:480px">API key de Anthropic (solo se usa en esta sesión)<input type="password" id="key" placeholder="sk-ant-…" autocomplete="off"></label>`}
       <div style="margin-top:12px"><button class="btn dark" id="runAi">${isAI ? "Volver a generar con IA" : "Generar análisis con IA"}</button></div>
       ${isAI ? `<div class="stat-line"><span>Citas verificadas: <b>${v.citas_verificadas ?? 0}</b></span><span>Citas descartadas: <b>${v.citas_descartadas ?? 0}</b></span><span>IPs descartadas: <b>${v.ips_descartadas ?? 0}</b></span><span>Hallazgos redactados por IA: <b>${v.hallazgos_con_ia ?? 0}</b> de ${v.hallazgos_total ?? S.a.findings.length}</span></div>` : ""}
@@ -454,10 +454,10 @@ function initChrome() {
   $("#themeBtn").onclick = () => { theme = { auto: "light", light: "dark", dark: "auto" }[theme]; pref.set("theme", theme); applyTheme(theme); };
   $("#motionBtn").onclick = () => { motion = motion === "full" ? "reduced" : "full"; pref.set("motion", motion); applyMotion(motion); };
   $("#helpBtn").onclick = () => openDialog("¿Cómo funciona?", `<div class="how"><ol>
-    <li><b>Carga</b> el Excel exportado del SIEM. Se detectan las columnas aunque cambien de nombre.</li>
+    <li><b>Carga</b> el export del SIEM en Excel, CSV o JSON. Se detectan el formato y las columnas aunque cambien de nombre.</li>
     <li><b>Reglas deterministas</b> buscan fuerza bruta, inicios de sesión externos, escalamiento, comandos sospechosos, movimiento lateral, exfiltración, persistencia y ataques web. Cada hallazgo cita los Log_ID que lo prueban.</li>
     <li><b>Correlación</b>: los hallazgos se agrupan en incidentes solo si comparten IP externa o cuenta. Compartir un host o recurso queda como hipótesis de confianza baja.</li>
-    <li><b>IA</b> redacta explicaciones, impacto y plan de acción. No cambia la criticidad y se descarta cualquier Log_ID o IP que no esté en el Excel.</li>
+    <li><b>IA</b> redacta explicaciones, impacto y plan de acción. No cambia la criticidad y se descarta cualquier Log_ID o IP que no esté en el archivo.</li>
     <li><b>Informe PDF</b> con resumen ejecutivo, hallazgos, evidencia, criticidad, impacto, plan de acción y recomendaciones.</li></ol>
     <p class="muted">Atajos: Ctrl+K o / para buscar.</p></div>`);
   $("#searchBtn").onclick = openPalette;

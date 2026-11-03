@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.12-blue) [![Tests](https://github.com/braianffernandez096-bripto/soc-incident-analyzer/actions/workflows/tests.yml/badge.svg)](https://github.com/braianffernandez096-bripto/soc-incident-analyzer/actions/workflows/tests.yml) ![Coverage](https://img.shields.io/badge/coverage-93%25-brightgreen) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-Aplicación web para el reto final del Bootcamp Analista SOC Nivel 2. Recibe el Excel exportado de un SIEM, detecta indicadores de compromiso, correlaciona los eventos en incidentes, clasifica la criticidad (Crítico / Alto / Medio / Bajo) y genera el informe técnico en PDF.
+Aplicación web para el reto final del Bootcamp Analista SOC Nivel 2. Recibe el export de un SIEM (Excel, CSV/TSV o JSON/NDJSON), detecta indicadores de compromiso, correlaciona los eventos en incidentes, clasifica la criticidad (Crítico / Alto / Medio / Bajo) y genera el informe técnico en PDF.
 
 ## Cómo funciona
 
@@ -10,13 +10,27 @@ Aplicación web para el reto final del Bootcamp Analista SOC Nivel 2. Recibe el 
 
 2. **Correlación**: los hallazgos se agrupan en incidentes cuando comparten IP externa o cuenta de actor. Compartir host o recurso no fusiona incidentes; queda como hipótesis de confianza baja.
 
-3. **IA (Claude)** (`backend/ai.py`): redacta la narrativa, la explicación técnica, el impacto y el plan de acción de cada incidente a partir de los hallazgos ya detectados. No puede cambiar la criticidad. Un verificador descarta cualquier `Log_ID` o IP que no exista en el Excel. Sin API key, o si la IA falla, el informe se genera con plantillas deterministas.
+3. **IA (Claude)** (`backend/ai.py`): redacta la narrativa, la explicación técnica, el impacto y el plan de acción de cada incidente a partir de los hallazgos ya detectados. No puede cambiar la criticidad. Un verificador descarta cualquier `Log_ID` o IP que no exista en el archivo. Sin API key, o si la IA falla, el informe se genera con plantillas deterministas.
 
 4. **PDF** (`backend/report.py`): resumen ejecutivo, hallazgos, evidencia, criticidad y justificación, impacto, plan de acción (investigar, contener, remediar) y recomendaciones generales.
 
+## Formatos de entrada
+
+| Formato | Extensiones | Detalles |
+|---|---|---|
+| Excel | `.xlsx`, `.xlsm` | Usa la hoja con más filas; detecta la fila de cabecera aunque haya títulos encima. |
+| CSV / TSV | `.csv`, `.tsv`, `.txt`, `.log` | Detecta el separador (`,` `;` tab `|`) y la codificación (UTF-8, UTF-16, Windows-1252). |
+| JSON | `.json` | Arreglo de eventos, contenedores como `{"events": [...]}` y respuestas de Elasticsearch/OpenSearch (`hits.hits[]._source`). |
+| NDJSON | `.jsonl`, `.ndjson` | Un evento por línea; también el formato de exportación de Splunk (`{"result": {...}}`). |
+
+- **Columnas:** se reconocen por nombre aunque cambien mayúsculas, acentos o idioma (`Descripción`, `hostname`, `Equipo`…) y los campos anidados típicos de Elastic ECS / Winlogbeat (`@timestamp`, `host.name`, `winlog.event_id`, `source.ip`, `user.name`, `process.command_line`…). Solo son indispensables `Timestamp` y `Event_ID`; lo que falte queda vacío y se informa.
+- **Marcas de tiempo:** si traen zona horaria (`Z`, `+02:00`) o son epoch (segundos, milisegundos…), se convierten a UTC y el informe lo declara. Si no la traen, se usan tal cual.
+- **Log_ID:** si no existe, se generan identificadores `ROW-00001…` estables.
+- Un `.txt` o `.log` que contenga JSON se detecta por su contenido.
+
 ## Resultado con el Excel de ejemplo
 
-`sample_data/SOC_L2_Logs_Ampliados_Multiples_Incidentes.xlsx` (715 eventos, ~6 h) produce **25 hallazgos** agrupados en **6 incidentes**:
+`sample_data/SOC_L2_Logs_Ampliados_Multiples_Incidentes.xlsx` (715 eventos, ~6 h; también en `.csv` y `.ndjson`, con el mismo resultado) produce **25 hallazgos** agrupados en **6 incidentes**:
 
 | ID | Incidente | Criticidad |
 |---|---|---|
@@ -86,7 +100,7 @@ nano .env                       # ANTHROPIC_API_KEY=...
 uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-Abre http://127.0.0.1:8000, sube el Excel exportado del SIEM (puedes usar el de `sample_data/`), revisa el análisis y descarga el informe en la pestaña **Informe**. Si no definiste la clave en `.env`, puedes pegarla ahí; solo se usa durante esa sesión.
+Abre http://127.0.0.1:8000, sube el export del SIEM (puedes usar cualquiera de los de `sample_data/`), revisa el análisis y descarga el informe en la pestaña **Informe**. Si no definiste la clave en `.env`, puedes pegarla ahí; solo se usa durante esa sesión.
 
 En Windows, la activación del entorno es `.venv\Scripts\activate`.
 
@@ -106,24 +120,24 @@ Abre http://127.0.0.1:8000. El puerto queda publicado solo en tu equipo (`127.0.
 ## Pruebas
 
 ```bash
-python -m pytest                                           # 47 pruebas
+python -m pytest                                           # 88 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (93 %)
 ```
 
-- `tests/unit/`: motor de detección contra el Excel de ejemplo y límites del parser.
+- `tests/unit/`: motor de detección contra el Excel de ejemplo, límites del parser y formatos de entrada (CSV, TSV, JSON, NDJSON, codificaciones y zonas horarias).
 - `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras) y capa de IA con un servidor simulado.
 - `tests/e2e/`: arranca el servidor real y recorre carga, análisis y PDF.
 
 ## Seguridad
 
 - La clave de Anthropic vive en `.env` (excluido de Git) o se pega en la interfaz; nunca se guarda ni se registra.
-- Todo dato del Excel se escapa antes de mostrarse y antes de entrar al PDF. La interfaz aplica una CSP estricta (`script-src 'self'`).
+- Todo dato del archivo se escapa antes de mostrarse y antes de entrar al PDF. La interfaz aplica una CSP estricta (`script-src 'self'`).
 - Límites: 25 MB de subida (lectura acotada), 300 MB descomprimidos, 100.000 filas y límite de peticiones por IP.
 - La app no tiene login: úsala en local. Si la expones en red, ponla detrás de un proxy con autenticación.
 
 ## Límites
 
-- Las marcas de tiempo del export no traen zona horaria; se usan tal cual.
+- Si las marcas de tiempo no traen zona horaria, se usan tal cual; si la traen, se convierten a UTC.
 - Los rangos 192.0.2.0/24, 198.51.100.0/24 y 203.0.113.0/24 (documentación) se tratan como externos.
 - El mapeo MITRE ATT&CK es orientativo. No hay reputación de IP ni geolocalización.
 - Los archivos de sesión viven en memoria (máx. 10) y se pierden al reiniciar el servidor.
@@ -133,7 +147,7 @@ python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (93 %
 ```
 backend/      parser, reglas de detección, correlación, IA, informe PDF y API (FastAPI)
 frontend/     interfaz web sin build (HTML, CSS y JS; fuentes IBM Plex locales)
-sample_data/  Excel de ejemplo
+sample_data/  export de ejemplo en Excel, CSV y NDJSON
 tests/        unit, integration y e2e
 ```
 

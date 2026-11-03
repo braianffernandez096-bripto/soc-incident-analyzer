@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue) ![Tests](https://img.shields.io/badge/tests-47%20passing-brightgreen) ![Coverage](https://img.shields.io/badge/coverage-93%25-brightgreen) ![License](https://img.shields.io/badge/license-MIT-lightgrey)
 
-Aplicación web para el reto final del Bootcamp Analista SOC Nivel 2. Recibe el Excel exportado de un SIEM, detecta indicadores de compromiso, correlaciona los eventos en incidentes, clasifica la criticidad (Crítico / Alto / Medio / Bajo) y genera el informe técnico en PDF. No usa Microsoft Sentinel.
+Aplicación web para el reto final del Bootcamp Analista SOC Nivel 2. Recibe el Excel exportado de un SIEM, detecta indicadores de compromiso, correlaciona los eventos en incidentes, clasifica la criticidad (Crítico / Alto / Medio / Bajo) y genera el informe técnico en PDF.
 
 ## Cómo funciona
 

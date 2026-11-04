@@ -25,9 +25,10 @@ from . import attack as attack_mod
 from . import detection as D
 from . import filecheck
 from . import intel as intel_mod
+from . import phishing as phishing_mod
 from .analysis import analyze, rows_for
 from .parser import SUPPORTED_EXT, ParseError, load_events
-from .report import build_pdf
+from .report import build_pdf, build_phishing_pdf
 
 ROOT = Path(__file__).resolve().parent.parent
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -158,9 +159,24 @@ class Session:
     analyst: str = ""
     created: float = field(default_factory=time.time)
     intel: dict | None = None      # estado de la consulta de reputación (VirusTotal / AbuseIPDB)
+    phish_id: str = ""             # análisis de correos asociado (se añade al PDF)
 
 
 SESSIONS: dict[str, Session] = {}
+
+
+@dataclass
+class PhishSession:
+    items: list
+    errors: list
+    created: float = field(default_factory=time.time)
+    intel: dict | None = None
+    client: str = ""
+    analyst: str = ""
+
+
+PHISH: dict[str, PhishSession] = {}
+MAX_EML_FILES = 5
 
 
 def _get(sid: str) -> Session:
@@ -344,16 +360,14 @@ def run_ai(sid: str, request: Request, x_anthropic_key: str | None = Header(defa
 
 
 # ---------------------------------------------------------------- inteligencia de amenazas (opcional)
-@app.get("/api/sessions/{sid}/intel")
-def intel_state(sid: str, include_reserved: bool = False):
+def _intel_state(obj, iocs: list[dict], include_reserved: bool) -> dict:
     """Qué se consultaría (sin tocar la red), qué proveedores tienen clave en el servidor y el estado de la última consulta."""
-    s = _get(sid)
     return {"configured": {"virustotal": bool(os.environ.get("VT_API_KEY", "").strip()),
                            "abuseipdb": bool(os.environ.get("ABUSEIPDB_API_KEY", "").strip())},
-            "plan": intel_mod.build_plan(s.analysis["iocs"], include_reserved), "job": s.intel}
+            "plan": intel_mod.build_plan(iocs, include_reserved), "job": obj.intel}
 
 
-def _intel_worker(s: Session, queries: list[dict], vt: str | None, ab: str | None) -> None:
+def _intel_worker(s, queries: list[dict], vt: str | None, ab: str | None) -> None:
     def progress(p: dict) -> None:
         s.intel.update(done=p["done"], results=p["results"], notices=p["notices"])
     try:
@@ -364,25 +378,133 @@ def _intel_worker(s: Session, queries: list[dict], vt: str | None, ab: str | Non
         s.intel.update(status="error", notices=["No se pudo completar la consulta de reputación."])
 
 
-@app.post("/api/sessions/{sid}/intel")
-def intel_start(sid: str, request: Request, include_reserved: bool = False, x_vt_key: str | None = Header(default=None),
-                x_abuseipdb_key: str | None = Header(default=None)):
+def _intel_launch(obj, sid: str, iocs: list[dict], request: Request, include_reserved: bool, vt_header, ab_header) -> dict:
     _rate_limit(request, "/api/intel", *RATE_LIMITS["/api/intel"])
-    s = _get(sid)
-    if s.intel and s.intel.get("status") == "running":
+    if obj.intel and obj.intel.get("status") == "running":
         raise HTTPException(409, "Ya hay una consulta de reputación en curso.")
-    vt, ab = _intel_keys(x_vt_key, x_abuseipdb_key)
+    vt, ab = _intel_keys(vt_header, ab_header)
     if not (vt or ab):
         raise HTTPException(400, "No hay claves de VirusTotal ni de AbuseIPDB. Defínelas en el archivo .env (VT_API_KEY, ABUSEIPDB_API_KEY) o pégalas en la interfaz.")
-    plan = intel_mod.build_plan(s.analysis["iocs"], include_reserved)
+    plan = intel_mod.build_plan(iocs, include_reserved)
     if not plan["queries"]:
         raise HTTPException(400, "No hay indicadores públicos para consultar: todas las IP son internas o de documentación.")
     providers = intel_mod.available_providers(vt, ab)
-    s.intel = {"status": "running", "started": time.time(), "total": len(plan["queries"]), "done": 0, "results": [],
-               "notices": [], "providers": providers, "queried_at": ""}
+    obj.intel = {"status": "running", "started": time.time(), "total": len(plan["queries"]), "done": 0, "results": [],
+                 "notices": [], "providers": providers, "queried_at": ""}
     log.info("intel_start session=%s indicators=%d providers=%s", sid, len(plan["queries"]), ",".join(providers))   # nunca las claves
-    threading.Thread(target=_intel_worker, args=(s, plan["queries"], vt, ab), daemon=True).start()
-    return {"job": s.intel}
+    threading.Thread(target=_intel_worker, args=(obj, plan["queries"], vt, ab), daemon=True).start()
+    return {"job": obj.intel}
+
+
+@app.get("/api/sessions/{sid}/intel")
+def intel_state(sid: str, include_reserved: bool = False):
+    s = _get(sid)
+    return _intel_state(s, s.analysis["iocs"], include_reserved)
+
+
+@app.post("/api/sessions/{sid}/intel")
+def intel_start(sid: str, request: Request, include_reserved: bool = False, x_vt_key: str | None = Header(default=None),
+                x_abuseipdb_key: str | None = Header(default=None)):
+    s = _get(sid)
+    return _intel_launch(s, sid, s.analysis["iocs"], request, include_reserved, x_vt_key, x_abuseipdb_key)
+
+
+# ---------------------------------------------------------------- correos sospechosos (.eml)
+def _enrich_mitre(items: list[dict]) -> list[dict]:
+    """Nombre y enlace oficial de cada técnica ATT&CK citada (la interfaz no tiene el análisis de logs a mano)."""
+    for i in items:
+        i["mitre_info"] = {t: {"name": attack_mod.technique_name(t), "url": attack_mod.technique_url(t)} for t in i["mitre"]}
+    return items
+
+
+def _get_phish(pid: str) -> PhishSession:
+    p = PHISH.get(pid)
+    if not p:
+        raise HTTPException(404, "Análisis de correos no encontrado. Vuelve a cargar los archivos.")
+    return p
+
+
+@app.post("/api/phishing")
+async def phishing_upload(request: Request, files: list[UploadFile] = File(...), sid: str = Form("")):
+    """Analiza hasta 5 archivos .eml. Solo se leen como texto: no se abre ningún enlace ni se ejecuta ningún adjunto."""
+    _rate_limit(request, "/api/upload", *RATE_LIMITS["/api/upload"])
+    if not files or len(files) > MAX_EML_FILES:
+        raise HTTPException(400, f"Sube de 1 a {MAX_EML_FILES} archivos .eml por análisis.")
+    batch: list[tuple[str, bytes]] = []
+    for f in files:
+        name = os.path.basename(f.filename or "correo.eml")[:120]
+        if not name.lower().endswith(".eml"):
+            raise HTTPException(400, f"«{name}» no es un .eml. Exporta el correo original desde tu cliente de correo (Guardar como .eml).")
+        chunks, size = [], 0
+        while chunk := await f.read(1024 * 1024):
+            size += len(chunk)
+            if size > phishing_mod.MAX_EML_BYTES:
+                raise HTTPException(413, f"«{name}» supera el límite de 5 MB.")
+            chunks.append(chunk)
+        batch.append((name, b"".join(chunks)))
+    result = phishing_mod.analyze_many(batch)
+    _enrich_mitre(result["items"])
+    if not result["items"]:
+        raise HTTPException(422, result["errors"][0]["error"] if result["errors"] else "No se pudo analizar ningún correo.")
+    pid = secrets.token_urlsafe(16)
+    PHISH[pid] = PhishSession(items=result["items"], errors=result["errors"])
+    while len(PHISH) > MAX_SESSIONS:
+        PHISH.pop(min(PHISH, key=lambda k: PHISH[k].created))
+    if sid and sid in SESSIONS:
+        SESSIONS[sid].phish_id = pid
+    log.info("phishing_done mails=%d errors=%d max_severity=%s", len(result["items"]), len(result["errors"]), result["items"][0]["severity"])
+    return {"phishing_id": pid, "items": result["items"], "errors": result["errors"]}
+
+
+SAMPLE_EML_DIR = ROOT / "sample_data" / "correos"
+
+
+@app.post("/api/phishing/sample")
+def phishing_sample(request: Request, sid: str = Form("")):
+    """Analiza los correos sintéticos del repositorio (carpeta fija: nada de la petición elige los archivos)."""
+    _rate_limit(request, "/api/upload", *RATE_LIMITS["/api/upload"])
+    paths = sorted(SAMPLE_EML_DIR.glob("*.eml"))[:MAX_EML_FILES]
+    if not paths:
+        raise HTTPException(404, "Este despliegue no incluye los correos de ejemplo.")
+    result = phishing_mod.analyze_many([(q.name, q.read_bytes()) for q in paths])
+    _enrich_mitre(result["items"])
+    pid = secrets.token_urlsafe(16)
+    PHISH[pid] = PhishSession(items=result["items"], errors=result["errors"])
+    while len(PHISH) > MAX_SESSIONS:
+        PHISH.pop(min(PHISH, key=lambda k: PHISH[k].created))
+    if sid and sid in SESSIONS:
+        SESSIONS[sid].phish_id = pid
+    return {"phishing_id": pid, "items": result["items"], "errors": result["errors"]}
+
+
+@app.post("/api/sessions/{sid}/phishing")
+def link_phishing(sid: str, pid: str = Form(...)):
+    """Asocia un análisis de correos a una sesión de logs: el PDF de logs incluirá la sección de phishing."""
+    s = _get(sid)
+    _get_phish(pid)
+    s.phish_id = pid
+    return {"ok": True}
+
+
+@app.get("/api/phishing/{pid}/intel")
+def phishing_intel_state(pid: str, include_reserved: bool = False):
+    p = _get_phish(pid)
+    return _intel_state(p, phishing_mod.all_iocs(p.items), include_reserved)
+
+
+@app.post("/api/phishing/{pid}/intel")
+def phishing_intel_start(pid: str, request: Request, include_reserved: bool = False, x_vt_key: str | None = Header(default=None),
+                         x_abuseipdb_key: str | None = Header(default=None)):
+    p = _get_phish(pid)
+    return _intel_launch(p, pid, phishing_mod.all_iocs(p.items), request, include_reserved, x_vt_key, x_abuseipdb_key)
+
+
+@app.post("/api/phishing/{pid}/report.pdf")
+def phishing_report(pid: str, client: str = Form(""), analyst: str = Form("")):
+    p = _get_phish(pid)
+    intel = p.intel if p.intel and p.intel.get("results") else None
+    pdf = build_phishing_pdf(p.items, {"client": client.strip(), "analyst": analyst.strip()}, intel)
+    return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="informe_phishing.pdf"'})
 
 
 @app.get("/api/sessions/{sid}/attack-layer.json")
@@ -396,7 +518,9 @@ def attack_layer(sid: str):
 
 def _pdf_response(s: Session) -> Response:
     intel = s.intel if s.intel and s.intel.get("results") else None
-    pdf = build_pdf(s.analysis, s.ai, s.df, {"client": s.client, "analyst": s.analyst, "filename": s.filename}, intel=intel)
+    ph = PHISH.get(s.phish_id)
+    pdf = build_pdf(s.analysis, s.ai, s.df, {"client": s.client, "analyst": s.analyst, "filename": s.filename}, intel=intel,
+                    phishing=ph.items if ph else None)
     return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": 'attachment; filename="informe_incidentes_seguridad.pdf"'})
 

@@ -290,3 +290,7 @@ dialog.pal{max-width:640px;margin-top:12vh}
 /* Landing background canvas (bg.js): sits behind the app, never captures input */
 #bgCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:none}
 .app{position:relative;z-index:1}
+
+/* phishing: filas seleccionables */
+tbody tr[data-mail]:hover,tbody tr[data-mail]:focus-visible{background:var(--soft2)}
+tbody tr[data-mail].sel{background:var(--soft2);box-shadow:inset 3px 0 0 var(--accent)}

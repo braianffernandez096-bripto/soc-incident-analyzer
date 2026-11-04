@@ -1,0 +1,32 @@
+From: "Recursos Humanos" <rrhh@socio-externo.example>
+To: dsosa@corp.example
+Subject: Planilla de horas - completar hoy
+Date: Mon, 02 Nov 2026 12:50:00 +0000
+Message-ID: <d90@socio-externo.example>
+Authentication-Results: mx.corp.example; spf=pass
+ smtp.mailfrom=socio-externo.example; dkim=pass
+ header.d=socio-externo.example; dmarc=pass header.from=socio-externo.example
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============5097358761376174068=="
+
+--===============5097358761376174068==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Adjunto la planilla. Habilite el contenido para poder editarla.
+
+--===============5097358761376174068==
+Content-Type: application/vnd.ms-word.document.macroEnabled.12
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="Planilla_horas.docm"
+MIME-Version: 1.0
+
+UEsDBBQAAAAAAIyGZF3HHBc8CAAAAAgAAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbDxUeXBlcy8+
+UEsDBBQAAAAAAIyGZF0SAGFUBgAAAAYAAAARAAAAd29yZC9kb2N1bWVudC54bWw8ZG9jLz5QSwME
+FAAAAAAAjIZkXdW5zPQSAAAAEgAAABMAAAB3b3JkL3ZiYVByb2plY3QuYmlu0M8R4CBWQkEgc2lu
+dGV0aWNvUEsBAhQDFAAAAAAAjIZkXcccFzwIAAAACAAAABMAAAAAAAAAAAAAAIABAAAAAFtDb250
+ZW50X1R5cGVzXS54bWxQSwECFAMUAAAAAACMhmRdEgBhVAYAAAAGAAAAEQAAAAAAAAAAAAAAgAE5
+AAAAd29yZC9kb2N1bWVudC54bWxQSwECFAMUAAAAAACMhmRd1bnM9BIAAAASAAAAEwAAAAAAAAAA
+AAAAgAFuAAAAd29yZC92YmFQcm9qZWN0LmJpblBLBQYAAAAAAwADAMEAAACxAAAAAAA=
+
+--===============5097358761376174068==--

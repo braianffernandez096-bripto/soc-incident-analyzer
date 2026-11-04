@@ -155,7 +155,7 @@ def test_every_protected_route_answers_401_without_a_token(monkeypatch):
     assert len(routes) >= 8                                      # guard: the route discovery really found the API
     for method, path in routes:
         main._hits.clear()
-        url = path.replace("{sid}", "x").replace("{fid}", "F-001")
+        url = path.replace("{sid}", "x").replace("{pid}", "x").replace("{fid}", "F-001")
         r = client.request(method, url)
         assert r.status_code == 401, (method, path, r.status_code)
         assert r.headers["www-authenticate"] == "Bearer" and "x-frame-options" in r.headers

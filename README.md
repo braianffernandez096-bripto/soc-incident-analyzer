@@ -30,6 +30,8 @@ Proyecto personal de Braian Fernandez, hecho para practicar el análisis de inci
 
 6. **MITRE ATT&CK** (`backend/attack.py`): cada técnica sugerida por un hallazgo se muestra con su nombre oficial y un enlace a attack.mitre.org. La pestaña **ATT&CK** agrupa las técnicas por táctica en una matriz y permite descargar una capa `.json` para [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/). Los datos son los oficiales de MITRE (v20.0), incluidos en `backend/data/` y validados contra las reglas por las pruebas. No se consulta Internet.
 
+7. **Phishing** (`backend/phishing.py`): la pestaña **Phishing** analiza correos `.eml` (hasta 5, 5 MB cada uno). Revisa remitente, Reply-To y suplantación de marcas; SPF, DKIM y DMARC; enlaces engañosos (IP en vez de dominio, acortadores, punycode, dominios casi idénticos a una marca, texto distinto del destino); y adjuntos (doble extensión, ejecutables disfrazados, macros, comprimidos con contraseña, hash SHA-256). Da un veredicto con puntaje, las señales que lo sustentan, **qué verificar** y acciones sugeridas. Es análisis estático: no se abre ningún enlace ni se ejecuta ningún adjunto.
+
 ## Formatos de entrada
 
 | Formato | Extensiones | Detalles |
@@ -152,6 +154,17 @@ docker compose up --build
 
 Abre http://127.0.0.1:8000. El puerto queda publicado solo en tu equipo (`127.0.0.1`) porque la app no tiene login. La imagen corre con un usuario sin privilegios y no incluye tu `.env`: las claves se pasan como variables de entorno.
 
+## Análisis de correos (phishing)
+
+En la pestaña **Phishing** (disponible desde el inicio, sin cargar logs) sube uno o varios `.eml`, o pulsa **Probar con correos de ejemplo** (`sample_data/correos/`: 4 maliciosos y 1 legítimo que no debe alertar). Para obtener un `.eml`: en Outlook, Thunderbird o Gmail guarda el correo como `.eml` o usa «Descargar mensaje». Los `.msg` no se admiten.
+
+- **Seguro por diseño.** El archivo se lee solo como texto: no se renderiza el HTML, no se abre ningún enlace y no se extrae ni se ejecuta ningún adjunto (de un ZIP solo se lee la lista de nombres). Las URL se muestran «defangeadas» (`hxxps://sitio[.]com`) para que no sean enlaces activos.
+- **Determinista.** Cada señal tiene un peso fijo y la criticidad sale de la suma; no interviene la IA. Los casos negativos (correo legítimo, enlaces oficiales, PDF real, SPF/DKIM/DMARC alineados) tienen pruebas propias.
+- **Qué verificar.** Cada correo trae los pasos de un analista L1 (confirmar con el remitente por otro canal, buscar clics en el proxy y el DNS, detonar el adjunto en una sandbox, buscar el mismo correo en otros buzones) y las acciones de contención.
+- **Reputación opcional.** Con tus claves de VirusTotal y AbuseIPDB y tu confirmación, se consultan dominios, IP y el **hash SHA-256** de los adjuntos. Nunca se envían el archivo, el correo, las direcciones de correo ni las URL completas.
+- **Informe.** Se descarga un PDF propio y, si tienes un análisis de logs abierto, los correos se agregan como sección 9 de su informe.
+- **Límites.** Las cabeceras SPF/DKIM/DMARC las escribe el servidor que recibió el correo: si el `.eml` viene de otra fuente pueden estar ausentes o ser falsas. Los pesos son orientativos y el veredicto es una ayuda para el triage, no una prueba.
+
 ## Reputación de IP y dominios (VirusTotal y AbuseIPDB)
 
 Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputación** enriquece los indicadores externos con VirusTotal (cuántos motores los marcan como maliciosos) y AbuseIPDB (puntaje de confianza de abuso y reportes de los últimos 90 días). El resultado aparece en la tabla de IoC y en una sección del informe PDF.
@@ -186,7 +199,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 298 pruebas
+python -m pytest                                           # 365 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (94 %)
 ```
 
@@ -205,7 +218,7 @@ La app corre en tu equipo y no envía telemetría. Solo salen datos si tú activ
 | Función | Qué se envía | A quién |
 |---|---|---|
 | **Redacción con IA** (botón en la pestaña Informe, requiere clave de Anthropic) | Por incidente y hallazgo: título, criticidad, métricas, explicación del motor y las **filas de evidencia** (`Log_ID`, fecha, equipo, usuario, IP de origen y destino, origen del log, descripción del evento y línea de comandos recortadas, resultado y severidad). También el resumen del conjunto (cantidad de eventos, ventana de tiempo, IP externas). **No** se envían el nombre del cliente ni del analista, ni el archivo completo. | Anthropic |
-| **Reputación** (botón en Indicadores (IoC), requiere clave de VirusTotal o AbuseIPDB) | Solo las IP públicas y dominios que ves y confirmas en pantalla. Nunca IP internas, cuentas, equipos ni comandos. | VirusTotal y AbuseIPDB |
+| **Reputación** (botón en Indicadores (IoC) o en Phishing, requiere clave de VirusTotal o AbuseIPDB) | Solo las IP públicas, dominios y, en phishing, el hash SHA-256 de los adjuntos, que ves y confirmas en pantalla. Nunca IP internas, cuentas, equipos ni comandos. | VirusTotal y AbuseIPDB |
 
 Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones IP reales. Antes de activar la IA, asegúrate de tener permiso para compartir esos datos con un tercero; sin la clave de Anthropic, el informe se genera por reglas y no sale nada.
 
@@ -242,10 +255,10 @@ Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones
 ## Estructura
 
 ```
-backend/      parser, reglas de detección, correlación, IA, reputación (VirusTotal/AbuseIPDB), MITRE ATT&CK, informe PDF y API (FastAPI)
+backend/      parser, reglas de detección, correlación, análisis de correos (.eml), IA, reputación (VirusTotal/AbuseIPDB), MITRE ATT&CK, informe PDF y API (FastAPI)
 scripts/      build_attack_data.py: regenera backend/data/ desde los datos oficiales de MITRE (uso de mantenimiento)
 frontend/     interfaz web sin build (HTML, CSS y JS; fuentes IBM Plex locales)
-sample_data/  exports de ejemplo (Windows en Excel/CSV/NDJSON y uno multi-fuente en JSON)
+sample_data/  exports de ejemplo (Windows en Excel/CSV/NDJSON, multi-fuente en JSON y SIEM de 500 eventos) y correos .eml de ejemplo
 tests/        unit, integration y e2e
 Makefile      atajos: install, start, stop, test, test-cov, lint, audit, logs, backup, clean
 requirements*.lock  dependencias con versión exacta y hash (requirements*.txt son los rangos de origen)

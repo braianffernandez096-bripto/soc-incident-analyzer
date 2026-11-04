@@ -1,0 +1,43 @@
+From:
+ =?utf-8?q?Facturaci=C3=B3n?= Proveedor <facturacion@proveedor-pagos.example>
+To: mflores@corp.example
+Subject: URGENTE: Factura vencida de noviembre
+Date: Mon, 02 Nov 2026 09:42:00 +0000
+Message-ID: <8f3a21@proveedor-pagos.example>
+Return-Path: <bounce@mailer-x9.example>
+Reply-To: cobranzas@proveedor-pagos-cobros.example
+Authentication-Results: mx.corp.example; spf=fail
+ smtp.mailfrom=mailer-x9.example; dkim=none; dmarc=fail
+ header.from=proveedor-pagos.example
+Received: from mx.corp.example ([10.20.1.25]) by mailgw.corp.example with
+ ESMTP; Mon, 02 Nov 2026 09:42:10 +0000
+Received: from mailer-x9.example ([198.51.100.88]) by mx.corp.example with
+ ESMTP; Mon, 02 Nov 2026 09:42:08 +0000
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============9163570773430028244=="
+
+--===============9163570773430028244==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+Estimado cliente,
+
+Su factura de noviembre est=C3=A1 vencida. Para evitar la suspensi=C3=B3n del=
+ servicio, abra el comprobante adjunto de inmediato.
+
+Saludos,
+Facturaci=C3=B3n
+
+--===============9163570773430028244==
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="Factura_Noviembre.pdf.exe"
+MIME-Version: 1.0
+
+TVqQAAMAAAAgcHJvZ3JhbWEgc2ludGV0aWNvIGRlIHBydWViYSwgbm8gZWplY3V0YWJsZQAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==
+
+--===============9163570773430028244==--

@@ -46,8 +46,9 @@ function adopt(res) {
   S.a = res.analysis; S.ai = res.ai; if (res.ai_configured !== undefined) S.aiConfigured = res.ai_configured;
   S.logs = { page: 1, q: "", severity: "", flagged: "", host: "", user: "", event_id: "", finding: "" };
   S.findingFilter = "Todos"; S.findingCat = ""; S.findingQ = "";
-  S.intel = null; S.intelConfirm = false; S.intelReserved = false; clearInterval(S.intelTimer);
+  S.intel = null; S.intelConfirm = false; S.intelReserved = false; clearInterval(S.intelTimer);   // S.ph (correos) se conserva: es independiente
   store.set("sid", S.sid);
+  if (S.ph) api(`/api/sessions/${S.sid}/phishing`, { method: "POST", body: (() => { const f = new FormData(); f.append("pid", S.ph.pid); return f; })() }).catch(() => {});   // los correos ya analizados pasan al PDF
 }
 async function upload(file, client, analyst) {
   busy(true, "Analizando eventos…");
@@ -71,13 +72,16 @@ async function useSample(client, analyst) {
 function showLandingError(m) { const b = $("#lerr"); if (b) { b.textContent = m; b.hidden = false; } else toast(m); }
 
 /* ---------- navegación ---------- */
-const ROUTES = [["dashboard", "Panel"], ["incidents", "Incidentes"], ["findings", "Hallazgos"], ["attack", "ATT&CK"], ["logs", "Eventos"], ["iocs", "Indicadores (IoC)"], ["report", "Informe"]];
+const ROUTES = [["dashboard", "Panel"], ["incidents", "Incidentes"], ["findings", "Hallazgos"], ["attack", "ATT&CK"], ["logs", "Eventos"], ["iocs", "Indicadores (IoC)"], ["phishing", "Phishing"], ["report", "Informe"]];
 function route() { return (location.hash.replace(/^#\/?/, "") || "").split("?")[0]; }
 
 function renderRail() {
   const nav = $("#nav"), foot = $("#railFoot");
-  if (!S.a) { nav.innerHTML = ""; foot.innerHTML = ""; return; }
-  const cnt = { incidents: S.a.incidents.length, findings: S.a.findings.length, iocs: S.a.iocs.length, logs: S.a.profile.rows };
+  if (!S.a) {   // sin análisis de logs abierto: dos entradas, logs y phishing
+    nav.innerHTML = [["", "Análisis de logs"], ["phishing", "Phishing"]].map(([k, l]) => `<a href="#/${k}" ${route() === k ? 'aria-current="page"' : ""}><span>${l}</span></a>`).join("");
+    foot.innerHTML = ""; return;
+  }
+  const cnt = { incidents: S.a.incidents.length, findings: S.a.findings.length, iocs: S.a.iocs.length, logs: S.a.profile.rows, phishing: S.ph ? S.ph.items.length : undefined };
   nav.innerHTML = ROUTES.map(([k, l], i) =>
     `<a href="#/${k}" ${route() === k ? 'aria-current="page"' : ""}><span class="n">${i + 1}</span><span>${l}</span>${cnt[k] !== undefined ? `<span class="count">${num(cnt[k])}</span>` : ""}</a>`).join("");
   const cur = nav.querySelector("[aria-current=page]"); if (cur) nav.scrollLeft = Math.max(0, cur.offsetLeft - 24);   // narrow screens: keep the open section visible
@@ -112,6 +116,7 @@ function render() {
   const main = $("#main");
   const r = route();
   if (S.needAuth) { $("#nav").innerHTML = ""; $("#railFoot").innerHTML = ""; main.innerHTML = `<div class="view">${accessView()}</div>`; bindAccess(); return; }
+  if (r === "phishing") { renderRail(); main.innerHTML = `<div class="view">${phishingView()}</div>`; bindPhishing(); if (!S.keepScroll) window.scrollTo(0, 0); S.keepScroll = false; return; }
   if (!S.a) { renderRail(); main.innerHTML = `<div class="view">${landing()}</div>`; bindLanding(); bindHero(); return; }
   renderRail();
   const views = { dashboard, incidents, findings, attack, logs, iocs, report };
@@ -315,8 +320,8 @@ function bindIncidents() {
 
 /* ---------- MITRE ATT&CK ---------- */
 const MITRE_URL = /^https:\/\/attack\.mitre\.org\/techniques\/T\d{4}(\/\d{3})?\/$/;
-function techTag(id) {
-  const t = ((S.a.attack || {}).techniques || {})[id];
+function techTag(id, extra) {   // extra: técnicas de otra fuente (correos), por si no hay análisis de logs abierto
+  const t = (((S.a && S.a.attack) || {}).techniques || {})[id] || (extra || {})[id];
   if (!t || !MITRE_URL.test(t.url)) return `<span class="tag">${esc(id)}</span>`;
   return `<a class="tag tag-link" href="${esc(t.url)}" target="_blank" rel="noopener noreferrer" title="Ver ${esc(id)} en attack.mitre.org">${esc(id)} ${esc(t.name)}</a>`;
 }
@@ -471,8 +476,8 @@ function repCell(r) {
   return `<span class="rep ${esc(String(r.verdict).replace(/\s+/g, "-"))}">${esc(r.verdict)}</span>${r.reserved ? ` <span class="muted">(prueba)</span>` : ""}
     <div class="muted" style="font-size:12px;margin-top:3px">${esc([vt, ab].filter(Boolean).join(" · "))}${who ? `<br>${esc(who)}` : ""}${links ? `<br>${links}` : ""}</div>`;
 }
-function intelPanel() {
-  const I = S.intel, job = I && I.job, plan = I && I.plan;
+function intelPanel(c = S) {
+  const I = c.intel, job = I && I.job, plan = I && I.plan;
   const head = `<h3>Reputación de indicadores externos <span class="muted" style="font-weight:400">(VirusTotal y AbuseIPDB, opcional)</span></h3>`;
   if (!I) return `<div class="panel">${head}<p class="muted">Cargando…</p></div>`;
   if (job && job.status === "running") {
@@ -481,12 +486,12 @@ function intelPanel() {
       <div class="meter" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div></div>`;
   }
   const notices = job && (job.notices || []).length ? `<div class="notice" style="margin-top:12px">${job.notices.map(esc).join("<br>")}</div>` : "";
-  if (S.intelConfirm) {
+  if (c.intelConfirm) {
     const q = plan.queries, prov = I.configured;
     const need = [!prov.virustotal ? `<label class="f" style="max-width:420px">API key de VirusTotal (solo se usa en esta consulta)<input type="password" id="vtKey" autocomplete="off"></label>` : "",
                   !prov.abuseipdb ? `<label class="f" style="max-width:420px">API key de AbuseIPDB (solo se usa en esta consulta)<input type="password" id="abKey" autocomplete="off"></label>` : ""].join("");
     const skipped = plan.skipped.length ? `<details style="margin-top:8px"><summary class="muted">${plan.skipped.length} indicadores no se enviarán</summary><ul>${plan.skipped.map((x) => `<li><span class="mono">${esc(x.value)}</span> — ${esc(x.reason)}</li>`).join("")}</ul></details>` : "";
-    const resv = plan.reserved_available ? `<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="resv" ${S.intelReserved ? "checked" : ""}> Incluir ${plan.reserved_available} IP de documentación (solo para probar la conexión; no tienen reputación real)</label>` : "";
+    const resv = plan.reserved_available ? `<label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="resv" ${c.intelReserved ? "checked" : ""}> Incluir ${plan.reserved_available} IP de documentación (solo para probar la conexión; no tienen reputación real)</label>` : "";
     const none = !q.length ? `<div class="notice" style="margin-top:10px">No hay indicadores públicos para consultar.</div>` : "";
     return `<div class="panel">${head}
       <p><b>Se enviarán ${q.length} indicadores públicos</b> a VirusTotal y AbuseIPDB (solo IP y dominios). No se envían cuentas, equipos, comandos ni contenido de los logs. Cada servicio recibe esos indicadores y puede registrarlos.</p>
@@ -511,39 +516,45 @@ function iocs() {
     <div class="tbl-wrap" style="margin-top:16px"><table><thead><tr><th>Tipo</th><th>Valor</th><th>Criticidad</th>${hasRep ? "<th>Reputación</th>" : ""}<th>Notas</th><th>Primera vez</th><th>Última vez</th><th>Hallazgos</th></tr></thead><tbody>${S.a.iocs.map((i) =>
       `<tr><td>${esc(i.type)}</td><td class="mono" style="word-break:break-all">${esc(i.value)}</td><td>${sevPill(i.severity)}</td>${hasRep ? `<td>${repCell(res[repKey(i)])}</td>` : ""}<td>${(i.notes || []).map(esc).join("<br>")}</td><td class="mono">${esc(hhmmss(i.first_seen))}</td><td class="mono">${esc(hhmmss(i.last_seen))}</td><td>${(i.finding_ids || []).map((f) => `<span class="tag">${esc(f)}</span>`).join("")}</td></tr>`).join("")}</tbody></table></div>`;
 }
-async function loadIntel() {
+/* c = S (indicadores de los logs) o S.ph (correos); base = ruta de la API; where = sección que se repinta */
+const intelUrl = (c, base) => `${base}/intel?include_reserved=${c.intelReserved ? "true" : "false"}`;
+async function loadIntel(c = S, base = `/api/sessions/${S.sid}`, where = "iocs") {
   try {
-    S.intel = await api(`/api/sessions/${S.sid}/intel?include_reserved=${S.intelReserved ? "true" : "false"}`);
-    if (S.intel.job && S.intel.job.status === "running") pollIntel();
+    c.intel = await api(intelUrl(c, base));
+    if (c.intel.job && c.intel.job.status === "running") pollIntel(c, base, where);
   } catch (e) { toast(e.message); }
-  if (route() === "iocs") { S.keepScroll = true; render(); }
+  if (route() === where) { S.keepScroll = true; render(); }
 }
-function pollIntel() {
-  clearInterval(S.intelTimer);
-  S.intelTimer = setInterval(async () => {
+function pollIntel(c = S, base = `/api/sessions/${S.sid}`, where = "iocs") {
+  clearInterval(c.intelTimer);
+  c.intelTimer = setInterval(async () => {
     try {
-      S.intel = await api(`/api/sessions/${S.sid}/intel?include_reserved=${S.intelReserved ? "true" : "false"}`);
-      const running = S.intel.job && S.intel.job.status === "running";
-      if (!running) { clearInterval(S.intelTimer); toast("Consulta de reputación terminada"); }
-      if (route() === "iocs") { S.keepScroll = true; render(); }
-    } catch { clearInterval(S.intelTimer); }
+      c.intel = await api(intelUrl(c, base));
+      const running = c.intel.job && c.intel.job.status === "running";
+      if (!running) { clearInterval(c.intelTimer); toast("Consulta de reputación terminada"); }
+      if (route() === where) { S.keepScroll = true; render(); }
+    } catch { clearInterval(c.intelTimer); }
   }, 2500);
 }
-function bindIocs() {
-  if (!S.intel) loadIntel();
+function bindIntel(c, base, where) {
   const open = $("#intelOpen"), cancel = $("#intelCancel"), go = $("#intelGo"), resv = $("#resv");
-  if (open) open.onclick = () => { S.intelConfirm = true; S.keepScroll = true; render(); };
-  if (cancel) cancel.onclick = () => { S.intelConfirm = false; S.keepScroll = true; render(); };
-  if (resv) resv.onchange = async () => { S.intelReserved = resv.checked; S.keepScroll = true; await loadIntel(); };
+  if (open) open.onclick = () => { c.intelConfirm = true; S.keepScroll = true; render(); };
+  if (cancel) cancel.onclick = () => { c.intelConfirm = false; S.keepScroll = true; render(); };
+  if (resv) resv.onchange = async () => { c.intelReserved = resv.checked; S.keepScroll = true; await loadIntel(c, base, where); };
   if (go) go.onclick = async () => {
     const h = {}; const v = $("#vtKey"), a = $("#abKey");
     if (v && v.value.trim()) h["X-VT-Key"] = v.value.trim();
     if (a && a.value.trim()) h["X-AbuseIPDB-Key"] = a.value.trim();
     try {
-      const r = await api(`/api/sessions/${S.sid}/intel?include_reserved=${S.intelReserved ? "true" : "false"}`, { method: "POST", headers: h });
-      S.intel.job = r.job; S.intelConfirm = false; S.keepScroll = true; render(); pollIntel();
+      const r = await api(intelUrl(c, base), { method: "POST", headers: h });
+      c.intel.job = r.job; c.intelConfirm = false; S.keepScroll = true; render(); pollIntel(c, base, where);
     } catch (e) { toast(e.message); }
   };
+}
+function bindIocs() {
+  const base = `/api/sessions/${S.sid}`;
+  if (!S.intel) loadIntel(S, base, "iocs");
+  bindIntel(S, base, "iocs");
 }
 
 /* ---------- informe ---------- */
@@ -584,6 +595,130 @@ function bindReport() {
       const h = {}; const k = $("#key"); if (k && k.value.trim()) h["X-Anthropic-Key"] = k.value.trim();
       const r = await api(`/api/sessions/${S.sid}/ai`, { method: "POST", headers: h });
       S.ai = r.ai; toast("Análisis con IA aplicado"); render();
+    } catch (e) { toast(e.message); } finally { busy(false); }
+  };
+}
+
+/* ---------- phishing (.eml) ---------- */
+/* Todo lo que viene del correo (asunto, remitente, URL, nombres de adjuntos) se escapa; las URL se muestran «defangeadas» y nunca como enlaces. */
+const AUTH_SEV = { pass: "Bajo", fail: "Alto", permerror: "Alto", softfail: "Medio", none: "Medio", neutral: "Medio", temperror: "Medio" };
+const authChip = (label, v) => `<span class="sev ${v ? (AUTH_SEV[v] || "Medio") : "Bajo"}" title="${esc(label)}">${esc(label)}: ${esc(v || "sin dato")}</span>`;
+function phishingUpload() {
+  return `<section class="landing">
+    <h1>Análisis de correos sospechosos</h1>
+    <p class="lead">Sube un correo reportado como phishing (.eml) y obtén sus encabezados, SPF/DKIM/DMARC, enlaces y adjuntos analizados, con un veredicto y qué verificar.</p>
+    <div class="drop" id="pdrop" tabindex="0" role="button" aria-label="Seleccionar archivos .eml">
+      <strong id="pdropTitle">Arrastra los .eml aquí o haz clic para elegirlos</strong>
+      <span>Hasta 5 archivos · 5 MB cada uno · se leen como texto: no se abre ningún enlace ni se ejecuta ningún adjunto</span>
+      <input type="file" id="pfile" accept=".eml" multiple hidden>
+    </div>
+    <p class="muted" style="max-width:640px">En Outlook, Thunderbird o Gmail, abre el correo y guárdalo como .eml («Guardar como», «Descargar mensaje» u «Origen del mensaje»). Los archivos .msg no se admiten.</p>
+    <div class="row">
+      <button class="btn primary" id="pgo" disabled>Analizar correos</button>
+      <button class="btn" id="psample" type="button">Probar con correos de ejemplo</button>
+    </div>
+    ${S.sid ? `<p class="muted">Los correos analizados se agregarán al informe PDF del análisis de logs que tienes abierto.</p>` : ""}
+    <div class="err" id="perr" role="alert" hidden></div>
+    <ul class="checks"><li>Remitente, Reply-To y suplantación</li><li>SPF, DKIM y DMARC</li><li>Enlaces engañosos y dominios parecidos</li><li>Adjuntos peligrosos, macros y hash</li></ul>
+  </section>`;
+}
+function mailRow(m, sel) {
+  const h = m.headers;
+  return `<tr class="${sel ? "sel" : ""}" data-mail="${esc(m.id)}" tabindex="0" style="cursor:pointer"><td><b>${esc(m.id)}</b></td><td>${sevPill(m.severity)}</td><td>${esc(h.subject || "(sin asunto)")}</td>
+    <td class="mono" style="word-break:break-all">${esc(h.from_addr || h.from)}</td><td>${esc(m.verdict)}</td><td class="mono">${esc(m.score)}</td></tr>`;
+}
+function mailDetail(m) {
+  const h = m.headers, a = m.auth;
+  const facts = [["De", h.from], ["Reply-To", h.reply_to || "—"], ["Return-Path", h.return_path || "—"], ["Para", h.to || "—"], ["Fecha", h.date || "—"],
+                 ["Message-ID", h.message_id || "—"], ["Origen probable (IP)", m.origin_ip || "no determinado"]];
+  const sig = m.signals.length ? `<div class="tbl-wrap"><table><thead><tr><th>Categoría</th><th>Criticidad</th><th>Señal</th><th>Detalle</th></tr></thead><tbody>${m.signals.map((x) =>
+    `<tr><td>${esc(x.category)}</td><td>${sevPill(x.severity)}</td><td><b>${esc(x.title)}</b></td><td>${esc(x.detail)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">No se detectaron señales de phishing.</p>`;
+  const urls = m.urls.length ? `<div class="tbl-wrap"><table><thead><tr><th>URL (defangeada: no es un enlace)</th><th>Dónde</th><th>Texto visible</th><th>Señales</th></tr></thead><tbody>${m.urls.map((u) =>
+    `<tr><td class="mono" style="word-break:break-all">${esc(u.defanged)}</td><td>${esc(u.location)}</td><td>${esc(u.text || "—")}</td><td>${u.flags.length ? u.flags.map((f) => `<span class="tag">${esc(f)}</span>`).join(" ") : `<span class="muted">—</span>`}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">El correo no contiene enlaces.</p>`;
+  const att = m.attachments.length ? `<div class="tbl-wrap"><table><thead><tr><th>Archivo</th><th>Riesgo</th><th>Tamaño</th><th>SHA-256</th><th>Notas</th></tr></thead><tbody>${m.attachments.map((x) =>
+    `<tr><td><b>${esc(x.filename)}</b><div class="muted" style="font-size:12px">${esc(x.content_type)}</div></td><td>${sevPill(x.risk)}</td><td class="mono">${num(x.size)} B</td><td class="mono" style="word-break:break-all;font-size:11px">${esc(x.sha256)}</td><td>${x.notes.length ? x.notes.map(esc).join("<br>") : `<span class="muted">—</span>`}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">Sin adjuntos.</p>`;
+  const hops = m.hops.length ? `<details style="margin-top:10px"><summary class="muted">Recorrido del correo (${m.hops.length} saltos, del más reciente al más antiguo)</summary><ol>${m.hops.map((x) =>
+    `<li class="mono" style="font-size:12px">${esc(x.from || "?")} → ${esc(x.by || "?")} ${x.ip ? `[${esc(x.ip)}]` : ""} ${esc(x.when)}</li>`).join("")}</ol></details>` : "";
+  return `<div class="panel"><h3>${esc(m.id)} · ${esc(h.subject || "(sin asunto)")} ${sevPill(m.severity)}</h3>
+      <p><b>${esc(m.verdict)}</b> · puntaje ${esc(m.score)} · archivo <span class="mono">${esc(m.filename)}</span></p>
+      <div class="tbl-wrap"><table><tbody>${facts.map(([k, v]) => `<tr><th style="width:190px;text-align:left">${esc(k)}</th><td class="mono" style="word-break:break-all">${esc(v)}</td></tr>`).join("")}</tbody></table></div>
+      <p style="margin-top:10px">${authChip("SPF", a.spf)} ${authChip("DKIM", a.dkim)} ${authChip("DMARC", a.dmarc)} ${m.favorable.length ? `<span class="muted">A favor: ${m.favorable.map(esc).join(", ")}</span>` : ""}</p>${hops}</div>
+    <div class="panel"><h3>Señales detectadas</h3>${sig}</div>
+    <div class="panel"><h3>Enlaces</h3>${urls}</div>
+    <div class="panel"><h3>Adjuntos</h3>${att}<p class="muted" style="margin-top:8px">No se abrió ni ejecutó nada. Para saber si un hash es conocido, usa la reputación de abajo.</p></div>
+    <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:16px">
+      <div class="panel" style="margin-top:0"><h3>Qué verificar</h3><ul>${m.verify.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>
+      <div class="panel" style="margin-top:0"><h3>Acciones sugeridas</h3><ul>${m.actions.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+        ${m.mitre.length ? `<p class="muted" style="margin-top:10px">MITRE ATT&amp;CK (orientativo): ${m.mitre.map((t) => techTag(t, m.mitre_info)).join(" ")}</p>` : ""}</div></div>
+    <p class="muted" style="margin-top:10px">${m.limitations.map(esc).join(" ")}</p>`;
+}
+function phishingResults() {
+  const P = S.ph, sel = P.items.find((x) => x.id === P.sel) || P.items[0];
+  const sev = (k) => P.items.filter((x) => x.severity === k).length;
+  const res = {}; ((P.intel && P.intel.job && P.intel.job.results) || []).forEach((r) => { res[r.indicator] = r; });
+  const repRows = Object.values(res);
+  return `<div class="page-head"><div><h1>Correos sospechosos</h1><p>Análisis estático: no se abrió ningún enlace ni se ejecutó ningún adjunto. La criticidad sale de reglas con pesos fijos y sirve para el triage.</p></div>
+      <div style="display:flex;gap:8px"><button class="btn ghost" id="pagain">Analizar otros correos</button></div></div>
+    <div class="stat-line"><span>Correos: <b>${P.items.length}</b></span><span>Críticos: <b>${sev("Crítico")}</b></span><span>Altos: <b>${sev("Alto")}</b></span><span>Medios: <b>${sev("Medio")}</b></span><span>Sin señales: <b>${sev("Bajo")}</b></span></div>
+    ${P.errors.length ? `<div class="notice" style="margin:12px 0">${P.errors.map((e) => `${esc(e.filename)}: ${esc(e.error)}`).join("<br>")}</div>` : ""}
+    <div class="tbl-wrap" style="margin-top:12px"><table><thead><tr><th>ID</th><th>Criticidad</th><th>Asunto</th><th>Remitente</th><th>Veredicto</th><th>Puntaje</th></tr></thead><tbody>${P.items.map((m) => mailRow(m, m.id === sel.id)).join("")}</tbody></table></div>
+    <p class="muted" style="margin:6px 0 16px">Haz clic en una fila para ver su detalle.</p>
+    ${mailDetail(sel)}
+    <div style="margin-top:16px">${intelPanel(P)}</div>
+    ${repRows.length ? `<div class="tbl-wrap" style="margin-top:12px"><table><thead><tr><th>Indicador consultado</th><th>Tipo</th><th>Reputación</th></tr></thead><tbody>${repRows.map((r) =>
+      `<tr><td class="mono" style="word-break:break-all">${esc(r.indicator)}</td><td>${esc(r.kind === "hash" ? "SHA-256" : r.kind === "ip" ? "IP" : "Dominio")}</td><td>${repCell(r)}</td></tr>`).join("")}</tbody></table></div>` : ""}
+    <div class="panel" style="margin-top:16px"><h3>Informe en PDF</h3>
+      <div class="fields"><label class="f">Cliente<input type="text" id="pClient" value="${esc(S.client)}"></label><label class="f">Analista<input type="text" id="pAnalyst" value="${esc(S.analyst)}"></label></div>
+      <div class="row" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" id="ppdf">Descargar informe de phishing</button></div>
+      ${S.sid ? `<p class="muted" style="margin-top:8px">Estos correos también se incluyen como sección 9 en el informe del análisis de logs.</p>` : ""}</div>`;
+}
+function phishingView() { return S.ph ? phishingResults() : phishingUpload(); }
+function adoptPhishing(res) {
+  clearInterval(S.ph && S.ph.intelTimer);
+  S.ph = { pid: res.phishing_id, items: res.items, errors: res.errors, sel: res.items[0] && res.items[0].id, intel: null, intelConfirm: false, intelReserved: false };
+}
+async function sendEml(files, sample) {
+  busy(true, "Analizando correos…");
+  try {
+    const fd = new FormData(); if (S.sid) fd.append("sid", S.sid);
+    if (!sample) files.forEach((f) => fd.append("files", f));
+    adoptPhishing(await api(sample ? "/api/phishing/sample" : "/api/phishing", { method: "POST", body: fd }));
+    render();
+  } catch (e) { const b = $("#perr"); if (b) { b.textContent = e.message; b.hidden = false; } else toast(e.message); }
+  finally { busy(false); }
+}
+function bindPhishing() {
+  if (!S.ph) {
+    let files = [];
+    const drop = $("#pdrop"), inp = $("#pfile"), go = $("#pgo");
+    const pick = (list) => { files = [...list].slice(0, 5); if (!files.length) return; $("#pdropTitle").textContent = files.map((f) => f.name).join(", "); go.disabled = false; $("#perr").hidden = true; };
+    drop.onclick = () => inp.click();
+    drop.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); inp.click(); } };
+    inp.onchange = () => pick(inp.files);
+    ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+    ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+    drop.addEventListener("drop", (e) => pick(e.dataTransfer.files));
+    go.onclick = () => sendEml(files, false);
+    $("#psample").onclick = () => sendEml([], true);
+    return;
+  }
+  const P = S.ph, base = `/api/phishing/${P.pid}`;
+  $("#pagain").onclick = () => { clearInterval(P.intelTimer); S.ph = null; render(); };
+  document.querySelectorAll("[data-mail]").forEach((tr) => {
+    const open = () => { P.sel = tr.dataset.mail; S.keepScroll = true; render(); };
+    tr.onclick = open; tr.onkeydown = (e) => { if (e.key === "Enter") open(); };
+  });
+  if (!P.intel) loadIntel(P, base, "phishing");
+  bindIntel(P, base, "phishing");
+  $("#ppdf").onclick = async () => {
+    busy(true, "Generando PDF…");
+    try {
+      const fd = new FormData(); fd.append("client", $("#pClient").value.trim()); fd.append("analyst", $("#pAnalyst").value.trim());
+      const r = await fetch(`${base}/report.pdf`, { method: "POST", body: fd, headers: authHeaders() });
+      if (!r.ok) throw new Error("No se pudo generar el PDF.");
+      const url = URL.createObjectURL(await r.blob()), a = document.createElement("a");
+      a.href = url; a.download = "informe_phishing.pdf"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast("PDF descargado");
     } catch (e) { toast(e.message); } finally { busy(false); }
   };
 }

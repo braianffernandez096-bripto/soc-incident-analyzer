@@ -263,13 +263,13 @@ def _on_page(canvas, doc, meta):
         canvas.rect(0, H - 11 * mm, W, 11 * mm, stroke=0, fill=1)
         canvas.setFillColor(colors.white)
         canvas.setFont("Helvetica-Bold", 8)
-        canvas.drawString(MARGIN, H - 7 * mm, "INFORME TÉCNICO DE INVESTIGACIÓN DE INCIDENTE")
+        canvas.drawString(MARGIN, H - 7 * mm, meta.get("header") or "INFORME TÉCNICO DE INVESTIGACIÓN DE INCIDENTE")
         canvas.setFillColor(ORANGE)
         canvas.setFont("Helvetica", 8)
         canvas.drawRightString(W - MARGIN, H - 7 * mm, f"{meta['client']}")
     canvas.setFillColor(GREY)
     canvas.setFont("Helvetica", 7.5)
-    canvas.drawString(MARGIN, 9 * mm, "Confidencial · Uso exclusivo del cliente · Generado automáticamente a partir de los logs del SIEM")
+    canvas.drawString(MARGIN, 9 * mm, meta.get("footer") or "Confidencial · Uso exclusivo del cliente · Generado automáticamente a partir de los logs del SIEM")
     canvas.drawRightString(W - MARGIN, 9 * mm, f"Página {doc.page}")
     canvas.restoreState()
 
@@ -277,7 +277,80 @@ def _on_page(canvas, doc, meta):
 # --------------------------------------------------------------------------
 # documento
 # --------------------------------------------------------------------------
-def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: dict | None = None) -> bytes:
+def phishing_section(items: list[dict], number: str = "", intel: dict | None = None) -> list:
+    """Sección con el análisis de correos sospechosos. Enlaces siempre «defangeados»; nada de lo que viene del correo se interpreta como marcado."""
+    pre = f"{number}. " if number else ""
+    out: list = [P(f"{pre}Análisis de correos sospechosos", "h1"),
+                 P("Análisis estático de los archivos .eml: no se abrieron enlaces ni se ejecutaron adjuntos. Las URL se muestran «defangeadas» "
+                   "(hxxp, [.]) para que no sean enlaces activos. La criticidad la fijan reglas con pesos fijos y es una ayuda para el triage, no una prueba.")]
+    rows = [[hcell("ID"), hcell("Criticidad"), hcell("Asunto"), hcell("Remitente"), hcell("Veredicto")]]
+    for i in items:
+        rows.append([Paragraph(f"<b>{i['id']}</b>", S["cell"]), Paragraph(i["severity"], S["cell"]), Paragraph(escape(D.trunc(i["headers"]["subject"] or "(sin asunto)", 70)), S["cell"]),
+                     Paragraph(escape(D.trunc(i["headers"]["from_addr"] or i["headers"]["from"], 50)), S["cell"]), Paragraph(escape(i["verdict"]), S["cell"])])
+    out += [Spacer(1, 4), table(rows, [16 * mm, 18 * mm, CONTENT_W - 16 * mm - 18 * mm - 45 * mm - 40 * mm, 45 * mm, 40 * mm])]
+    for i in items:
+        h, a = i["headers"], i["auth"]
+        out.append(CondPageBreak(70 * mm))
+        out.append(heading_badge(D.trunc(h["subject"] or i["filename"], 80), i["severity"], "h2", i["id"]))
+        out.append(P(f"Veredicto: {i['verdict']} · puntaje {i['score']} · archivo {i['filename']}", "small"))
+        facts = [("De", h["from"]), ("Reply-To", h["reply_to"] or "—"), ("Return-Path", h["return_path"] or "—"), ("Para", h["to"] or "—"), ("Fecha", h["date"] or "—"),
+                 ("SPF / DKIM / DMARC", f"{a.get('spf') or 'sin dato'} / {a.get('dkim') or 'sin dato'} / {a.get('dmarc') or 'sin dato'}"),
+                 ("Origen probable (IP)", i["origin_ip"] or "no determinado")]
+        out += [Spacer(1, 3), table([[Paragraph(f"<b>{escape(k)}</b>", S["cell"]), Paragraph(escape(D.trunc(v, 160)), S["cell"])] for k, v in facts], [34 * mm, CONTENT_W - 34 * mm], header=False)]
+        if i["signals"]:
+            out.append(P("Señales detectadas", "label"))
+            sr = [[hcell("Cat."), hcell("Crit."), hcell("Señal"), hcell("Detalle")]]
+            for x in i["signals"]:
+                sr.append([Paragraph(escape(x["category"]), S["cell"]), Paragraph(x["severity"], S["cell"]), Paragraph(escape(D.trunc(x["title"], 90)), S["cellb"]), Paragraph(escape(D.trunc(x["detail"], 220)), S["cell"])])
+            out.append(table(sr, [24 * mm, 15 * mm, 55 * mm, CONTENT_W - 94 * mm]))
+        if i["favorable"]:
+            out.append(P("A favor: " + ", ".join(i["favorable"]), "small"))
+        if i["urls"]:
+            out.append(P("Enlaces", "label"))
+            ur = [[hcell("URL (defangeada)"), hcell("Señales")]]
+            for u in i["urls"][:15]:
+                ur.append([Paragraph(escape(D.trunc(u["defanged"], 110)), S["cell"]), Paragraph(escape(", ".join(u["flags"]) or "—"), S["cell"])])
+            out.append(table(ur, [CONTENT_W - 60 * mm, 60 * mm]))
+        if i["attachments"]:
+            out.append(P("Adjuntos", "label"))
+            ar_ = [[hcell("Archivo"), hcell("Tamaño"), hcell("SHA-256"), hcell("Notas")]]
+            for x in i["attachments"]:
+                ar_.append([Paragraph(escape(D.trunc(x["filename"], 50)), S["cellb"]), Paragraph(f"{x['size']:,} B".replace(",", "."), S["cell"]),
+                            Paragraph(escape(x["sha256"]), S["tiny"]), Paragraph(escape("; ".join(x["notes"]) or "—"), S["cell"])])
+            out.append(table(ar_, [38 * mm, 18 * mm, CONTENT_W - 38 * mm - 18 * mm - 40 * mm, 40 * mm]))
+        out.append(P("Qué verificar", "label"))
+        out += bullets(i["verify"], "bullet_s")
+        out.append(P("Acciones sugeridas", "label"))
+        out += bullets(i["actions"], "bullet_s")
+        if i["mitre"]:
+            out.append(P("MITRE ATT&CK (orientativo): " + ", ".join(f"{t} {attack.technique_name(t)}" for t in i["mitre"]), "small"))
+    if intel and intel.get("results"):
+        out += intel_section(intel)
+    return out
+
+
+def build_phishing_pdf(items: list[dict], meta: dict, intel: dict | None = None) -> bytes:
+    meta = {"client": meta.get("client") or "Cliente", "analyst": meta.get("analyst") or "Analista SOC", "header": "INFORME DE ANÁLISIS DE CORREOS SOSPECHOSOS",
+            "footer": "Confidencial · Uso exclusivo del cliente · Análisis estático generado automáticamente a partir de archivos .eml"}
+    buf = io.BytesIO()
+    doc = BaseDocTemplate(buf, pagesize=A4, leftMargin=MARGIN, rightMargin=MARGIN, topMargin=18 * mm, bottomMargin=16 * mm,
+                          title="Informe de análisis de correos sospechosos", author=meta["analyst"], subject="Análisis de phishing")
+    frame = Frame(MARGIN, 16 * mm, CONTENT_W, H - 34 * mm, id="f", leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
+    doc.addPageTemplates([PageTemplate(id="p", frames=[frame], onPage=lambda c, d: _on_page(c, d, meta))])
+    sev = {k: sum(1 for i in items if i["severity"] == k) for k in SEV_ORDER}
+    cover = Table([[Paragraph("ANÁLISIS DE CORREOS SOSPECHOSOS", S["cover_k"])], [Spacer(1, 4 * mm)],
+                   [Paragraph("Informe de análisis de phishing", S["cover_t"])], [Spacer(1, 5 * mm)],
+                   [Paragraph(escape(f"Cliente: {meta['client']}"), S["cover_s"])], [Paragraph(escape(f"Analista: {meta['analyst']}"), S["cover_s"])],
+                   [Paragraph(f"Fecha del informe: {datetime.now().strftime('%d/%m/%Y')}", S["cover_s"])],
+                   [Paragraph(f"{len(items)} correo(s) analizado(s) · {sev['Crítico']} críticos · {sev['Alto']} altos · {sev['Medio']} medios", S["cover_s"])]], colWidths=[CONTENT_W])
+    cover.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), NAVY), ("LEFTPADDING", (0, 0), (-1, -1), 10 * mm), ("RIGHTPADDING", (0, 0), (-1, -1), 10 * mm),
+                               ("TOPPADDING", (0, 0), (0, 0), 14 * mm), ("BOTTOMPADDING", (0, -1), (-1, -1), 14 * mm), ("TOPPADDING", (0, 1), (-1, -1), 1), ("BOTTOMPADDING", (0, 0), (-1, -2), 1)]))
+    story: list = [Spacer(1, 12 * mm), cover, PageBreak()] + phishing_section(items, "", intel)
+    doc.build(story)
+    return buf.getvalue()
+
+
+def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: dict | None = None, phishing: list[dict] | None = None) -> bytes:
     meta = {"client": meta.get("client") or "Cliente", "analyst": meta.get("analyst") or "Analista SOC",
             "filename": meta.get("filename") or "export_siem.xlsx"}
     buf = io.BytesIO()
@@ -429,6 +502,10 @@ def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: dic
 
     story.append(P("8. Recomendaciones generales de seguridad", "h1"))
     story += bullets(ai["general_recommendations"])
+
+    if phishing:
+        story.append(PageBreak())
+        story += phishing_section(phishing, "9")
 
     doc.build(story)
     return buf.getvalue()

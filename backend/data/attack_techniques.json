@@ -46,6 +46,10 @@
    "id": "TA0004",
    "name": "Privilege Escalation"
   },
+  "reconnaissance": {
+   "id": "TA0043",
+   "name": "Reconnaissance"
+  },
   "stealth": {
    "id": "TA0005",
    "name": "Stealth"
@@ -94,6 +98,13 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1027/"
   },
+  "T1027.013": {
+   "name": "Encrypted/Encoded File",
+   "tactics": [
+    "stealth"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1027/013/"
+  },
   "T1036": {
    "name": "Masquerading",
    "tactics": [
@@ -107,6 +118,20 @@
     "stealth"
    ],
    "url": "https://attack.mitre.org/techniques/T1036/004/"
+  },
+  "T1036.007": {
+   "name": "Double File Extension",
+   "tactics": [
+    "stealth"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1036/007/"
+  },
+  "T1036.008": {
+   "name": "Masquerade File Type",
+   "tactics": [
+    "stealth"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1036/008/"
   },
   "T1039": {
    "name": "Data from Network Shared Drive",
@@ -266,6 +291,13 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1190/"
   },
+  "T1204.001": {
+   "name": "Malicious Link",
+   "tactics": [
+    "execution"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1204/001/"
+  },
   "T1204.002": {
    "name": "Malicious File",
    "tactics": [
@@ -338,12 +370,40 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1560/001/"
   },
+  "T1566": {
+   "name": "Phishing",
+   "tactics": [
+    "initial-access"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1566/"
+  },
   "T1566.001": {
    "name": "Spearphishing Attachment",
    "tactics": [
     "initial-access"
    ],
    "url": "https://attack.mitre.org/techniques/T1566/001/"
+  },
+  "T1566.002": {
+   "name": "Spearphishing Link",
+   "tactics": [
+    "initial-access"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1566/002/"
+  },
+  "T1598.003": {
+   "name": "Spearphishing Link",
+   "tactics": [
+    "reconnaissance"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1598/003/"
+  },
+  "T1684.001": {
+   "name": "Impersonation",
+   "tactics": [
+    "stealth"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1684/001/"
   }
  }
 }

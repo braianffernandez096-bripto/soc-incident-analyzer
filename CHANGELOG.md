@@ -4,6 +4,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+### Añadido
+- Módulo de phishing (`backend/phishing.py`, pestaña **Phishing**): análisis estático de correos `.eml` (hasta 5 de 5 MB). Encabezados y suplantación, SPF/DKIM/DMARC, enlaces engañosos (IP, acortadores, punycode, dominios parecidos a una marca, texto distinto del destino, formularios), adjuntos (doble extensión, ejecutables disfrazados, macros, comprimidos con contraseña o con ejecutables, PDF con contenido activo, hash SHA-256), veredicto con puntaje, «Qué verificar», acciones y técnicas ATT&CK. No se abre ningún enlace ni se ejecuta ningún adjunto; las URL se muestran «defangeadas».
+- Reputación de phishing: dominios, IP y hash SHA-256 de adjuntos con VirusTotal y AbuseIPDB, con la misma confirmación previa. Nunca se envían archivos, direcciones de correo ni URL completas.
+- Informe en PDF de correos y sección 9 en el informe de logs cuando hay correos analizados.
+- Ejemplos `sample_data/correos/` (4 maliciosos y 1 legítimo) y 67 pruebas nuevas, con casos positivos y negativos por señal.
+- ATT&CK: técnicas de phishing y suplantación en los datos oficiales (48 técnicas, v20.0).
+
 ## [1.3.0] - 2026-11-04
 
 ### Añadido

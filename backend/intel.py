@@ -3,7 +3,7 @@
 Principios de diseño
 - Es **opcional y explícito**: solo se consulta cuando el analista lo pide y tras ver exactamente qué se enviará.
 - **Solo salen indicadores públicos**: IP enrutables en Internet y dominios. Nunca IP internas, cuentas, nombres de
-  equipo, comandos ni contenido de los logs. Los rangos de documentación (RFC 5737) se omiten salvo que se pida
+  equipo, comandos ni contenido de los logs ni de los correos (de un adjunto solo se envía su hash SHA-256). Los rangos de documentación (RFC 5737) se omiten salvo que se pida
   expresamente (útil solo para probar la conexión).
 - **No cambia la criticidad**: la reputación es contexto para el analista; el motor de reglas sigue decidiendo.
 - Las claves se reciben por variable de entorno o por cabecera, viven solo en memoria durante la consulta y nunca se
@@ -67,6 +67,13 @@ def classify_domain(value: str) -> tuple[bool, str]:
     return True, ""
 
 
+HASH_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def classify_hash(value: str) -> tuple[bool, str]:
+    return (True, "") if HASH_RE.match(value.strip().lower()) else (False, "no es un SHA-256 válido")
+
+
 def _candidates(iocs: list[dict]) -> list[tuple[str, str]]:
     """(tipo, valor) a partir de los IoC del análisis: IP y dominios de URL con esquema http(s)."""
     seen, out = set(), []
@@ -82,6 +89,9 @@ def _candidates(iocs: list[dict]) -> list[tuple[str, str]]:
             ip = D.ip_of(v) or v.strip()
             if ip:
                 add("ip", ip)
+        elif t == "SHA256":                       # solo el hash del adjunto, nunca el archivo
+            if HASH_RE.match(v.strip().lower()):
+                add("hash", v.strip().lower())
         elif t == "URL/URI" and re.match(r"^https?://", v, re.I):
             try:
                 host = (urlparse(v).hostname or "").strip()
@@ -101,7 +111,7 @@ def build_plan(iocs: list[dict], include_reserved: bool = False) -> dict:
     """Qué se consultaría y qué se omite (con el motivo). No hace ninguna llamada de red."""
     queries, skipped = [], []
     for kind, value in _candidates(iocs):
-        ok, reason = classify_ip(value) if kind == "ip" else classify_domain(value)
+        ok, reason = classify_ip(value) if kind == "ip" else classify_hash(value) if kind == "hash" else classify_domain(value)
         is_doc = kind == "ip" and not ok and reason.startswith("rango de documentación")
         if ok or (include_reserved and is_doc):
             queries.append({"kind": kind, "value": value, "reserved": is_doc})
@@ -126,8 +136,8 @@ def _ts(epoch) -> str:
 
 
 def _vt(http: httpx.Client, key: str, kind: str, value: str, sleep: Callable[[float], None]) -> dict:
-    path = "ip_addresses" if kind == "ip" else "domains"
-    gui = "ip-address" if kind == "ip" else "domain"
+    path = {"ip": "ip_addresses", "hash": "files"}.get(kind, "domains")
+    gui = {"ip": "ip-address", "hash": "file"}.get(kind, "domain")
     url = f"{VT_BASE}/{path}/{quote(value, safe='')}"
     link = f"https://www.virustotal.com/gui/{gui}/{quote(value, safe='')}"
     for attempt in (1, 2):
@@ -152,6 +162,9 @@ def _vt(http: httpx.Client, key: str, kind: str, value: str, sleep: Callable[[fl
            "last_analysis": _ts(attrs.get("last_analysis_date"))}
     if kind == "ip":
         out.update(country=attrs.get("country") or "", owner=attrs.get("as_owner") or "", asn=attrs.get("asn"))
+    elif kind == "hash":
+        out.update(name=str(attrs.get("meaningful_name") or "")[:80], type=str(attrs.get("type_description") or "")[:40],
+                   threat=str((attrs.get("popular_threat_classification") or {}).get("suggested_threat_label") or "")[:60])
     else:
         out.update(registrar=attrs.get("registrar") or "", created=_ts(attrs.get("creation_date")),
                    categories=sorted({str(v) for v in (attrs.get("categories") or {}).values()})[:4])

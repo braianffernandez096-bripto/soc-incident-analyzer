@@ -1,0 +1,29 @@
+From: =?utf-8?q?Luc=C3=ADa?= Castro <lcastro@corp.example>
+To: equipo-ventas@corp.example
+Subject: Agenda de la =?utf-8?q?reuni=C3=B3n?= del jueves
+Date: Mon, 02 Nov 2026 09:50:00 +0000
+Message-ID: <e55@corp.example>
+Authentication-Results: mx.corp.example; spf=pass smtp.mailfrom=corp.example;
+ dkim=pass header.d=corp.example; dmarc=pass header.from=corp.example
+Received: from mx.corp.example ([10.20.1.25]) by mailgw.corp.example; Mon, 02
+ Nov 2026 09:50:05 +0000
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="===============5713526603477541001=="
+
+--===============5713526603477541001==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+Hola equipo, la agenda de la reuni=C3=B3n del jueves est=C3=A1 en https://int=
+ranet.corp.example/agenda y el acta anterior en https://docs.corp.example/act=
+a-octubre. Saludos, Luc=C3=ADa
+
+--===============5713526603477541001==
+Content-Type: application/pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="agenda_jueves.pdf"
+MIME-Version: 1.0
+
+JVBERi0xLjQKMSAwIG9iajw8Pj5lbmRvYmoKdHJhaWxlcjw8Pj4KJSVFT0YK
+
+--===============5713526603477541001==--

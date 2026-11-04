@@ -265,3 +265,14 @@ dialog.pal{max-width:640px;margin-top:12vh}
 .rep.Sin-datos{color:var(--muted)}
 .meter{height:8px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:10px}
 .meter>span{display:block;height:100%;background:var(--accent);transition:width .4s}
+
+/* MITRE ATT&CK matrix */
+.tag-link{text-decoration:none}.tag-link:hover{text-decoration:underline}
+.tag-btn{border:0;cursor:pointer}.tag-btn:focus-visible,.tag-link:focus-visible,.mx-cell a:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.mx{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 14px;margin:16px 0}
+.mx-col{flex:0 0 220px}
+.mx-col h3{font-size:14px;margin:0 0 8px;line-height:1.25}.mx-col h3 small{display:block;font:500 11px var(--mono);color:var(--muted);margin-top:2px}
+.mx-cell{border:1px solid var(--line);border-left:4px solid var(--line);border-radius:8px;padding:9px 10px;margin-bottom:8px;background:var(--panel,transparent);font-size:13px}
+.mx-cell a{color:inherit;font-weight:600;text-decoration:none}.mx-cell a:hover{text-decoration:underline}
+.mx-cell.Crítico{border-left-color:var(--crit)}.mx-cell.Alto{border-left-color:var(--alto)}.mx-cell.Medio{border-left-color:var(--med)}.mx-cell.Bajo{border-left-color:var(--bajo)}
+.mx-meta{display:flex;align-items:center;gap:8px;margin:6px 0 4px}

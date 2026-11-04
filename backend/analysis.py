@@ -6,6 +6,7 @@ from collections import Counter, defaultdict
 
 import pandas as pd
 
+from . import attack
 from . import detection as D
 
 log = logging.getLogger("soc.analysis")
@@ -203,6 +204,7 @@ def analyze(df: pd.DataFrame, meta: dict) -> dict:
         "hypotheses": hypotheses,
         "iocs": iocs,
         "stats": stats,
+        "attack": attack.build_matrix(ordered),
         "flag_map": flag_map,
         "limitations": _limitations(df, profile) + [
             f"La regla «{d}» no pudo ejecutarse con este archivo; sus detecciones pueden faltar." for d in failed_rules],

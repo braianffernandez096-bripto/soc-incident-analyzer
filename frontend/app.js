@@ -61,7 +61,7 @@ async function upload(file, client, analyst) {
 function showLandingError(m) { const b = $("#lerr"); if (b) { b.textContent = m; b.hidden = false; } else toast(m); }
 
 /* ---------- navegación ---------- */
-const ROUTES = [["dashboard", "Panel"], ["incidents", "Incidentes"], ["findings", "Hallazgos"], ["logs", "Eventos"], ["iocs", "Indicadores (IoC)"], ["report", "Informe"]];
+const ROUTES = [["dashboard", "Panel"], ["incidents", "Incidentes"], ["findings", "Hallazgos"], ["attack", "ATT&CK"], ["logs", "Eventos"], ["iocs", "Indicadores (IoC)"], ["report", "Informe"]];
 function route() { return (location.hash.replace(/^#\/?/, "") || "").split("?")[0]; }
 
 function renderRail() {
@@ -103,10 +103,10 @@ function render() {
   if (S.needAuth) { $("#nav").innerHTML = ""; $("#railFoot").innerHTML = ""; main.innerHTML = `<div class="view">${accessView()}</div>`; bindAccess(); return; }
   if (!S.a) { renderRail(); main.innerHTML = `<div class="view">${landing()}</div>`; bindLanding(); bindHero(); return; }
   renderRail();
-  const views = { dashboard, incidents, findings, logs, iocs, report };
+  const views = { dashboard, incidents, findings, attack, logs, iocs, report };
   const v = views[r] || dashboard;
   main.innerHTML = `<div class="view">${v()}</div>`; bindHero(); countUp();
-  const bind = { dashboard: bindDashboard, incidents: bindIncidents, findings: bindFindings, logs: bindLogs, iocs: bindIocs, report: bindReport }[views[r] ? r : "dashboard"];
+  const bind = { dashboard: bindDashboard, incidents: bindIncidents, findings: bindFindings, attack: bindAttack, logs: bindLogs, iocs: bindIocs, report: bindReport }[views[r] ? r : "dashboard"];
   bind();
   if (!S.keepScroll) window.scrollTo(0, 0);
   S.keepScroll = false;
@@ -298,6 +298,45 @@ function bindIncidents() {
   if (S.openInc) { const el = document.getElementById(S.openInc); S.openInc = null; if (el) { el.scrollIntoView({ block: "start" }); el.classList.add("pulse"); } }
   bindEvidence(); document.querySelectorAll("[data-open]").forEach((b) => b.onclick = () => { S.openFinding = b.dataset.open; S.findingFilter = "Todos"; location.hash = "#/findings"; }); }
 
+/* ---------- MITRE ATT&CK ---------- */
+const MITRE_URL = /^https:\/\/attack\.mitre\.org\/techniques\/T\d{4}(\/\d{3})?\/$/;
+function techTag(id) {
+  const t = ((S.a.attack || {}).techniques || {})[id];
+  if (!t || !MITRE_URL.test(t.url)) return `<span class="tag">${esc(id)}</span>`;
+  return `<a class="tag tag-link" href="${esc(t.url)}" target="_blank" rel="noopener noreferrer" title="Ver ${esc(id)} en attack.mitre.org">${esc(id)} ${esc(t.name)}</a>`;
+}
+function attack() {
+  const A = S.a.attack, head = `<div class="page-head"><div><h1>Matriz MITRE ATT&amp;CK</h1><p>Técnicas que los hallazgos sugieren, agrupadas por táctica (ATT&amp;CK Enterprise v${esc(A.version)}).</p></div></div>`;
+  if (!A.tactics.length) return head + `<div class="panel"><p class="muted">Ningún hallazgo de este archivo tiene técnicas ATT&amp;CK asociadas.</p></div>`;
+  const cols = A.tactics.map((t) => `<section class="mx-col" aria-label="${esc(t.name_es)}">
+      <h3>${esc(t.name_es)}<small>${esc(t.id)} · ${esc(t.name)}</small></h3>
+      ${t.techniques.map((c) => `<article class="mx-cell ${esc(c.severity)}">
+        ${MITRE_URL.test(c.url) ? `<a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer"><span class="mono">${esc(c.id)}</span> ${esc(c.name)}</a>` : `<span class="mono">${esc(c.id)}</span> ${esc(c.name)}`}
+        <div class="mx-meta">${sevPill(c.severity)}<span class="muted">${c.count} ${c.count === 1 ? "hallazgo" : "hallazgos"}</span></div>
+        <div>${c.finding_ids.map((f) => `<button class="tag tag-btn" data-mxf="${esc(c.id)}" title="Ver hallazgos con ${esc(c.id)}">${esc(f)}</button>`).join("")}</div>
+      </article>`).join("")}</section>`).join("");
+  return `${head}
+    <div class="notice">La asignación es <b>orientativa</b>: indica técnicas consistentes con la evidencia, no prueba que el atacante las haya usado, y no cambia la criticidad. Una técnica que pertenece a varias tácticas aparece en cada una.</div>
+    <div class="panel" style="margin-top:16px"><h3>Exportar</h3>
+      <p class="muted">Descarga una capa para <b>ATT&amp;CK Navigator</b> (el color indica la criticidad máxima). En Navigator: <i>Open Existing Layer</i> → <i>Upload from local</i>. El archivo se genera aquí; no se envía a ningún servicio.</p>
+      <button class="btn primary" id="navLayer">Descargar capa para Navigator (.json)</button></div>
+    <div class="mx" role="region" aria-label="Matriz ATT&amp;CK" tabindex="0">${cols}</div>
+    <p class="muted">${A.techniques_total} ${A.techniques_total === 1 ? "técnica" : "técnicas"} en ${A.tactics.length} ${A.tactics.length === 1 ? "táctica" : "tácticas"}.${A.findings_without_mapping ? ` ${A.findings_without_mapping} hallazgo(s) sin técnica asociada (por ejemplo, calidad de datos).` : ""}</p>`;
+}
+function bindAttack() {
+  document.querySelectorAll("[data-mxf]").forEach((b) => b.onclick = () => { S.findingQ = b.dataset.mxf; S.findingFilter = "Todos"; S.findingCat = ""; location.hash = "#/findings"; });
+  const btn = $("#navLayer"); if (!btn) return;
+  btn.onclick = async () => {
+    try {
+      const r = await fetch(`/api/sessions/${S.sid}/attack-layer.json`, { headers: authHeaders() });
+      if (!r.ok) throw new Error("No se pudo generar la capa de Navigator.");
+      const url = URL.createObjectURL(await r.blob()), a = document.createElement("a");
+      a.href = url; a.download = "attack_navigator_layer.json"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast("Capa descargada");
+    } catch (e) { toast(e.message); }
+  };
+}
+
 /* ---------- hallazgos ---------- */
 function findings() {
   const flt = S.findingFilter, q = S.findingQ.trim().toLowerCase();
@@ -312,7 +351,7 @@ function findings() {
     return `<details class="finding" id="${esc(f.id)}" ${S.openFinding === f.id ? "open" : ""}>
       <summary>${sevPill(f.severity)}<span class="mono muted">${esc(f.id)}</span><b>${esc(f.title)}</b><span class="muted mono">${hhmm(f.time_start)}</span></summary>
       <div class="f-body">
-        <div style="margin-top:12px"><span class="tag">${esc(f.category)}</span><span class="tag">${esc(f.tactic)}</span>${(f.mitre || []).map((m) => `<span class="tag">${esc(m)}</span>`).join("")}${f.incident_id ? `<span class="tag">${esc(f.incident_id)}</span>` : '<span class="tag">Observación (fuera de incidentes)</span>'}</div>
+        <div style="margin-top:12px"><span class="tag">${esc(f.category)}</span><span class="tag">${esc(f.tactic)}</span>${(f.mitre || []).map(techTag).join("")}${f.incident_id ? `<span class="tag">${esc(f.incident_id)}</span>` : '<span class="tag">Observación (fuera de incidentes)</span>'}</div>
         <h4>Explicación técnica</h4><p>${esc(a.technical_explanation || f.explanation)}</p>
         <h4>Criticidad: ${esc(f.severity)}</h4><p>${esc(a.severity_justification || "")}</p><ul>${li(f.reasons)}</ul>
         <h4>Impacto en la organización</h4><p>${esc(a.impact || "")}</p>
@@ -583,7 +622,7 @@ function initChrome() {
   });
 }
 function paletteItems() {
-  const items = [["Ir a", "Panel", "#/dashboard"], ["Ir a", "Incidentes", "#/incidents"], ["Ir a", "Hallazgos", "#/findings"], ["Ir a", "Eventos", "#/logs"], ["Ir a", "Indicadores (IoC)", "#/iocs"], ["Ir a", "Informe y PDF", "#/report"]];
+  const items = [["Ir a", "Panel", "#/dashboard"], ["Ir a", "Incidentes", "#/incidents"], ["Ir a", "Hallazgos", "#/findings"], ["Ir a", "Matriz ATT&CK", "#/attack"], ["Ir a", "Eventos", "#/logs"], ["Ir a", "Indicadores (IoC)", "#/iocs"], ["Ir a", "Informe y PDF", "#/report"]];
   if (!S.a) return [["Ir a", "Cargar archivo", "#/"]];
   const nav = (h) => { if (location.hash === h) render(); else location.hash = h; };
   const act = [];

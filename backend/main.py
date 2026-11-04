@@ -21,6 +21,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import ai as ai_mod
+from . import attack as attack_mod
 from . import detection as D
 from . import filecheck
 from . import intel as intel_mod
@@ -68,7 +69,7 @@ class SafeJSON(JSONResponse):
 
 
 _DOCS = os.environ.get("ENABLE_DOCS", "").strip().lower() in ("1", "true", "yes")      # API docs reveal the full surface: opt-in
-app = FastAPI(title="SOC Incident Analyzer", version="1.0.0", default_response_class=SafeJSON,
+app = FastAPI(title="SOC Incident Analyzer", version="1.1.0", default_response_class=SafeJSON,
               docs_url="/docs" if _DOCS else None, redoc_url="/redoc" if _DOCS else None, openapi_url="/openapi.json" if _DOCS else None)
 
 
@@ -370,6 +371,15 @@ def intel_start(sid: str, request: Request, include_reserved: bool = False, x_vt
     log.info("intel_start session=%s indicators=%d providers=%s", sid, len(plan["queries"]), ",".join(providers))   # nunca las claves
     threading.Thread(target=_intel_worker, args=(s, plan["queries"], vt, ab), daemon=True).start()
     return {"job": s.intel}
+
+
+@app.get("/api/sessions/{sid}/attack-layer.json")
+def attack_layer(sid: str):
+    """MITRE ATT&CK Navigator layer with the techniques suggested by the findings (download, nothing is sent anywhere)."""
+    s = _get(sid)
+    layer = attack_mod.navigator_layer(s.analysis["attack"], f"SOC Incident Analyzer - {s.filename}")
+    return Response(json.dumps(layer, ensure_ascii=False, indent=1), media_type="application/json",
+                    headers={"Content-Disposition": 'attachment; filename="attack_navigator_layer.json"'})
 
 
 def _pdf_response(s: Session) -> Response:

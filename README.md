@@ -16,6 +16,8 @@ Aplicación web para el reto final del Bootcamp Analista SOC Nivel 2. Recibe el 
 
 5. **Reputación (opcional)** (`backend/intel.py`): consulta en VirusTotal y AbuseIPDB las IP y dominios públicos que tú confirmes. Ver [más abajo](#reputación-de-ip-y-dominios-virustotal-y-abuseipdb).
 
+6. **MITRE ATT&CK** (`backend/attack.py`): cada técnica sugerida por un hallazgo se muestra con su nombre oficial y un enlace a attack.mitre.org. La pestaña **ATT&CK** agrupa las técnicas por táctica en una matriz y permite descargar una capa `.json` para [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/). Los datos son los oficiales de MITRE (v20.0), incluidos en `backend/data/` y validados contra las reglas por las pruebas. No se consulta Internet.
+
 ## Formatos de entrada
 
 | Formato | Extensiones | Detalles |
@@ -148,13 +150,13 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock       # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 241 pruebas
+python -m pytest                                           # 257 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (94 %)
 ```
 
 Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov`, `make lint`, `make audit` (bandit + pip-audit), `make start`, `make stop`, `make logs`. Con `make help` ves la lista completa.
 
-- `tests/unit/`: motor de detección contra el Excel de ejemplo, límites del parser, formatos de entrada (CSV, TSV, JSON, NDJSON, codificaciones y zonas horarias) y verificación de archivos (tipo real por contenido, macros, inyección de fórmulas).
+- `tests/unit/`: motor de detección contra el Excel de ejemplo, límites del parser, formatos de entrada (CSV, TSV, JSON, NDJSON, codificaciones y zonas horarias) y verificación de archivos (tipo real por contenido, macros, inyección de fórmulas) y datos de MITRE ATT&CK (todas las técnicas que citan las reglas existen y siguen vigentes, matriz y capa de Navigator).
 - `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras), clave de acceso (401 en todas las rutas protegidas, fuerza bruta), capa de IA y consultas de reputación con servidores simulados (las pruebas no usan red ni claves).
 - `tests/e2e/`: arranca el servidor real y recorre carga, análisis y PDF.
 
@@ -185,13 +187,14 @@ Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones
 
 - Si las marcas de tiempo no traen zona horaria, se usan tal cual; si la traen, se convierten a UTC.
 - Los rangos 192.0.2.0/24, 198.51.100.0/24 y 203.0.113.0/24 (documentación) se tratan como externos.
-- El mapeo MITRE ATT&CK es orientativo. La reputación de IP es opcional y orientativa; no hay geolocalización propia.
+- El mapeo MITRE ATT&CK es orientativo: indica técnicas consistentes con la evidencia, no prueba su uso, y no cambia la criticidad. La reputación de IP es opcional y orientativa; no hay geolocalización propia.
 - Los archivos de sesión viven en memoria (máx. 10) y se pierden al reiniciar el servidor.
 
 ## Estructura
 
 ```
-backend/      parser, reglas de detección, correlación, IA, reputación (VirusTotal/AbuseIPDB), informe PDF y API (FastAPI)
+backend/      parser, reglas de detección, correlación, IA, reputación (VirusTotal/AbuseIPDB), MITRE ATT&CK, informe PDF y API (FastAPI)
+scripts/      build_attack_data.py: regenera backend/data/ desde los datos oficiales de MITRE (uso de mantenimiento)
 frontend/     interfaz web sin build (HTML, CSS y JS; fuentes IBM Plex locales)
 sample_data/  export de ejemplo en Excel, CSV y NDJSON
 tests/        unit, integration y e2e

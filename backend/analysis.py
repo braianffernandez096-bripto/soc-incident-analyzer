@@ -58,8 +58,12 @@ def _limitations(df: pd.DataFrame, profile: dict) -> list[str]:
                    "por eso las IP internas no se usaron como señal de anomalía.")
     out.append("El movimiento lateral solo se infiere cuando el log declara explícitamente el host de origen (source=...); "
                "no se reconstruyen saltos por simple coincidencia de cuentas.")
-    out.append("No se puede determinar, solo con este export, si las cuentas internas involucradas (backupsvc, rrojas, helpdesk) fueron "
-               "comprometidas o usadas indebidamente por su titular; ese punto requiere investigación adicional.")
+    out.append("No se puede determinar, solo con este export, si las cuentas internas involucradas fueron comprometidas o usadas "
+               "indebidamente por su titular; ese punto requiere investigación adicional.")
+    if profile["load"].get("json_in_sheet"):
+        out.append("El archivo era un JSON guardado línea por línea en una hoja de cálculo; se reconstruyó y solo se usó la lista de eventos."
+                   + (" Faltaban líneas en el original (había comas sobrantes), así que otros apartados del JSON, como incidentes "
+                      "o hallazgos previos, pueden estar incompletos y no se tuvieron en cuenta." if profile["load"].get("json_repaired") else ""))
     return out
 
 

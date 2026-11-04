@@ -57,6 +57,13 @@ ALIASES = {
     "criticidad": "Severity", "loglevel": "Severity",
 }
 
+# Alias de segunda prioridad: solo se aplican si ninguna otra columna aporta ese campo (así «action» pasa a ser
+# el código de evento únicamente cuando el archivo no trae un Event_ID de verdad).
+SECONDARY_ALIASES = {
+    "action": "Event_ID", "accion": "Event_ID", "eventtype": "Event_ID", "eventaction": "Event_ID",
+    "category": "Log_Source", "categoria": "Log_Source",
+}
+
 REQUIRED_MIN = ["Timestamp", "Event_ID"]
 
 EXCEL_EXT = (".xlsx", ".xlsm")
@@ -80,16 +87,61 @@ def _norm_header(h: object) -> str:
     return re.sub(r"[\s_\-\.@]+", "", text.strip().lower())
 
 
+def _map_columns(cells) -> list[str]:
+    """Nombre canónico de cada columna. Los alias secundarios solo rellenan campos que nadie más aportó."""
+    names = [ALIASES.get(_norm_header(c)) for c in cells]
+    taken = {n for n in names if n}
+    out = []
+    for c, n in zip(cells, names):
+        if n is None:
+            sec = SECONDARY_ALIASES.get(_norm_header(c))
+            if sec and sec not in taken:
+                n = sec
+                taken.add(sec)
+        out.append(n or str(c).strip())
+    return out
+
+
 def _find_header_row(raw: pd.DataFrame) -> int:
     for i in range(min(len(raw), 15)):
-        cells = {_norm_header(c) for c in raw.iloc[i].tolist()}
-        hits = sum(1 for c in cells if c in ALIASES)
+        hits = sum(1 for c in set(_map_columns(raw.iloc[i].tolist())) if c in CANONICAL)
         if hits >= 4:
             return i
     raise ParseError(
         "No encontré una fila de cabecera reconocible. Se esperan columnas como "
         "Timestamp, Hostname, Event_ID, User, Source_IP, Event_Description…"
     )
+
+
+_TRAILING_COMMA = re.compile(r",(\s*[}\]])")
+
+
+def _json_in_sheet(raw: pd.DataFrame):
+    """Un JSON guardado línea por línea en una hoja (una celda por línea). Devuelve (objeto, reparado) o None.
+
+    Si faltan líneas sueltas del original, solo sobran comas finales; se retiran para poder leer lo que sí está."""
+    if raw.shape[1] > 1 and raw.iloc[:, 1:].notna().any().any():
+        return None
+    lines = ["" if pd.isna(v) else str(v) for v in raw.iloc[:, 0]]
+    first = next((x.strip() for x in lines if x.strip()), "")
+    if first[:1] not in ("{", "["):
+        return None
+    text = "\n".join(lines)
+    try:
+        return json.loads(text), False
+    except (json.JSONDecodeError, RecursionError):
+        pass
+    try:
+        return json.loads(_TRAILING_COMMA.sub(r"\1", text)), True
+    except (json.JSONDecodeError, RecursionError):
+        return None
+
+
+def _looks_like_json_text(raw: pd.DataFrame) -> bool:
+    if raw.shape[1] > 1 and raw.iloc[:, 1:].notna().any().any():
+        return False
+    first = next((str(v).strip() for v in raw.iloc[:, 0] if str(v).strip() not in ("", "nan")), "")
+    return first[:1] in ("{", "[")
 
 
 def _too_many_rows(n: int) -> ParseError:
@@ -214,9 +266,29 @@ def _extract_records(obj, depth: int = 0) -> list[dict] | None:
                 found = _extract_records(obj[k], depth + 1)
                 if found is not None:
                     return found
-        if any(not isinstance(v, (dict, list)) for v in obj.values()):             # un único evento
+        if sum(1 for v in obj.values() if not isinstance(v, (dict, list))) >= 3:   # un único evento
+            return [obj]
+        best = _best_list(obj, depth)
+        if best is not None:
+            return best
+        if any(not isinstance(v, (dict, list)) for v in obj.values()):
             return [obj]
     return None
+
+
+def _has_time_field(records: list[dict]) -> bool:
+    return any(ALIASES.get(_norm_header(k)) == "Timestamp" for r in records[:5] for k in r)
+
+
+def _best_list(obj: dict, depth: int) -> list[dict] | None:
+    """Contenedor con otro nombre («logs_database», «alerts»…): elige la lista de objetos que parece de eventos,
+    es decir, la que tiene un campo de fecha y, entre ellas, la más larga."""
+    cands = []
+    for v in obj.values():
+        found = _extract_records(v, depth + 1) if isinstance(v, (list, dict)) else None
+        if found and _has_time_field(found):
+            cands.append(found)
+    return max(cands, key=len) if cands else None
 
 
 def _unwrap(rec: dict) -> dict:
@@ -259,6 +331,10 @@ def _read_json(data: bytes) -> tuple[pd.DataFrame, str]:
                          "un objeto por línea (NDJSON) o un contenedor como {\"events\": [...]}.")
     if len(records) > MAX_ROWS + 100:
         raise _too_many_rows(len(records))
+    return _records_to_frame(records), label
+
+
+def _records_to_frame(records: list[dict]) -> pd.DataFrame:
     flat = [_flatten(r) for r in records]
     cols: list[str] = []
     seen: set[str] = set()
@@ -270,7 +346,7 @@ def _read_json(data: bytes) -> tuple[pd.DataFrame, str]:
         if len(cols) > MAX_COLUMNS:
             raise ParseError(f"Los eventos tienen más de {MAX_COLUMNS} campos distintos; no parece un export de logs.")
     rows = [cols] + [[r.get(c) for c in cols] for r in flat]
-    return pd.DataFrame(rows, dtype=object), label
+    return pd.DataFrame(rows, dtype=object)
 
 
 # ---------------------------------------------------------------- marcas de tiempo
@@ -345,8 +421,20 @@ def _normalize(raw: pd.DataFrame, label: str) -> tuple[pd.DataFrame, dict]:
         raise ParseError("La hoja está vacía.")
     raw = raw.reset_index(drop=True)
 
-    hdr = _find_header_row(raw)
-    columns = [ALIASES.get(_norm_header(c), str(c).strip()) for c in raw.iloc[hdr].tolist()]
+    try:
+        hdr = _find_header_row(raw)
+    except ParseError:
+        found = _json_in_sheet(raw)
+        records = _extract_records(found[0]) if found else None
+        if records:
+            df, meta = _normalize(_records_to_frame(records), label)
+            meta["json_in_sheet"], meta["json_repaired"] = True, found[1]
+            return df, meta
+        if _looks_like_json_text(raw):
+            raise ParseError("Este archivo parece un JSON guardado en una hoja de cálculo (una línea por celda) y no se pudo "
+                             "reconstruir. Vuelve a exportar el original como .json y súbelo con esa extensión.") from None
+        raise
+    columns = _map_columns(raw.iloc[hdr].tolist())
     df = raw.iloc[hdr + 1:].copy()
     df.columns = columns
     df = df.loc[:, ~pd.Index(df.columns).duplicated()]  # descarta columnas duplicadas (conserva la primera)

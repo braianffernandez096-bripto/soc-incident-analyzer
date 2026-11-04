@@ -13,6 +13,7 @@ services:
       - VT_API_KEY=${VT_API_KEY:-}
       - ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY:-}
       - APP_ACCESS_TOKEN=${APP_ACCESS_TOKEN:-}
+      - CAPTCHA=${CAPTCHA:-}
       - ENABLE_DOCS=${ENABLE_DOCS:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     # Least privilege: read-only filesystem (uploads are spooled to a small tmpfs), no capabilities, no escalation

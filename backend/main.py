@@ -19,9 +19,11 @@ import pandas as pd
 from fastapi import FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
 from . import ai as ai_mod
 from . import attack as attack_mod
+from . import captcha as captcha_mod
 from . import detection as D
 from . import filecheck
 from . import intel as intel_mod
@@ -131,7 +133,7 @@ async def security_headers(request: Request, call_next):
 
 
 # Límite de peticiones por IP (ventana deslizante en memoria). Protege los endpoints costosos.
-RATE_LIMITS = {"/api/upload": (20, 60), "/api/ai": (6, 60), "/api/intel": (6, 60)}      # (peticiones, segundos)
+RATE_LIMITS = {"/api/upload": (20, 60), "/api/ai": (6, 60), "/api/intel": (6, 60), "/api/captcha": (30, 60)}      # (peticiones, segundos)
 _hits: dict[tuple[str, str], deque] = defaultdict(deque)
 _hits_lock = threading.Lock()
 
@@ -219,6 +221,48 @@ def health():
             "model": os.environ.get("ANTHROPIC_MODEL") or ai_mod.DEFAULT_MODEL}
 
 
+# ---- captcha local (opcional: CAPTCHA=on) ------------------------------------------------------------
+# Protege las rutas que reciben archivos (/api/upload y /api/phishing). Los datos de ejemplo son archivos fijos del repositorio
+# y no se protegen. Ver backend/captcha.py.
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def _require_captcha(request: Request) -> None:
+    if captcha_mod.enabled() and not captcha_mod.consume_pass(request.headers.get("x-captcha-pass", ""), _client_ip(request)):
+        raise HTTPException(403, "Resuelve el captcha para continuar.", headers={"X-Captcha-Required": "1"})
+
+
+class CaptchaAnswer(BaseModel):
+    token: str = Field(max_length=100)
+    selected: list[int] = Field(max_length=captcha_mod.GRID)
+
+
+@app.get("/api/captcha/status")
+def captcha_status():
+    return {"enabled": captcha_mod.enabled()}
+
+
+@app.post("/api/captcha/challenge")
+def captcha_challenge(request: Request):
+    if not captcha_mod.enabled():
+        raise HTTPException(404, "El captcha no está activado en este servidor.")
+    _rate_limit(request, "/api/captcha", *RATE_LIMITS["/api/captcha"])
+    return captcha_mod.new_challenge()
+
+
+@app.post("/api/captcha/verify")
+def captcha_verify(request: Request, body: CaptchaAnswer):
+    if not captcha_mod.enabled():
+        raise HTTPException(404, "El captcha no está activado en este servidor.")
+    _rate_limit(request, "/api/captcha", *RATE_LIMITS["/api/captcha"])
+    grant = captcha_mod.verify(body.token, body.selected, _client_ip(request))
+    if not grant:
+        _rate_limit(request, "/captcha-fail", 10, 300)         # solo los fallos cuentan: adivinar a ciegas acaba en 429
+        raise HTTPException(400, "Selección incorrecta o desafío caducado. Prueba con uno nuevo.")
+    return {"pass": grant, "uses": captcha_mod.PASS_USES, "ttl": captcha_mod.PASS_TTL}
+
+
 def _create_session(data: bytes, name: str, client: str, analyst: str, warnings: list[str] | None = None) -> dict:
     try:
         df, meta = load_events(data, name)
@@ -241,6 +285,7 @@ def _create_session(data: bytes, name: str, client: str, analyst: str, warnings:
 @app.post("/api/upload")
 async def upload(request: Request, file: UploadFile = File(...), client: str = Form(""), analyst: str = Form("")):
     _rate_limit(request, "/api/upload", *RATE_LIMITS["/api/upload"])
+    _require_captcha(request)
     name = os.path.basename(file.filename or "export.xlsx")[:120]
     if not name.lower().endswith(SUPPORTED_EXT):
         raise HTTPException(400, "Formato no soportado. Usa Excel (.xlsx), CSV/TSV o JSON/NDJSON.")
@@ -428,6 +473,7 @@ def _get_phish(pid: str) -> PhishSession:
 async def phishing_upload(request: Request, files: list[UploadFile] = File(...), sid: str = Form("")):
     """Analiza hasta 5 archivos .eml. Solo se leen como texto: no se abre ningún enlace ni se ejecuta ningún adjunto."""
     _rate_limit(request, "/api/upload", *RATE_LIMITS["/api/upload"])
+    _require_captcha(request)
     if not files or len(files) > MAX_EML_FILES:
         raise HTTPException(400, f"Sube de 1 a {MAX_EML_FILES} archivos .eml por análisis.")
     batch: list[tuple[str, bytes]] = []

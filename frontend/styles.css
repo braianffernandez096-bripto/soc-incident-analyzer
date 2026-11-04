@@ -213,6 +213,19 @@ dialog .dh{display:flex;justify-content:space-between;align-items:center;gap:10p
 dialog .db{padding:14px 18px 18px;max-height:70vh;overflow:auto}
 #toast{position:fixed;right:20px;bottom:20px;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;opacity:0;transform:translateY(8px);transition:.2s;pointer-events:none;z-index:60;max-width:380px}
 #toast.show{opacity:1;transform:none}
+.cap{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 70%,transparent);backdrop-filter:blur(4px);display:grid;place-items:center;z-index:80;padding:16px}
+.cap-box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;width:min(100%,560px);box-shadow:var(--shadow)}
+.cap-box h2{margin:0 0 4px;font-size:19px}
+.cap-box p{margin:0 0 14px}
+.cap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.cap-tile{position:relative;padding:0;border:3px solid var(--line);border-radius:12px;background:var(--soft);cursor:pointer;overflow:hidden;aspect-ratio:1}
+.cap-tile img{display:block;width:100%;height:100%;object-fit:cover;user-select:none;-webkit-user-drag:none}
+.cap-tile:hover{border-color:var(--muted)}
+.cap-tile[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.cap-tile[aria-pressed=true]::after{content:"✓";position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font:700 16px/26px var(--sans);text-align:center}
+.cap-err{color:var(--crit);margin:12px 0 0!important;font-size:14px}
+.cap-act{display:flex;align-items:center;gap:8px;margin-top:16px}
+.cap-act .sp{flex:1}
 .busy{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 78%,transparent);display:grid;place-items:center;z-index:70}
 .busy-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px 28px;text-align:center;box-shadow:0 10px 40px rgba(0,0,0,.15)}
 .spin{width:28px;height:28px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 10px;animation:sp .8s linear infinite}

@@ -199,7 +199,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 365 pruebas
+python -m pytest                                           # 430 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (94 %)
 ```
 
@@ -232,6 +232,7 @@ Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones
   
 - **Verificación del archivo subido:** el tipo se decide por su contenido, no por la extensión (un ejecutable renombrado a `.xlsx` se rechaza). En los Excel se avisa de macros VBA, objetos incrustados, vínculos externos y conexiones de datos, y se rechazan los que traen declaraciones XML peligrosas o rutas internas sospechosas. También se avisa de celdas con inyección de fórmulas. La app **nunca ejecuta ni evalúa** el archivo, y esto es un primer filtro, no un antivirus: "sin avisos" no significa "archivo seguro".
 
+- **Captcha opcional (`CAPTCHA=on`):** antes de analizar un archivo de logs o un `.eml`, la persona marca las 3 imágenes que muestran la misma figura entre 6 (dispositivos de red y animales, giradas y con color, fondo y ruido al azar en cada desafío). Es local: no usa servicios de terceros, no necesita internet ni claves. La respuesta solo vive en el servidor, cada desafío admite un intento y caduca, y cada análisis pide su propio captcha (el pase es de un solo uso y dura segundos; ver los resultados no depende de ningún tiempo). Está apagado por defecto (en tu VM no estorba) y no protege los datos de ejemplo. Frena bots genéricos, no a un atacante dirigido: no sustituye a la clave de acceso. Las figuras son originales y se regeneran con `python scripts/build_captcha_assets.py`.
 - **Clave de acceso opcional:** define `APP_ACCESS_TOKEN` (se recomiendan 16 caracteres o más) y toda la API exige `Authorization: Bearer <clave>`; la interfaz la pide al entrar. Es una sola clave compartida, no un sistema de usuarios, y debe servirse detrás de HTTPS. Sin ella, la app no tiene login: úsala en local.
 
 - La documentación interactiva de la API (`/docs`) está desactivada por defecto (`ENABLE_DOCS=1` la activa).

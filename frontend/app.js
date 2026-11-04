@@ -29,8 +29,73 @@ function toast(msg) {
 }
 function busy(on, text) { $("#busy").hidden = !on; if (text) $("#busyText").textContent = text; }
 
-async function api(path, opts = {}) {
-  const r = await fetch(path, { ...opts, headers: { ...(opts.headers || {}), ...authHeaders() } });
+/* ---------- captcha local (solo si el servidor lo activa con CAPTCHA=on) ----------
+   El servidor responde 403 + X-Captcha-Required a una subida sin pase: se abre el desafío y se repite la petición. */
+const CAP = { pass: "" };
+function captchaModal() {
+  return new Promise((resolve, reject) => {
+    const prev = document.activeElement, wasBusy = !$("#busy").hidden;
+    busy(false);
+    const box = document.createElement("div");
+    box.className = "cap"; box.setAttribute("role", "dialog"); box.setAttribute("aria-modal", "true"); box.setAttribute("aria-labelledby", "capT");
+    box.innerHTML = `<div class="cap-box">
+      <h2 id="capT">Verificación rápida</h2>
+      <p id="capP" class="muted">Cargando desafío…</p>
+      <div class="cap-grid" id="capG" role="group" aria-label="Imágenes del desafío"></div>
+      <p class="cap-err" id="capE" role="alert" hidden></p>
+      <div class="cap-act"><button class="btn ghost" id="capN" type="button">Otro desafío</button><span class="sp"></span>
+        <button class="btn" id="capX" type="button">Cancelar</button><button class="btn primary" id="capV" type="button" disabled>Verificar</button></div>
+    </div>`;
+    document.body.appendChild(box);
+    const picks = new Set(); let token = "";
+    const g = $("#capG", box), err = $("#capE", box), ok = $("#capV", box);
+    const close = (fn) => { document.removeEventListener("keydown", onKey, true); box.remove(); if (wasBusy) busy(true); if (prev && prev.focus) prev.focus(); fn(); };
+    const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(() => reject(new Error("Verificación cancelada."))); } };
+    document.addEventListener("keydown", onKey, true);
+    const sync = () => { ok.disabled = picks.size !== 3; $("#capP", box).textContent = `Marca las 3 imágenes que muestran la misma figura (pueden estar giradas o de otro color). Elegidas: ${picks.size} de 3.`; };
+    const say = (m) => { err.textContent = m || ""; err.hidden = !m; };
+    async function load() {
+      picks.clear(); say(""); g.replaceChildren(); ok.disabled = true; $("#capP", box).textContent = "Cargando desafío…";
+      try {
+        const c = await api("/api/captcha/challenge", { method: "POST" });
+        token = c.token;
+        c.images.forEach((src, i) => {
+          if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(src)) return;
+          const b = document.createElement("button"); b.type = "button"; b.className = "cap-tile";
+          b.setAttribute("aria-pressed", "false"); b.setAttribute("aria-label", `Imagen ${i + 1} de ${c.images.length}`);
+          const im = document.createElement("img"); im.alt = ""; im.src = src; im.draggable = false; b.appendChild(im);
+          b.onclick = () => {
+            if (picks.has(i)) { picks.delete(i); b.setAttribute("aria-pressed", "false"); }
+            else if (picks.size < 3) { picks.add(i); b.setAttribute("aria-pressed", "true"); }
+            else say("Ya elegiste 3. Desmarca una para cambiarla.");
+            if (picks.size < 3 && err.textContent.startsWith("Ya elegiste")) say("");
+            sync();
+          };
+          g.appendChild(b);
+        });
+        sync(); const first = g.querySelector("button"); if (first) first.focus();
+      } catch (e) { say(e.message); $("#capP", box).textContent = "No se pudo cargar el desafío."; }
+    }
+    ok.onclick = async () => {
+      ok.disabled = true;
+      try {
+        const r = await api("/api/captcha/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, selected: [...picks] }) });
+        CAP.pass = r.pass; close(resolve);
+      } catch (e) { await load(); say(e.message); }
+    };
+    $("#capN", box).onclick = load;
+    $("#capX", box).onclick = () => close(() => reject(new Error("Verificación cancelada.")));
+    load();
+  });
+}
+
+async function api(path, opts = {}, retried = false) {
+  const extra = CAP.pass ? { "X-Captcha-Pass": CAP.pass } : {};
+  const r = await fetch(path, { ...opts, headers: { ...(opts.headers || {}), ...authHeaders(), ...extra } });
+  if (r.status === 403 && r.headers.get("X-Captcha-Required") && !retried) {
+    CAP.pass = ""; await captchaModal();
+    try { return await api(path, opts, true); } finally { CAP.pass = ""; }      // el pase es de un solo uso
+  }
   if (r.status === 401 && path !== "/api/auth/check") { auth.set(""); S.needAuth = true; render(); }
   if (!r.ok) {
     let d = r.statusText;

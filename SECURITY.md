@@ -20,6 +20,7 @@ Solo la rama `main`.
 | XSS | Todo dato del archivo se escapa antes de mostrarse y antes de entrar al PDF. La CSP restringe los scripts a `'self'`. |
 | Filtración de claves | Las claves viven en `.env` (fuera de Git) o se pegan en la interfaz; no se guardan, no se registran y no se devuelven al navegador. |
 | Acceso no deseado | La app escucha solo en `127.0.0.1`. Con `APP_ACCESS_TOKEN` toda la API exige una clave, con límite de intentos fallidos. |
+| Uso automatizado | Opcional: con `CAPTCHA=on` las subidas exigen resolver un captcha de imágenes local (sin terceros ni internet), con un solo intento por desafío y límite de fallos por IP. Frena bots genéricos; no detiene a un atacante dirigido ni sustituye a `APP_ACCESS_TOKEN`. |
 | Cadena de suministro | Dependencias con versión exacta y hash (`requirements.lock`), Dependabot, y en cada cambio `bandit`, `pip-audit` y Trivy. |
 | Superficie expuesta | Documentación de la API desactivada por defecto, contenedor sin privilegios, de solo lectura y sin capacidades. |
 
@@ -39,6 +40,7 @@ Nada sale sin una acción tuya: la IA y la reputación están apagadas hasta que
 ## Si vas a desplegarla
 
 1. Define `APP_ACCESS_TOKEN` (16 caracteres o más; `openssl rand -hex 24` genera uno).
-2. Sírvela detrás de HTTPS y no publiques el puerto 8000 directamente.
-3. Mantén las dependencias al día (acepta los pull requests de Dependabot) y ejecuta `make audit` de vez en cuando.
-4. Usa datos de logs de los que tengas permiso para procesar: pueden contener información personal.
+2. Si la publicas en internet, activa también `CAPTCHA=on` para frenar el uso automatizado de las subidas.
+3. Sírvela detrás de HTTPS y no publiques el puerto 8000 directamente.
+4. Mantén las dependencias al día (acepta los pull requests de Dependabot) y ejecuta `make audit` de vez en cuando.
+5. Usa datos de logs de los que tengas permiso para procesar: pueden contener información personal.

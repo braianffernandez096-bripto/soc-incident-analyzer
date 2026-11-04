@@ -160,7 +160,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 ## Pruebas
 
 ```bash
-pip install --require-hashes -r requirements-dev.lock       # pytest, cobertura, bandit y pip-audit
+pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
 python -m pytest                                           # 257 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (94 %)
 ```

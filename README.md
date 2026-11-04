@@ -180,7 +180,7 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 
 - `tests/unit/`: motor de detección contra el Excel de ejemplo, límites del parser, formatos de entrada (CSV, TSV, JSON, NDJSON, codificaciones y zonas horarias), verificación de archivos (tipo real por contenido, macros, inyección de fórmulas) y datos de MITRE ATT&CK (todas las técnicas que citan las reglas existen y siguen vigentes, matriz y capa de Navigator).
 
-- `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras), clave de acceso (401 en todas las rutas protegidas, fuerza bruta), capa de IA consultas de reputación con servidores simulados (las pruebas no usan red ni claves) y el botón de datos de ejemplo.
+- `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras), clave de acceso (401 en todas las rutas protegidas, fuerza bruta), capa de IA y consultas de reputación con servidores simulados (las pruebas no usan red ni claves) y el botón de datos de ejemplo.
 
 - `tests/e2e/`: arranca el servidor real y recorre carga, análisis y PDF.
 

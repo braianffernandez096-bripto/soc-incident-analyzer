@@ -575,6 +575,10 @@ def incident_title(fs: list[D.Finding]) -> str | None:
         return "Ataque web con acceso a datos y exfiltración" if "g_exfil" in rules else f"Ataque web contra {next((f.metrics.get('host') for f in fs if f.rule == 'g_web'), 'la aplicación')}"
     if "g_exfil" in rules:
         return f"Exfiltración de datos desde {host}"
+    auth = next((f for f in fs if f.rule == "g_auth" and f.metrics.get("exitos_posteriores")), None)
+    if auth and rules & {"g_mining", "g_persistence", "g_cmd", "g_privesc"}:
+        extra = " y minería de criptomonedas" if "g_mining" in rules else " y persistencia" if "g_persistence" in rules else ""
+        return f"Fuerza bruta {auth.metrics.get('protocolo', '')} desde {auth.metrics.get('ip_origen', '')} con compromiso de {user or 'una cuenta'}{extra}".replace("  ", " ")
     if "g_cloud" in rules:
         return f"Abuso de la identidad cloud {user}"
     if "g_dns_tunnel" in rules:

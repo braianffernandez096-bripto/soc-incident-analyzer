@@ -883,6 +883,11 @@ def _incident_title(fs: list[Finding]) -> str:
     return "Actividad sospechosa correlacionada"
 
 
+def _ukey(user: str) -> str:
+    """CORP\\mflores, mflores y mflores@corp.example son la misma cuenta (fuentes distintas la escriben distinto)."""
+    return short_user(user).split("@")[0].lower()
+
+
 def correlate(st: State) -> tuple[list[dict], list[Finding]]:
     fs = [f for f in st.findings if f.rule not in INCIDENT_EXCLUDED_RULES]
     uf = _UF(len(fs))
@@ -890,7 +895,7 @@ def correlate(st: State) -> tuple[list[dict], list[Finding]]:
         for j in range(i + 1, len(fs)):
             b = fs[j]
             share_ip = set(a.link_ips) & set(b.link_ips)
-            share_user = set(a.actor_users) & set(b.actor_users)
+            share_user = {_ukey(u) for u in a.actor_users} & {_ukey(u) for u in b.actor_users}
             if share_ip or share_user:
                 uf.union(i, j)
     groups: dict[int, list[Finding]] = defaultdict(list)

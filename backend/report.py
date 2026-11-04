@@ -278,7 +278,7 @@ def _on_page(canvas, doc, meta):
 # documento
 # --------------------------------------------------------------------------
 def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: dict | None = None) -> bytes:
-    meta = {"client": meta.get("client") or "Cliente", "analyst": meta.get("analyst") or "Analista SOC Nivel 2",
+    meta = {"client": meta.get("client") or "Cliente", "analyst": meta.get("analyst") or "Analista SOC",
             "filename": meta.get("filename") or "export_siem.xlsx"}
     buf = io.BytesIO()
     doc = BaseDocTemplate(buf, pagesize=A4, leftMargin=MARGIN, rightMargin=MARGIN, topMargin=18 * mm, bottomMargin=16 * mm,

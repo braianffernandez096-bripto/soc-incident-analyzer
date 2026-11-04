@@ -26,7 +26,7 @@ from .playbook import GENERAL_RECOMMENDATIONS, GENERIC, PLAYBOOK
 DEFAULT_MODEL = "claude-sonnet-5-5"
 IP_TOKEN = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
 
-SYSTEM_PROMPT = """Eres un analista SOC Nivel 2 senior de una consultora de ciberseguridad. Redactas el análisis técnico de \
+SYSTEM_PROMPT = """Eres un analista SOC senior de una consultora de ciberseguridad. Redactas el análisis técnico de \
 incidentes para el cliente, en español claro y profesional.
 
 REGLAS ESTRICTAS (rigor analítico):

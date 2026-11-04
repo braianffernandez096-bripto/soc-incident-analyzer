@@ -1,12 +1,16 @@
-# Keeps pinned versions fresh: weekly pull requests for Docker images, GitHub Actions and Python packages.
+# Weekly pull requests for the Docker base image and GitHub Actions.
+# Python packages are NOT listed on purpose: they are pinned with hashes in requirements*.lock, which Dependabot
+# cannot regenerate (it would only edit the ranges and leave the lock stale). The CI job "Seguridad" runs
+# pip-audit against the lock files instead, which is what flags vulnerable dependencies.
 version: 2
 updates:
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly }
+    ignore:
+      # The Python version is a deliberate decision (the lock files are compiled for 3.12), not an automatic bump.
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
   - package-ecosystem: github-actions
-    directory: /
-    schedule: { interval: weekly }
-  - package-ecosystem: pip
     directory: /
     schedule: { interval: weekly }

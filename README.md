@@ -10,7 +10,7 @@ Un SIEM entrega miles de eventos y el analista tiene que decidir cuáles importa
 Esta herramienta toma el export de un SIEM (Excel, CSV o JSON) y lo convierte en incidentes ordenados por criticidad, cada uno con las evidencias que lo sustentan.
 Cada hallazgo se mapea a MITRE ATT&CK y trae un plan de acción (investigar, contener, remediar) y un informe técnico en PDF.
 Está pensada para analistas SOC de nivel 1 y estudiantes que practican triage, y para quien quiera ver cómo se correlacionan los eventos sin montar un SIEM completo.
-Funciona sin Internet y sin clave de IA: las reglas son deterministas y la IA, si se usa, solo redacta.
+El análisis, los incidentes, MITRE ATT&CK y el informe en PDF funcionan sin Internet y sin costo, porque las reglas son deterministas y el informe usa plantillas. La redacción con IA es opcional: requiere tu propia clave de API de Anthropic (servicio de pago por uso) y solo mejora la redacción, nunca cambia la criticidad.
 
 ## Cómo se desarrolló
 
@@ -127,7 +127,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install --require-hashes -r requirements.lock      # versiones exactas, verificadas por hash
 
-# 4. (Opcional) claves: Anthropic para la redacción con IA; VirusTotal y AbuseIPDB para reputación
+# 4. (Opcional) claves: Anthropic para la redacción con IA (de pago); VirusTotal y AbuseIPDB para reputación
 cp .env.example .env
 nano .env                       # ANTHROPIC_API_KEY=...  VT_API_KEY=...  ABUSEIPDB_API_KEY=...
 

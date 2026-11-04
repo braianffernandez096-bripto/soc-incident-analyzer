@@ -178,13 +178,21 @@ Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones
 ## Seguridad
 
 - Las claves (Anthropic, VirusTotal, AbuseIPDB) viven en `.env` (excluido de Git) o se pegan en la interfaz; nunca se guardan, se registran ni se devuelven al navegador.
+
 - Todo dato del archivo se escapa antes de mostrarse y antes de entrar al PDF. La interfaz aplica una CSP estricta (`script-src 'self'`); los estilos en línea están permitidos porque la interfaz los usa, un riesgo aceptado que no permite ejecutar scripts.
+
 - Límites: 25 MB de subida (lectura acotada), 300 MB descomprimidos, 100.000 filas y límite de peticiones por IP.
+  
 - **Verificación del archivo subido:** el tipo se decide por su contenido, no por la extensión (un ejecutable renombrado a `.xlsx` se rechaza). En los Excel se avisa de macros VBA, objetos incrustados, vínculos externos y conexiones de datos, y se rechazan los que traen declaraciones XML peligrosas o rutas internas sospechosas. También se avisa de celdas con inyección de fórmulas. La app **nunca ejecuta ni evalúa** el archivo, y esto es un primer filtro, no un antivirus: "sin avisos" no significa "archivo seguro".
+
 - **Clave de acceso opcional:** define `APP_ACCESS_TOKEN` (se recomiendan 16 caracteres o más) y toda la API exige `Authorization: Bearer <clave>`; la interfaz la pide al entrar. Es una sola clave compartida, no un sistema de usuarios, y debe servirse detrás de HTTPS. Sin ella, la app no tiene login: úsala en local.
+
 - La documentación interactiva de la API (`/docs`) está desactivada por defecto (`ENABLE_DOCS=1` la activa).
+
 - Docker: imagen multi-stage con dependencias verificadas por hash, usuario sin privilegios, sistema de archivos de solo lectura, sin capacidades (`cap_drop: ALL`) y `no-new-privileges`.
+
 - Integración continua: pruebas con cobertura mínima, `bandit`, `pip-audit` y Trivy sobre la imagen.
+
 - Alcance, límites y cómo reportar una vulnerabilidad: [SECURITY.md](SECURITY.md).
 
 ## Límites

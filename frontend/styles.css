@@ -261,7 +261,6 @@ dialog.pal{max-width:640px;margin-top:12vh}
   .g2,.g3,.g4,.g-wide,.plan,.fields,.checks{grid-template-columns:1fr}
   .g4{grid-template-columns:1fr 1fr}
 }
-.hint{margin:12px 0 0;font-size:13.5px}
 @media (max-width:900px){.tool .lbl{display:none}.tool{padding:8px 11px}.tabs-row{gap:8px}.tabs{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);padding-right:28px}.rail-foot{width:100%;justify-content:space-between}.rail-foot b{max-width:60vw}}
 @media (max-width:600px){.brand small{display:none}.top-row{padding-top:10px;padding-bottom:6px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}

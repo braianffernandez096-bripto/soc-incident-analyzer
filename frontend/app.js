@@ -143,7 +143,6 @@ function landing() {
       <button class="btn primary" id="go" disabled>Analizar archivo</button>
       <button class="btn" id="sample" type="button">Probar con datos de ejemplo</button>
     </div>
-    <p class="muted hint">¿Solo quieres ver cómo funciona? El ejemplo usa el export sintético del repositorio (715 eventos, sin datos reales).</p>
     <div class="err" id="lerr" role="alert" hidden></div>
     <ul class="checks">
       <li>Fuerza bruta y password spraying</li><li>Inicios de sesión externos y fuera de patrón</li>

@@ -69,7 +69,7 @@ class SafeJSON(JSONResponse):
 
 
 _DOCS = os.environ.get("ENABLE_DOCS", "").strip().lower() in ("1", "true", "yes")      # API docs reveal the full surface: opt-in
-app = FastAPI(title="SOC Incident Analyzer", version="1.1.0", default_response_class=SafeJSON,
+app = FastAPI(title="SOC Incident Analyzer", version="1.2.0", default_response_class=SafeJSON,
               docs_url="/docs" if _DOCS else None, redoc_url="/redoc" if _DOCS else None, openapi_url="/openapi.json" if _DOCS else None)
 
 
@@ -242,6 +242,18 @@ async def upload(request: Request, file: UploadFile = File(...), client: str = F
         log.warning("upload_rejected reason=content_mismatch ext=%s size=%d", os.path.splitext(name)[1].lower(), len(data))
         raise HTTPException(422, check.reject)
     return _create_session(data, name, client, analyst, check.warnings)
+
+
+SAMPLE_FILE = ROOT / "sample_data" / "SOC_L2_Logs_Ampliados_Multiples_Incidentes.csv"
+
+
+@app.post("/api/sample")
+def use_sample(request: Request, client: str = Form(""), analyst: str = Form("")):
+    """Analyse the synthetic export shipped with the project (fixed path: nothing from the request picks the file)."""
+    _rate_limit(request, "/api/upload", *RATE_LIMITS["/api/upload"])
+    if not SAMPLE_FILE.is_file():
+        raise HTTPException(404, "Este despliegue no incluye los datos de ejemplo.")
+    return _create_session(SAMPLE_FILE.read_bytes(), SAMPLE_FILE.name, client, analyst)
 
 
 @app.get("/api/sessions/{sid}")

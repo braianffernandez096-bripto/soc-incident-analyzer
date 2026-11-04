@@ -57,18 +57,24 @@ button,input,select{font:inherit;color:inherit}
 .tool{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:8px 14px;cursor:pointer;font-size:13.5px;font-weight:500;transition:border-color .15s,transform .15s}
 .tool:hover{border-color:var(--muted)}
 .tool:active{transform:scale(.97)}
+.tool .ico{display:grid;place-items:center;width:18px;height:18px;border:1.5px solid currentColor;border-radius:50%;font:700 11px var(--sans)}
+.menu-wrap{position:relative}
+.menu{position:absolute;right:0;top:calc(100% + 6px);min-width:230px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;z-index:30}
+.menu button{display:block;width:100%;text-align:left;background:none;border:0;padding:9px 12px;border-radius:8px;cursor:pointer;font-size:14px}
+.menu button:hover,.menu button:focus-visible{background:var(--soft)}
 .tool.wide{min-width:280px;color:var(--muted);justify-content:flex-start}
 .tool kbd{margin-left:auto;font:500 11px var(--mono);border:1px solid var(--line);border-radius:5px;padding:1px 6px;background:var(--soft)}
 .tabs-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 34px 12px;max-width:1400px;margin:0 auto;min-height:48px}
-.tabs{display:flex;gap:6px;flex-wrap:wrap}
-.tabs a{display:inline-flex;align-items:center;gap:9px;padding:6px 14px 6px 7px;border:1px solid transparent;border-radius:999px;text-decoration:none;color:var(--muted);font-size:14px;font-weight:500;transition:background .15s,color .15s,border-color .15s}
+.tabs{display:flex;gap:4px;flex-wrap:nowrap;min-width:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
+.tabs a{display:inline-flex;align-items:center;gap:8px;flex:0 0 auto;white-space:nowrap;padding:5px 11px 5px 6px;border:1px solid transparent;border-radius:999px;text-decoration:none;color:var(--muted);font-size:14px;font-weight:500;transition:background .15s,color .15s,border-color .15s}
 .tabs a:hover{color:var(--ink);background:var(--soft)}
 .tabs a .n{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--track);font:600 11.5px var(--sans);color:var(--ink)}
 .tabs a .count{font:500 11.5px var(--mono);color:var(--muted)}
 .tabs a[aria-current=page]{color:var(--ink);border-color:var(--line);background:var(--panel);box-shadow:var(--shadow)}
 .tabs a[aria-current=page] .n{background:var(--accent);color:var(--accent-ink)}
 .rail-foot{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted);min-width:0}
-.rail-foot b{color:var(--ink);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:300px}
+.rail-foot b{color:var(--ink);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
 .rail-foot .btn{padding:5px 12px;font-size:13px;white-space:nowrap}
 
 main{padding:26px 34px 70px;min-width:0;max-width:1400px;width:100%;margin:0 auto}
@@ -217,7 +223,7 @@ dialog .db{padding:14px 18px 18px;max-height:70vh;overflow:auto}
 .hero{position:relative;overflow:hidden}
 .hero::before{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle 320px at var(--gx,85%) var(--gy,0%),rgba(255,106,43,.16),transparent 70%);transition:opacity .3s}
 .hero>*{position:relative}
-.inc-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-top:16px}
+.inc-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr));gap:14px;margin-top:16px}
 .inc-card{display:flex;flex-direction:column;gap:8px;text-align:left;cursor:pointer;border:1px solid var(--line);border-top:4px solid var(--none);background:var(--panel);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);transition:transform .18s,border-color .18s}
 .inc-card:hover,.inc-card:focus-visible{transform:translateY(-3px);border-color:var(--muted)}
 .inc-card.Crítico{border-top-color:#d6453b}.inc-card.Alto{border-top-color:#e8870f}.inc-card.Medio{border-top-color:#d9b800}.inc-card.Bajo{border-top-color:#3fa377}
@@ -251,10 +257,13 @@ dialog.pal{max-width:640px;margin-top:12vh}
   .top-row,.tabs-row{padding-left:16px;padding-right:16px}
   main{padding:20px 16px 50px}
   .tool.wide{min-width:0}.tool.wide span,.tool.wide kbd{display:none}
-  .tabs-row{flex-direction:column;align-items:flex-start}
+  .tabs-row{flex-direction:column;align-items:stretch;padding-bottom:10px}
   .g2,.g3,.g4,.g-wide,.plan,.fields,.checks{grid-template-columns:1fr}
   .g4{grid-template-columns:1fr 1fr}
 }
+.hint{margin:12px 0 0;font-size:13.5px}
+@media (max-width:900px){.tool .lbl{display:none}.tool{padding:8px 11px}.tabs-row{gap:8px}.tabs{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);padding-right:28px}.rail-foot{width:100%;justify-content:space-between}.rail-foot b{max-width:60vw}}
+@media (max-width:600px){.brand small{display:none}.top-row{padding-top:10px;padding-bottom:6px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 /* reputación de indicadores */
@@ -269,8 +278,8 @@ dialog.pal{max-width:640px;margin-top:12vh}
 /* MITRE ATT&CK matrix */
 .tag-link{text-decoration:none}.tag-link:hover{text-decoration:underline}
 .tag-btn{border:0;cursor:pointer}.tag-btn:focus-visible,.tag-link:focus-visible,.mx-cell a:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-.mx{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 14px;margin:16px 0}
-.mx-col{flex:0 0 220px}
+.mx{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:20px 14px;align-items:start;margin:16px 0}
+.mx-col{min-width:0}
 .mx-col h3{font-size:14px;margin:0 0 8px;line-height:1.25}.mx-col h3 small{display:block;font:500 11px var(--mono);color:var(--muted);margin-top:2px}
 .mx-cell{border:1px solid var(--line);border-left:4px solid var(--line);border-radius:8px;padding:9px 10px;margin-bottom:8px;background:var(--panel,transparent);font-size:13px}
 .mx-cell a{color:inherit;font-weight:600;text-decoration:none}.mx-cell a:hover{text-decoration:underline}

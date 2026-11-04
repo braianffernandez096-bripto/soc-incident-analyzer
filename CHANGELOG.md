@@ -4,6 +4,19 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+## [1.2.0] - 2026-11-04
+
+### Añadido
+- Botón **Probar con datos de ejemplo** en la pantalla de inicio: analiza el export sintético incluido en el repositorio sin tener que elegir un archivo (`POST /api/sample`; el archivo es fijo en el servidor).
+
+### Cambiado
+- Cabecera más compacta: las siete pestañas caben en una sola fila, y el tema y el movimiento se agrupan en el menú **Ajustes**. En pantallas pequeñas las pestañas se desplazan.
+- Panel: los incidentes se muestran en una cuadrícula de tres columnas.
+- Matriz ATT&CK en cuadrícula adaptable: se ven todas las tácticas sin desplazamiento horizontal.
+- Plurales corregidos en la interfaz («1 hallazgo», «1 evento»).
+- Capturas del README renovadas, con la pantalla de inicio y el rechazo de un archivo falso.
+- README: requisito explícito de Python 3.12.
+
 ## [1.1.0] - 2026-11-03
 
 ### Añadido

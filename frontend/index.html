@@ -23,9 +23,17 @@
             <svg width="15" height="15" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M13 13l4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
             <span>Buscar incidente, hallazgo o IoC</span><kbd>Ctrl K</kbd>
           </button>
-          <button class="tool" id="helpBtn">¿Cómo funciona?</button>
-          <button class="tool" id="themeBtn" aria-label="Cambiar tema"></button>
-          <button class="tool" id="motionBtn" aria-label="Cambiar movimiento"></button>
+          <button class="tool" id="helpBtn" aria-label="¿Cómo funciona?"><span class="ico" aria-hidden="true">?</span><span class="lbl">¿Cómo funciona?</span></button>
+          <div class="menu-wrap">
+            <button class="tool" id="settingsBtn" aria-haspopup="true" aria-expanded="false" aria-controls="settingsMenu" aria-label="Ajustes de visualización">
+              <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h8M15 5h2M3 10h2M9 10h8M3 15h10M17 15h0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="13" cy="5" r="2" fill="currentColor"/><circle cx="7" cy="10" r="2" fill="currentColor"/><circle cx="15" cy="15" r="2" fill="currentColor"/></svg>
+              <span class="lbl">Ajustes</span>
+            </button>
+            <div class="menu" id="settingsMenu" role="menu" aria-label="Ajustes de visualización" hidden>
+              <button role="menuitem" id="themeBtn"></button>
+              <button role="menuitem" id="motionBtn"></button>
+            </div>
+          </div>
         </div>
       </div>
       <div class="tabs-row">

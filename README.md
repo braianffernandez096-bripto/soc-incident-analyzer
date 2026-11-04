@@ -52,6 +52,10 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 
 ## Capturas
 
+**Inicio: carga del archivo o prueba con datos de ejemplo**
+
+![Pantalla de inicio con la zona de carga y el botón de datos de ejemplo](img/Inicio.png)
+
 **Panel: resumen e incidentes detectados**
 
 ![Panel con las tarjetas de incidentes y la línea de tiempo](img/Dashboard.png)
@@ -84,6 +88,10 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 
 ![Pantalla del informe técnico](img/Informe.png)
 
+**Verificación del archivo: un PNG renombrado a `.csv` se rechaza por su contenido, no por su extensión**
+
+![Mensaje de rechazo al subir una imagen renombrada como CSV](img/Archivo-rechazado.png)
+
 **Informe técnico generado**
 
 [Ver el informe de ejemplo en PDF](examples/informe-ejemplo.pdf) (29 páginas: resumen ejecutivo, 6 incidentes, hallazgos con evidencia, plan de acción y recomendaciones). El nombre del cliente es ficticio.
@@ -113,7 +121,7 @@ nano .env                       # ANTHROPIC_API_KEY=...  VT_API_KEY=...  ABUSEIP
 uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-Abre http://127.0.0.1:8000, sube el export del SIEM (puedes usar cualquiera de los de `sample_data/`), revisa el análisis y descarga el informe en la pestaña **Informe**. Si no definiste la clave en `.env`, puedes pegarla ahí; solo se usa durante esa sesión.
+Abre http://127.0.0.1:8000, sube el export del SIEM (puedes usar cualquiera de los de `sample_data/`, o pulsar **Probar con datos de ejemplo** para verlo sin buscar ningún archivo), revisa el análisis y descarga el informe en la pestaña **Informe**. Si no definiste la clave en `.env`, puedes pegarla ahí; solo se usa durante esa sesión.
 
 En Windows, la activación del entorno es `.venv\Scripts\activate`.
 
@@ -164,7 +172,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 257 pruebas
+python -m pytest                                           # 263 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (94 %)
 ```
 
@@ -172,7 +180,7 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 
 - `tests/unit/`: motor de detección contra el Excel de ejemplo, límites del parser, formatos de entrada (CSV, TSV, JSON, NDJSON, codificaciones y zonas horarias), verificación de archivos (tipo real por contenido, macros, inyección de fórmulas) y datos de MITRE ATT&CK (todas las técnicas que citan las reglas existen y siguen vigentes, matriz y capa de Navigator).
 
-- `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras), clave de acceso (401 en todas las rutas protegidas, fuerza bruta), capa de IA y consultas de reputación con servidores simulados (las pruebas no usan red ni claves).
+- `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras), clave de acceso (401 en todas las rutas protegidas, fuerza bruta), capa de IA consultas de reputación con servidores simulados (las pruebas no usan red ni claves) y el botón de datos de ejemplo.
 
 - `tests/e2e/`: arranca el servidor real y recorre carga, análisis y PDF.
 

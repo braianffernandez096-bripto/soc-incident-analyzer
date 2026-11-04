@@ -8,6 +8,7 @@ const S = { needAuth: false, sid: null, filename: "", client: "", analyst: "", a
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`;
 const sevPill = (s) => `<span class="sev ${esc(s)}">${esc(s)}</span>`;
 const num = (n) => Number(n).toLocaleString("es-AR");
 const hhmm = (t) => (t || "").slice(11, 16);
@@ -58,6 +59,15 @@ async function upload(file, client, analyst) {
   } catch (e) { showLandingError(e.message); }
   finally { busy(false); }
 }
+async function useSample(client, analyst) {
+  busy(true, "Analizando el ejemplo…");
+  try {
+    const fd = new FormData(); fd.append("client", client); fd.append("analyst", analyst);
+    const res = await api("/api/sample", { method: "POST", body: fd });
+    adopt(res); location.hash = "#/dashboard"; render();
+  } catch (e) { showLandingError(e.message); }
+  finally { busy(false); }
+}
 function showLandingError(m) { const b = $("#lerr"); if (b) { b.textContent = m; b.hidden = false; } else toast(m); }
 
 /* ---------- navegación ---------- */
@@ -70,6 +80,7 @@ function renderRail() {
   const cnt = { incidents: S.a.incidents.length, findings: S.a.findings.length, iocs: S.a.iocs.length, logs: S.a.profile.rows };
   nav.innerHTML = ROUTES.map(([k, l], i) =>
     `<a href="#/${k}" ${route() === k ? 'aria-current="page"' : ""}><span class="n">${i + 1}</span><span>${l}</span>${cnt[k] !== undefined ? `<span class="count">${num(cnt[k])}</span>` : ""}</a>`).join("");
+  const cur = nav.querySelector("[aria-current=page]"); if (cur) nav.scrollLeft = Math.max(0, cur.offsetLeft - 24);   // narrow screens: keep the open section visible
   foot.innerHTML = `<span>Archivo</span><b title="${esc(S.filename)}">${esc(S.filename)}</b><button class="btn ghost" id="newBtn">Cargar otro</button>`;
   $("#newBtn").onclick = () => { S.a = null; S.sid = null; store.set("sid", ""); location.hash = "#/"; render(); };
 }
@@ -129,7 +140,9 @@ function landing() {
     </div>
     <div class="row">
       <button class="btn primary" id="go" disabled>Analizar archivo</button>
+      <button class="btn" id="sample" type="button">Probar con datos de ejemplo</button>
     </div>
+    <p class="muted hint">¿Solo quieres ver cómo funciona? El ejemplo usa el export sintético del repositorio (715 eventos, sin datos reales).</p>
     <div class="err" id="lerr" role="alert" hidden></div>
     <ul class="checks">
       <li>Fuerza bruta y password spraying</li><li>Inicios de sesión externos y fuera de patrón</li>
@@ -149,6 +162,7 @@ function bindLanding() {
   ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
   drop.addEventListener("drop", (e) => pick(e.dataTransfer.files[0]));
   go.onclick = () => upload(file, $("#client").value, $("#analyst").value);
+  $("#sample").onclick = () => useSample($("#client").value, $("#analyst").value);
 }
 
 /* ---------- gráficos ---------- */
@@ -225,7 +239,7 @@ function dashboard() {
   return `<section class="panel hero">
       <div class="page-head" style="margin:0">
         <div><h1>${S.client ? esc(S.client) : "Resultado del análisis"}</h1>
-        <p>${esc(p.time_start)} a ${esc(p.time_end)} (${esc(p.duration)}) · ${num(p.rows)} eventos · ${p.hosts} equipos · ${p.users} cuentas</p></div>
+        <p>${esc(p.time_start)} a ${esc(p.time_end)} (${esc(p.duration)}) · ${plural(p.rows, "evento", "eventos")} · ${plural(p.hosts, "equipo", "equipos")} · ${plural(p.users, "cuenta", "cuentas")}</p></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" href="#/findings">Ver hallazgos</a><a class="btn primary" href="#/report">Ir al informe</a></div>
       </div></section>
     <div class="grid g4" style="margin-top:16px">
@@ -237,7 +251,7 @@ function dashboard() {
     <div class="inc-cards">${S.a.incidents.map((i) => `<button class="inc-card ${esc(i.severity)}" data-card="${esc(i.id)}">
         <span class="top2"><span class="mono muted">${esc(i.id)}</span>${sevPill(i.severity)}</span>
         <b>${esc((S.ai.incidents[i.id] || {}).title || i.title)}</b>
-        <small>${hhmm(i.time_start)}–${hhmm(i.time_end)} · ${i.finding_ids.length} hallazgos · ${i.evidence_count} eventos</small></button>`).join("")}</div>
+        <small>${hhmm(i.time_start)}–${hhmm(i.time_end)} · ${plural(i.finding_ids.length, "hallazgo", "hallazgos")} · ${plural(i.evidence_count, "evento", "eventos")}</small></button>`).join("")}</div>
     <div class="panel" style="margin-top:16px"><h3>Línea de tiempo de incidentes</h3>${swimlane()}</div>
     <div class="grid g-wide" style="margin-top:16px">
       <div class="panel"><h3>Actividad de la ventana analizada</h3>${activityChart()}</div>
@@ -281,7 +295,7 @@ function incidents() {
     const g = G[inc.id] || {}, fs = S.a.findings.filter((f) => f.incident_id === inc.id);
     return `<article class="panel inc ${esc(inc.severity)}" id="${esc(inc.id)}">
       <div class="inc-head"><div><span class="id">${esc(inc.id)}</span><h2>${esc(g.title || inc.title)}</h2></div>${sevPill(inc.severity)}</div>
-      <div class="meta-line"><span>${hhmmss(inc.time_start)}–${hhmmss(inc.time_end)}</span><span>${inc.evidence_count} eventos de evidencia</span>
+      <div class="meta-line"><span>${hhmmss(inc.time_start)}–${hhmmss(inc.time_end)}</span><span>${plural(inc.evidence_count, "evento", "eventos")} de evidencia</span>
         ${g.confidence ? `<span>Confianza de la correlación: ${esc(g.confidence)}</span>` : ""}</div>
       <p>${esc(g.narrative || "")}</p>
       ${g.confidence_reason ? `<p class="muted">${esc(g.confidence_reason)}</p>` : ""}
@@ -312,7 +326,7 @@ function attack() {
       <h3>${esc(t.name_es)}<small>${esc(t.id)} · ${esc(t.name)}</small></h3>
       ${t.techniques.map((c) => `<article class="mx-cell ${esc(c.severity)}">
         ${MITRE_URL.test(c.url) ? `<a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer"><span class="mono">${esc(c.id)}</span> ${esc(c.name)}</a>` : `<span class="mono">${esc(c.id)}</span> ${esc(c.name)}`}
-        <div class="mx-meta">${sevPill(c.severity)}<span class="muted">${c.count} ${c.count === 1 ? "hallazgo" : "hallazgos"}</span></div>
+        <div class="mx-meta">${sevPill(c.severity)}<span class="muted">${plural(c.count, "hallazgo", "hallazgos")}</span></div>
         <div>${c.finding_ids.map((f) => `<button class="tag tag-btn" data-mxf="${esc(c.id)}" title="Ver hallazgos con ${esc(c.id)}">${esc(f)}</button>`).join("")}</div>
       </article>`).join("")}</section>`).join("");
   return `${head}
@@ -320,8 +334,8 @@ function attack() {
     <div class="panel" style="margin-top:16px"><h3>Exportar</h3>
       <p class="muted">Descarga una capa para <b>ATT&amp;CK Navigator</b> (el color indica la criticidad máxima). En Navigator: <i>Open Existing Layer</i> → <i>Upload from local</i>. El archivo se genera aquí; no se envía a ningún servicio.</p>
       <button class="btn primary" id="navLayer">Descargar capa para Navigator (.json)</button></div>
-    <div class="mx" role="region" aria-label="Matriz ATT&amp;CK" tabindex="0">${cols}</div>
-    <p class="muted">${A.techniques_total} ${A.techniques_total === 1 ? "técnica" : "técnicas"} en ${A.tactics.length} ${A.tactics.length === 1 ? "táctica" : "tácticas"}.${A.findings_without_mapping ? ` ${A.findings_without_mapping} hallazgo(s) sin técnica asociada (por ejemplo, calidad de datos).` : ""}</p>`;
+    <div class="mx" role="region" aria-label="Matriz ATT&amp;CK">${cols}</div>
+    <p class="muted">${A.techniques_total} ${A.techniques_total === 1 ? "técnica" : "técnicas"} en ${A.tactics.length} ${A.tactics.length === 1 ? "táctica" : "tácticas"}.${A.findings_without_mapping ? ` ${plural(A.findings_without_mapping, "hallazgo sin técnica asociada", "hallazgos sin técnica asociada")} (por ejemplo, calidad de datos).` : ""}</p>`;
 }
 function bindAttack() {
   document.querySelectorAll("[data-mxf]").forEach((b) => b.onclick = () => { S.findingQ = b.dataset.mxf; S.findingFilter = "Todos"; S.findingCat = ""; location.hash = "#/findings"; });
@@ -355,7 +369,7 @@ function findings() {
         <h4>Explicación técnica</h4><p>${esc(a.technical_explanation || f.explanation)}</p>
         <h4>Criticidad: ${esc(f.severity)}</h4><p>${esc(a.severity_justification || "")}</p><ul>${li(f.reasons)}</ul>
         <h4>Impacto en la organización</h4><p>${esc(a.impact || "")}</p>
-        <h4>Evidencia (${f.evidence_ids.length} eventos)</h4>
+        <h4>Evidencia (${plural(f.evidence_ids.length, "evento", "eventos")})</h4>
         <div class="evbox" data-fid="${esc(f.id)}"><button class="btn" data-loadev="${esc(f.id)}">Ver eventos de log</button></div>
         <h4>Plan de acción</h4>
         <div class="plan"><div><h4>Investigar</h4><ul>${li(ap.investigate)}</ul></div><div><h4>Contener</h4><ul>${li(ap.contain)}</ul></div><div><h4>Remediar</h4><ul>${li(ap.remediate)}</ul></div></div>
@@ -364,7 +378,7 @@ function findings() {
   return `<div class="page-head"><div><h1>Hallazgos</h1><p>Cada hallazgo cita los Log_ID del archivo que lo sustentan.</p></div></div>
     <div class="filters"><input type="search" id="fq" placeholder="Buscar por nombre, técnica (T1110) o táctica" value="${esc(S.findingQ)}" aria-label="Buscar hallazgos">
       <select id="fcat" aria-label="Categoría"><option value="">Todas las categorías</option>${cats.map((c) => `<option ${c === S.findingCat ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
-      <span class="muted">${list.length} de ${S.a.findings.length} hallazgos</span></div>
+      <span class="muted">${list.length} de ${plural(S.a.findings.length, "hallazgo", "hallazgos")}</span></div>
     <div class="chip-row">${chips}</div>${items || "<p class='muted'>No hay hallazgos con ese filtro.</p>"}`;
 }
 function evTable(rows) {
@@ -605,6 +619,16 @@ function applyMotion(m) {
 function initChrome() {
   let theme = pref.get("theme") || "auto", motion = pref.get("motion") || "full";
   applyTheme(theme); applyMotion(motion);
+  const sBtn = $("#settingsBtn"), sMenu = $("#settingsMenu");
+  const closeMenu = (focus) => { sMenu.hidden = true; sBtn.setAttribute("aria-expanded", "false"); if (focus) sBtn.focus(); };
+  sBtn.onclick = () => { const open = sMenu.hidden; sMenu.hidden = !open; sBtn.setAttribute("aria-expanded", String(open)); if (open) sMenu.querySelector("button").focus(); };
+  document.addEventListener("click", (e) => { if (!sMenu.hidden && !e.target.closest(".menu-wrap")) closeMenu(false); });
+  sMenu.addEventListener("keydown", (e) => {
+    const items = [...sMenu.querySelectorAll("button")], i = items.indexOf(document.activeElement);
+    if (e.key === "Escape") { e.preventDefault(); closeMenu(true); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  });
   $("#themeBtn").onclick = () => { theme = { auto: "light", light: "dark", dark: "auto" }[theme]; pref.set("theme", theme); applyTheme(theme); };
   $("#motionBtn").onclick = () => { motion = motion === "full" ? "reduced" : "full"; pref.set("motion", motion); applyMotion(motion); };
   $("#helpBtn").onclick = () => openDialog("¿Cómo funciona?", `<div class="how"><ol>

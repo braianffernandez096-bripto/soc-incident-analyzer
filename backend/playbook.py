@@ -202,3 +202,94 @@ GENERAL_RECOMMENDATIONS = {
     "siem_underclass": "Revisar la severidad y las reglas de correlación del SIEM: varios eventos que sustentan incidentes quedaron como Informational.",
     "dq_host_alias": "Normalizar nombres de host y fuentes de log en el pipeline del SIEM para no fragmentar correlaciones.",
 }
+
+
+# Hallazgos de fuentes que no son de Windows (backend/detection_generic.py).
+def _pb(impact, investigate, contain, remediate):
+    return {"impact": impact, "investigate": investigate, "contain": contain, "remediate": remediate}
+
+
+PLAYBOOK.update({
+    "g_auth": _pb(
+        "Riesgo de obtener credenciales válidas sin explotar ninguna vulnerabilidad. Si hubo un acceso exitoso, el atacante opera con una identidad legítima y puede escalar o moverse a otros equipos.",
+        ["Revisar en el servidor destino todos los intentos y accesos de {ip}, y confirmar qué cuentas llegaron a autenticarse.",
+         "Reconstruir lo ejecutado por {user} tras el acceso exitoso (shell, comandos, cambios de configuración).",
+         "Consultar inteligencia de amenazas sobre {ip}."],
+        ["Bloquear {ip} en el firewall o en la regla de acceso del servicio.", "Deshabilitar la cuenta {user} y cerrar sus sesiones activas."],
+        ["Exigir MFA o claves en lugar de contraseñas para acceso remoto; deshabilitar el acceso directo de root/administrador.",
+         "Restringir el servicio a una VPN o a una lista de orígenes permitidos y activar bloqueo por intentos (fail2ban o equivalente)."]),
+    "g_web": _pb(
+        "Una aplicación expuesta está siendo atacada; si la explotación tuvo éxito, el atacante puede leer o modificar la base de datos y ejecutar código en {host}.",
+        ["Revisar los logs de la aplicación y de la base de datos de {host} a partir del primer intento de {ip}.",
+         "Confirmar qué respondió el servidor a cada petición y si hubo consultas anómalas después."],
+        ["Bloquear {ip} en el WAF o el perímetro.", "Si hubo consultas a datos sensibles, aislar {host} y rotar las credenciales de la base de datos."],
+        ["Usar consultas parametrizadas y validación de entrada; desplegar un WAF con reglas de inyección.",
+         "Dar a la cuenta de la aplicación solo los permisos mínimos sobre la base de datos."]),
+    "g_exfil": _pb(
+        "Datos salieron de la organización hacia un destino externo: posible fuga de información sensible con impacto legal y reputacional.",
+        ["Identificar qué datos se consultaron justo antes de la transferencia y su clasificación.", "Revisar el tráfico de {src} hacia {ip} y si hubo otras transferencias previas."],
+        ["Bloquear el destino {ip} en el egress.", "Aislar {src} y preservar la evidencia."],
+        ["Implementar DLP y alertas por volumen de salida y destinos nuevos.", "Restringir el egress a destinos autorizados."]),
+    "g_phishing": _pb(
+        "Un correo con adjunto malicioso llegó a un usuario; si se ejecutó, el equipo del usuario queda comprometido y es el punto de partida del atacante.",
+        ["Buscar el mismo remitente y adjunto en otros buzones.", "Revisar qué ejecutó el equipo de {user} después de abrir el adjunto y a qué destinos se conectó."],
+        ["Eliminar el correo de todos los buzones y bloquear el remitente.", "Aislar el equipo de {user} si el adjunto se ejecutó."],
+        ["Bloquear en el gateway de correo adjuntos ejecutables y de doble extensión.", "Capacitación breve de phishing y botón de reporte para los usuarios."]),
+    "g_cmd": _pb(
+        "Ejecución de comandos de ataque en {host}: descarga de herramientas, evasión de controles o robo de credenciales.",
+        ["Recuperar el comando completo, el proceso padre y las conexiones de red de {host}.", "Revisar qué archivos se descargaron y ejecutaron después."],
+        ["Aislar {host} de la red.", "Deshabilitar la cuenta {user} mientras se investiga."],
+        ["Restringir la ejecución de scripts (políticas de ejecución firmadas, WDAC/AppLocker).", "Alertar PowerShell con bypass de política y descargas desde Internet."]),
+    "g_c2": _pb(
+        "{host} mantiene comunicación periódica con infraestructura externa asociada a comando y control: el atacante puede controlar el equipo y recibir instrucciones.",
+        ["Identificar el proceso que origina la conexión en {host} y desde cuándo ocurre.", "Consultar inteligencia de amenazas sobre {ip}."],
+        ["Bloquear {ip} en el egress.", "Aislar {host}."],
+        ["Inspeccionar y filtrar el tráfico saliente; alertar beaconing periódico a destinos poco frecuentes."]),
+    "g_persistence": _pb(
+        "El atacante asegura que su código vuelva a ejecutarse tras reiniciar o cerrar sesión en {host}.",
+        ["Obtener el binario o comando que apunta la entrada de persistencia y analizarlo.", "Buscar la misma entrada en otros equipos."],
+        ["Aislar {host} y eliminar la entrada de persistencia tras preservar evidencia."],
+        ["Monitorear cambios en claves Run, tareas programadas y authorized_keys."]),
+    "g_share_probe": _pb(
+        "Reconocimiento de recursos administrativos: suele preceder al movimiento lateral con credenciales robadas.",
+        ["Revisar si {src} obtuvo acceso a alguno de esos equipos después.", "Confirmar qué cuenta se usó para los intentos."],
+        ["Aislar {src} si el equipo no debería escanear la red."],
+        ["Restringir SMB entre estaciones de trabajo y deshabilitar los recursos administrativos donde no se necesiten."]),
+    "g_ransomware": _pb(
+        "Cifrado de datos con fines de extorsión en {host}: pérdida de disponibilidad de la información y riesgo de que se extienda por la red.",
+        ["Determinar el origen del cifrado (cuenta {user}, proceso) y cuántos equipos y recursos compartidos alcanzó.", "Verificar el estado de las copias de seguridad y si el borrado de instantáneas afectó otros hosts."],
+        ["Aislar {host} de inmediato y deshabilitar la cuenta {user}.", "No apagar el equipo hasta preservar memoria si es posible."],
+        ["Mantener copias offline e inmutables y probar la restauración.", "Segmentar la red y limitar los permisos de escritura en recursos compartidos."]),
+    "g_mining": _pb(
+        "Uso no autorizado de recursos de {host} para minar criptomonedas: degradación del servicio y señal de que alguien ejecutó código en el servidor.",
+        ["Determinar cómo llegó el minero a {host} (vulnerabilidad web, credencial, descarga).", "Revisar si hay otros equipos que se conectan al mismo pool."],
+        ["Aislar {host}, finalizar el proceso y bloquear el pool en el egress."],
+        ["Corregir la vía de entrada y monitorear CPU sostenida y conexiones stratum."]),
+    "g_privesc": _pb(
+        "Un usuario obtuvo privilegios de root en {host} y accedió a archivos de credenciales: el atacante puede suplantar cuentas y moverse a otros sistemas.",
+        ["Identificar el binario SUID o el método usado por {user} y cómo llegó a ese acceso.", "Revisar qué credenciales se leyeron y si se reutilizan en otros sistemas."],
+        ["Aislar {host} y deshabilitar la cuenta {user}.", "Rotar las contraseñas almacenadas en los archivos leídos."],
+        ["Auditar y quitar bits SUID innecesarios; restringir sudo.", "Alertar lecturas de /etc/shadow por cuentas no administrativas."]),
+    "g_dns_tunnel": _pb(
+        "Canal encubierto por DNS en {host}: permite comando y control o exfiltración saltándose los controles de salida habituales.",
+        ["Identificar el proceso de {host} que genera las consultas.", "Cuantificar el volumen consultado hacia el dominio sospechoso."],
+        ["Bloquear el dominio en el DNS corporativo y aislar {host}."],
+        ["Forzar el uso del DNS corporativo y bloquear DNS saliente directo; alertar consultas largas y de alta entropía."]),
+    "g_cloud": _pb(
+        "Una identidad cloud fue usada para sondear permisos y luego modificar políticas o crear credenciales: riesgo de control persistente del entorno cloud.",
+        ["Revisar en CloudTrail (o equivalente) todas las acciones de {user} y desde qué IPs.", "Verificar si las claves o políticas creadas siguen activas."],
+        ["Deshabilitar las claves de acceso de {user}, revertir los cambios de políticas y revocar sesiones."],
+        ["Aplicar mínimo privilegio a cuentas de servicio y exigir MFA.", "Alertar cambios de políticas IAM y creación de claves."]),
+})
+
+GENERAL_RECOMMENDATIONS.update({
+    "g_auth": "Exigir MFA o claves SSH, deshabilitar el acceso directo de root/administrador, exponer los servicios solo por VPN y bloquear orígenes tras ráfagas de fallos.",
+    "g_web": "Proteger las aplicaciones con WAF, consultas parametrizadas y permisos mínimos en la base de datos.",
+    "g_exfil": "Implementar DLP y filtrado de salida con alertas por volumen y destinos nuevos.",
+    "g_phishing": "Bloquear adjuntos ejecutables y de doble extensión en el correo y reforzar el reporte de phishing.",
+    "g_ransomware": "Mantener backups offline e inmutables, probar la restauración y segmentar la red.",
+    "g_privesc": "Auditar bits SUID y sudo, y alertar lecturas de archivos de credenciales por cuentas no administrativas.",
+    "g_dns_tunnel": "Forzar el DNS corporativo y alertar consultas largas y de alta entropía.",
+    "g_cloud": "Aplicar mínimo privilegio a identidades cloud y alertar cambios de políticas IAM y creación de claves.",
+    "g_mining": "Monitorear CPU sostenida y conexiones a pools de minería; corregir la vía de entrada.",
+})

@@ -6,7 +6,7 @@ Aplicación web para análisis de logs. Recibe el export de un SIEM (Excel, CSV/
 
 ## Cómo funciona
 
-1. **Motor de reglas determinista** (`backend/detection.py`): fuerza bruta y password spraying, inicios de sesión externos, escalamiento de privilegios, comandos y procesos sospechosos, movimiento lateral, acceso masivo a archivos, exfiltración, persistencia, ataques web y problemas de calidad de datos. Cada hallazgo cita los `Log_ID` que lo sustentan y explica por qué tiene esa criticidad.
+1. **Motor de reglas determinista** (`backend/detection.py`): fuerza bruta y password spraying, inicios de sesión externos, escalamiento de privilegios, comandos y procesos sospechosos, movimiento lateral, acceso masivo a archivos, exfiltración, persistencia, ataques web y problemas de calidad de datos. Cada hallazgo cita los `Log_ID` que lo sustentan y explica por qué tiene esa criticidad. Además de los eventos de Windows (por Event ID), `backend/detection_generic.py` cubre exports de otras fuentes que traen una acción y un mensaje en lugar de Event IDs numéricos: fuerza bruta y password spraying por SSH/RDP/Kerberos, ataques web (inyección SQL, rutas, XSS), exfiltración, phishing con adjuntos de doble extensión, comando y control, persistencia, ransomware, minería de criptomonedas, escalamiento SUID en Linux, túneles DNS y abuso de identidades cloud (IAM).
 
 2. **Correlación**: los hallazgos se agrupan en incidentes cuando comparten IP externa o cuenta de actor. Compartir host o recurso no fusiona incidentes; queda como hipótesis de confianza baja.
 
@@ -49,6 +49,8 @@ Aplicación web para análisis de logs. Recibe el export de un SIEM (Excel, CSV/
 | INC-006 | Ataque web contra WEB-01 con ejecución remota de comandos | Crítico |
 
 Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 5737).
+
+`sample_data/logs_multifuente.json` (100 eventos de SSH, web, base de datos, DNS, correo, endpoint y nube) es un segundo ejemplo, sin Event IDs de Windows: produce **15 hallazgos** agrupados en **9 incidentes** (fuerza bruta SSH con compromiso de `admin`, ataque web con exfiltración, phishing con movimiento lateral, ransomware, escalamiento SUID, túnel DNS, abuso de identidad cloud, password spraying y minería).
 
 ## Capturas
 
@@ -172,7 +174,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 274 pruebas
+python -m pytest                                           # 294 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (94 %)
 ```
 
@@ -231,7 +233,7 @@ Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones
 backend/      parser, reglas de detección, correlación, IA, reputación (VirusTotal/AbuseIPDB), MITRE ATT&CK, informe PDF y API (FastAPI)
 scripts/      build_attack_data.py: regenera backend/data/ desde los datos oficiales de MITRE (uso de mantenimiento)
 frontend/     interfaz web sin build (HTML, CSS y JS; fuentes IBM Plex locales)
-sample_data/  export de ejemplo en Excel, CSV y NDJSON
+sample_data/  exports de ejemplo (Windows en Excel/CSV/NDJSON y uno multi-fuente en JSON)
 tests/        unit, integration y e2e
 Makefile      atajos: install, start, stop, test, test-cov, lint, audit, logs, backup, clean
 requirements*.lock  dependencias con versión exacta y hash (requirements*.txt son los rangos de origen)

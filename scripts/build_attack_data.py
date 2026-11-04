@@ -16,7 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "backend" / "data" / "attack_techniques.json"
-SOURCES = [ROOT / "backend" / "detection.py", ROOT / "backend" / "playbook.py", ROOT / "backend" / "ai.py"]
+SOURCES = [ROOT / "backend" / "detection.py", ROOT / "backend" / "detection_generic.py", ROOT / "backend" / "playbook.py", ROOT / "backend" / "ai.py"]
 ID_RE = re.compile(r"\bT1\d{3}(?:\.\d{3})?\b")
 
 

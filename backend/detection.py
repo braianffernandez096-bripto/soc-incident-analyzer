@@ -219,10 +219,11 @@ def _ioc(type_: str, value: str, note: str = "") -> dict:
 
 def _mk(st: State, rule: str, title: str, category: str, tactic: str, mitre: list[str],
         severity: str, reasons: list[str], explanation: str, rows: pd.DataFrame, *,
-        actor_ips=(), actor_users=(), link_ips=None, metrics=None, iocs=None) -> Finding:
+        actor_ips=(), actor_users=(), link_ips=None, metrics=None, iocs=None, hosts=None) -> Finding:
     rows = rows.sort_values(["Timestamp", "Log_ID"]).drop_duplicates("Log_ID")
     users = [u for u in dict.fromkeys(rows["User"]) if u and u != "-"]
-    hosts = list(dict.fromkeys(h for h in rows["Hostname"] if h))
+    # sin columna Hostname (otros SIEM) el activo afectado lo informa la regla (p. ej. su IP)
+    hosts = list(dict.fromkeys(h for h in rows["Hostname"] if h)) or [h for h in dict.fromkeys(hosts or []) if h]
     ips = list(dict.fromkeys(i for i in rows["Source_IP"] if i))
     actor_ips = [i for i in dict.fromkeys(actor_ips) if i]
     f = Finding(
@@ -858,6 +859,9 @@ class _UF:
 
 
 def _incident_title(fs: list[Finding]) -> str:
+    generic = detection_generic.incident_title(fs)
+    if generic:
+        return generic
     rules = {f.rule for f in fs}
     host = lambda r: next((f.hosts[0] for f in fs if f.rule == r and f.hosts), "")
     users = [u for f in fs for u in f.actor_users]
@@ -955,3 +959,10 @@ def build_hypotheses(incidents: list[dict]) -> list[dict]:
                 "basis": "Coincidencia de red /24. No prueba una infraestructura común; puede ser casualidad o un artefacto del rango usado.",
             })
     return out
+
+
+# Reglas para eventos que no son de Windows (SSH, web, DNS, correo, nube…). Se importa al final porque usa las
+# utilidades de este módulo.
+from . import detection_generic  # noqa: E402
+
+RULES.extend(detection_generic.RULES)

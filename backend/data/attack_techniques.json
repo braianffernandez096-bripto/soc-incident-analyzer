@@ -59,6 +59,13 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1003/"
   },
+  "T1003.008": {
+   "name": "/etc/passwd and /etc/shadow",
+   "tactics": [
+    "credential-access"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1003/008/"
+  },
   "T1005": {
    "name": "Data from Local System",
    "tactics": [
@@ -152,6 +159,13 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1071/001/"
   },
+  "T1071.004": {
+   "name": "DNS",
+   "tactics": [
+    "command-and-control"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1071/004/"
+  },
   "T1074.001": {
    "name": "Local Data Staging",
    "tactics": [
@@ -169,12 +183,38 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1078/"
   },
+  "T1078.004": {
+   "name": "Cloud Accounts",
+   "tactics": [
+    "stealth",
+    "persistence",
+    "privilege-escalation",
+    "initial-access"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1078/004/"
+  },
   "T1087": {
    "name": "Account Discovery",
    "tactics": [
     "discovery"
    ],
    "url": "https://attack.mitre.org/techniques/T1087/"
+  },
+  "T1098": {
+   "name": "Account Manipulation",
+   "tactics": [
+    "persistence",
+    "privilege-escalation"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1098/"
+  },
+  "T1098.004": {
+   "name": "SSH Authorized Keys",
+   "tactics": [
+    "persistence",
+    "privilege-escalation"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1098/004/"
   },
   "T1105": {
    "name": "Ingress Tool Transfer",
@@ -226,12 +266,40 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1190/"
   },
+  "T1204.002": {
+   "name": "Malicious File",
+   "tactics": [
+    "execution"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1204/002/"
+  },
+  "T1486": {
+   "name": "Data Encrypted for Impact",
+   "tactics": [
+    "impact"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1486/"
+  },
   "T1490": {
    "name": "Inhibit System Recovery",
    "tactics": [
     "impact"
    ],
    "url": "https://attack.mitre.org/techniques/T1490/"
+  },
+  "T1496": {
+   "name": "Resource Hijacking",
+   "tactics": [
+    "impact"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1496/"
+  },
+  "T1496.001": {
+   "name": "Compute Hijacking",
+   "tactics": [
+    "impact"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1496/001/"
   },
   "T1505.003": {
    "name": "Web Shell",
@@ -248,12 +316,34 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1543/003/"
   },
+  "T1547.001": {
+   "name": "Registry Run Keys / Startup Folder",
+   "tactics": [
+    "persistence",
+    "privilege-escalation"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1547/001/"
+  },
+  "T1548.001": {
+   "name": "Setuid and Setgid",
+   "tactics": [
+    "privilege-escalation"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1548/001/"
+  },
   "T1560.001": {
    "name": "Archive via Utility",
    "tactics": [
     "collection"
    ],
    "url": "https://attack.mitre.org/techniques/T1560/001/"
+  },
+  "T1566.001": {
+   "name": "Spearphishing Attachment",
+   "tactics": [
+    "initial-access"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1566/001/"
   }
  }
 }

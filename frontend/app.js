@@ -128,12 +128,13 @@ window.addEventListener("hashchange", render);
 function landing() {
   return `<section class="landing">
     <h1>Del export del SIEM al informe de incidentes</h1>
-    <p class="lead">Carga el export de tu SIEM (Excel, CSV o JSON). La aplicación detecta indicadores de compromiso, correlaciona los eventos en incidentes y prepara el informe técnico en PDF. Cada conclusión cita los Log_ID que la respaldan.</p>
+    <p class="lead">Detecta indicadores de compromiso, los agrupa en incidentes y prepara el informe técnico en PDF.</p>
     <div class="drop" id="drop" tabindex="0" role="button" aria-label="Seleccionar archivo de eventos">
       <strong id="dropTitle">Arrastra el archivo aquí o haz clic para elegirlo</strong>
-      <span>Excel (.xlsx), CSV/TSV o JSON/NDJSON, hasta 25 MB. Columnas esperadas: Log_ID, Timestamp, Hostname, Event_ID, User, Source_IP y similares (también campos tipo Elastic ECS).</span>
+      <span>Excel, CSV/TSV o JSON/NDJSON · hasta 25 MB</span>
       <input type="file" id="file" accept=".xlsx,.xlsm,.csv,.tsv,.txt,.log,.json,.jsonl,.ndjson" hidden>
     </div>
+    <button class="linkbtn" id="fmtHelp" type="button">¿Qué formato y columnas necesita?</button>
     <div class="fields">
       <label class="f">Cliente<input type="text" id="client" placeholder="Nombre del cliente" autocomplete="off"></label>
       <label class="f">Analista<input type="text" id="analyst" placeholder="Tu nombre" autocomplete="off"></label>
@@ -162,6 +163,7 @@ function bindLanding() {
   ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
   drop.addEventListener("drop", (e) => pick(e.dataTransfer.files[0]));
   go.onclick = () => upload(file, $("#client").value, $("#analyst").value);
+  $("#fmtHelp").onclick = showHow;
   $("#sample").onclick = () => useSample($("#client").value, $("#analyst").value);
 }
 
@@ -616,6 +618,14 @@ function applyMotion(m) {
   if (m === "reduced") root.setAttribute("data-motion", "reduced"); else root.removeAttribute("data-motion");
   $("#motionBtn").textContent = "✦ Movimiento: " + (m === "reduced" ? "reducido" : "completo");
 }
+const showHow = () => openDialog("¿Cómo funciona?", `<div class="how"><ol>
+    <li><b>Carga</b> el export del SIEM en Excel (.xlsx), CSV/TSV o JSON/NDJSON, de hasta 25 MB. Se detectan el formato y las columnas aunque cambien de nombre (ver «Columnas esperadas» más abajo).</li>
+    <li><b>Reglas deterministas</b> buscan fuerza bruta, inicios de sesión externos, escalamiento, comandos sospechosos, movimiento lateral, exfiltración, persistencia y ataques web. Cada hallazgo cita los Log_ID que lo prueban.</li>
+    <li><b>Correlación</b>: los hallazgos se agrupan en incidentes solo si comparten IP externa o cuenta. Compartir un host o recurso queda como hipótesis de confianza baja.</li>
+    <li><b>IA</b> redacta explicaciones, impacto y plan de acción. No cambia la criticidad y se descarta cualquier Log_ID o IP que no esté en el archivo.</li>
+    <li><b>Informe PDF</b> con resumen ejecutivo, hallazgos, evidencia, criticidad, impacto, plan de acción y recomendaciones.</li></ol>
+    <h4>Columnas esperadas</h4><p>Solo son indispensables <span class="mono">Timestamp</span> y <span class="mono">Event_ID</span>. Se aprovechan también <span class="mono">Log_ID</span>, <span class="mono">Hostname</span>, <span class="mono">User</span>, <span class="mono">Source_IP</span>, <span class="mono">Destination</span>, <span class="mono">Process_CommandLine</span> y similares, con otros idiomas o mayúsculas, y los campos de Elastic ECS (<span class="mono">@timestamp</span>, <span class="mono">host.name</span>, <span class="mono">source.ip</span>…). Lo que falte queda vacío y se informa.</p>
+    <p class="muted">Cada conclusión cita los Log_ID que la respaldan. Atajos: Ctrl+K o / para buscar.</p></div>`);
 function initChrome() {
   let theme = pref.get("theme") || "auto", motion = pref.get("motion") || "full";
   applyTheme(theme); applyMotion(motion);
@@ -631,13 +641,7 @@ function initChrome() {
   });
   $("#themeBtn").onclick = () => { theme = { auto: "light", light: "dark", dark: "auto" }[theme]; pref.set("theme", theme); applyTheme(theme); };
   $("#motionBtn").onclick = () => { motion = motion === "full" ? "reduced" : "full"; pref.set("motion", motion); applyMotion(motion); };
-  $("#helpBtn").onclick = () => openDialog("¿Cómo funciona?", `<div class="how"><ol>
-    <li><b>Carga</b> el export del SIEM en Excel, CSV o JSON. Se detectan el formato y las columnas aunque cambien de nombre.</li>
-    <li><b>Reglas deterministas</b> buscan fuerza bruta, inicios de sesión externos, escalamiento, comandos sospechosos, movimiento lateral, exfiltración, persistencia y ataques web. Cada hallazgo cita los Log_ID que lo prueban.</li>
-    <li><b>Correlación</b>: los hallazgos se agrupan en incidentes solo si comparten IP externa o cuenta. Compartir un host o recurso queda como hipótesis de confianza baja.</li>
-    <li><b>IA</b> redacta explicaciones, impacto y plan de acción. No cambia la criticidad y se descarta cualquier Log_ID o IP que no esté en el archivo.</li>
-    <li><b>Informe PDF</b> con resumen ejecutivo, hallazgos, evidencia, criticidad, impacto, plan de acción y recomendaciones.</li></ol>
-    <p class="muted">Atajos: Ctrl+K o / para buscar.</p></div>`);
+  $("#helpBtn").onclick = showHow;
   $("#searchBtn").onclick = openPalette;
   addEventListener("keydown", (e) => {
     const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName || "");

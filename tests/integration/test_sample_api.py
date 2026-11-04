@@ -47,3 +47,12 @@ def test_ui_has_the_sample_button_and_one_settings_menu():
 def test_ui_pluralises_counts():
     js = (FRONT / "app.js").read_text(encoding="utf-8")
     assert "const plural =" in js and "hallazgo(s)" not in js
+
+
+def test_landing_is_short_and_the_details_live_in_the_help_dialog():
+    js = (FRONT / "app.js").read_text(encoding="utf-8")
+    landing = js[js.index("function landing()"):js.index("function bindLanding()")]
+    assert "hasta 25 MB" in landing and "Columnas esperadas" not in landing and "Elastic ECS" not in landing
+    how = js[js.index("const showHow"):js.index("function initChrome()")]
+    assert "Columnas esperadas" in how and "Timestamp" in how and "Event_ID" in how and "ECS" in how
+    assert '$("#helpBtn").onclick = showHow' in js and '$("#fmtHelp").onclick = showHow' in js

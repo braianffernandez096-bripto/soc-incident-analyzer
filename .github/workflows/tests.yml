@@ -49,7 +49,7 @@ jobs:
       - name: Construir la imagen
         run: docker build -t soc-incident-analyzer:ci .
       - name: Informe de vulnerabilidades (HIGH y CRITICAL, solo informativo)
-        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284  # v0.34.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           image-ref: soc-incident-analyzer:ci
           version: v0.69.3   # el predeterminado de la action (v0.69.1) ya no se puede descargar
@@ -57,7 +57,7 @@ jobs:
           ignore-unfixed: true
           exit-code: "0"
       - name: Bloquear si hay vulnerabilidades CRITICAL con parche disponible
-        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284  # v0.34.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           image-ref: soc-incident-analyzer:ci
           version: v0.69.3   # el predeterminado de la action (v0.69.1) ya no se puede descargar

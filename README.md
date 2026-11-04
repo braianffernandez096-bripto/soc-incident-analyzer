@@ -39,8 +39,8 @@ Aplicación web para el reto final del Bootcamp Analista SOC Nivel 2. Recibe el 
 | ID | Incidente | Criticidad |
 |---|---|---|
 | INC-001 | Password spraying con compromiso de la cuenta `mgarcia` | Alto |
-| INC-002 | Compromiso de `admin` por acceso externo, movimiento lateral y exfiltración | Crítico |
-| INC-003 | Recolección masiva y borrado de shadow copies por `backupsvc` | Crítico |
+| INC-002 | Compromiso de la cuenta `admin` por acceso externo, movimiento lateral y exfiltración | Crítico |
+| INC-003 | Recolección masiva y eliminación de copias de sombra por `backupsvc` | Crítico |
 | INC-004 | Exfiltración de datos desde WS-018 (`rrojas`) | Crítico |
 | INC-005 | Persistencia en APP-SRV01 por la cuenta `helpdesk` | Alto |
 | INC-006 | Ataque web contra WEB-01 con ejecución remota de comandos | Crítico |
@@ -64,6 +64,10 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 **Hallazgos: explicación técnica, criticidad, impacto y plan de acción**
 
 ![Hallazgo con explicación, impacto y plan de acción en tres columnas](img/Seccion-Hallazgos.png)
+
+**ATT&CK: técnicas sugeridas por los hallazgos, agrupadas por táctica, con descarga de la capa para Navigator**
+
+![Matriz MITRE ATT&CK por táctica](img/Matriz-ATTACK.png)
 
 **Eventos: los 715 registros originales, con marca de los ligados a incidentes**
 
@@ -156,7 +160,7 @@ python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (94 %
 
 Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov`, `make lint`, `make audit` (bandit + pip-audit), `make start`, `make stop`, `make logs`. Con `make help` ves la lista completa.
 
-- `tests/unit/`: motor de detección contra el Excel de ejemplo, límites del parser, formatos de entrada (CSV, TSV, JSON, NDJSON, codificaciones y zonas horarias) y verificación de archivos (tipo real por contenido, macros, inyección de fórmulas) y datos de MITRE ATT&CK (todas las técnicas que citan las reglas existen y siguen vigentes, matriz y capa de Navigator).
+- `tests/unit/`: motor de detección contra el Excel de ejemplo, límites del parser, formatos de entrada (CSV, TSV, JSON, NDJSON, codificaciones y zonas horarias), verificación de archivos (tipo real por contenido, macros, inyección de fórmulas) y datos de MITRE ATT&CK (todas las técnicas que citan las reglas existen y siguen vigentes, matriz y capa de Navigator).
 - `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras), clave de acceso (401 en todas las rutas protegidas, fuerza bruta), capa de IA y consultas de reputación con servidores simulados (las pruebas no usan red ni claves).
 - `tests/e2e/`: arranca el servidor real y recorre carga, análisis y PDF.
 
@@ -177,7 +181,7 @@ Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones
 - Todo dato del archivo se escapa antes de mostrarse y antes de entrar al PDF. La interfaz aplica una CSP estricta (`script-src 'self'`); los estilos en línea están permitidos porque la interfaz los usa, un riesgo aceptado que no permite ejecutar scripts.
 - Límites: 25 MB de subida (lectura acotada), 300 MB descomprimidos, 100.000 filas y límite de peticiones por IP.
 - **Verificación del archivo subido:** el tipo se decide por su contenido, no por la extensión (un ejecutable renombrado a `.xlsx` se rechaza). En los Excel se avisa de macros VBA, objetos incrustados, vínculos externos y conexiones de datos, y se rechazan los que traen declaraciones XML peligrosas o rutas internas sospechosas. También se avisa de celdas con inyección de fórmulas. La app **nunca ejecuta ni evalúa** el archivo, y esto es un primer filtro, no un antivirus: "sin avisos" no significa "archivo seguro".
-- **Clave de acceso opcional:** define `APP_ACCESS_TOKEN` (16 caracteres o más) y toda la API exige `Authorization: Bearer <clave>`; la interfaz la pide al entrar. Es una sola clave compartida, no un sistema de usuarios, y debe servirse detrás de HTTPS. Sin ella, la app no tiene login: úsala en local.
+- **Clave de acceso opcional:** define `APP_ACCESS_TOKEN` (se recomiendan 16 caracteres o más) y toda la API exige `Authorization: Bearer <clave>`; la interfaz la pide al entrar. Es una sola clave compartida, no un sistema de usuarios, y debe servirse detrás de HTTPS. Sin ella, la app no tiene login: úsala en local.
 - La documentación interactiva de la API (`/docs`) está desactivada por defecto (`ENABLE_DOCS=1` la activa).
 - Docker: imagen multi-stage con dependencias verificadas por hash, usuario sin privilegios, sistema de archivos de solo lectura, sin capacidades (`cap_drop: ALL`) y `no-new-privileges`.
 - Integración continua: pruebas con cobertura mínima, `bandit`, `pip-audit` y Trivy sobre la imagen.

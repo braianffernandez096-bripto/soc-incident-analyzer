@@ -68,7 +68,7 @@ class SafeJSON(JSONResponse):
 
 
 _DOCS = os.environ.get("ENABLE_DOCS", "").strip().lower() in ("1", "true", "yes")      # API docs reveal the full surface: opt-in
-app = FastAPI(title="SOC Incident Analyzer", version="1.0", default_response_class=SafeJSON,
+app = FastAPI(title="SOC Incident Analyzer", version="1.0.0", default_response_class=SafeJSON,
               docs_url="/docs" if _DOCS else None, redoc_url="/redoc" if _DOCS else None, openapi_url="/openapi.json" if _DOCS else None)
 
 
@@ -372,17 +372,30 @@ def intel_start(sid: str, request: Request, include_reserved: bool = False, x_vt
     return {"job": s.intel}
 
 
+def _pdf_response(s: Session) -> Response:
+    intel = s.intel if s.intel and s.intel.get("results") else None
+    pdf = build_pdf(s.analysis, s.ai, s.df, {"client": s.client, "analyst": s.analyst, "filename": s.filename}, intel=intel)
+    return Response(pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": 'attachment; filename="informe_incidentes_seguridad.pdf"'})
+
+
+@app.post("/api/sessions/{sid}/report.pdf")
+def report_pdf_post(sid: str, client: str = Form(""), analyst: str = Form("")):
+    """Preferred way to download the report: the client and analyst names travel in the body, not in the URL."""
+    s = _get(sid)
+    s.client, s.analyst = client.strip(), analyst.strip()
+    return _pdf_response(s)
+
+
 @app.get("/api/sessions/{sid}/report.pdf")
 def report_pdf(sid: str, client: str | None = None, analyst: str | None = None):
+    """Kept for compatibility. Names in a query string end up in access logs: the UI uses the POST route instead."""
     s = _get(sid)
     if client is not None:
         s.client = client.strip()
     if analyst is not None:
         s.analyst = analyst.strip()
-    intel = s.intel if s.intel and s.intel.get("results") else None
-    pdf = build_pdf(s.analysis, s.ai, s.df, {"client": s.client, "analyst": s.analyst, "filename": s.filename}, intel=intel)
-    return Response(pdf, media_type="application/pdf",
-                    headers={"Content-Disposition": 'attachment; filename="informe_incidentes_seguridad.pdf"'})
+    return _pdf_response(s)
 
 
 # el frontend se sirve como estático (debe montarse al final)

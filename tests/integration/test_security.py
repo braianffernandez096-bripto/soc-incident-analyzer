@@ -208,3 +208,42 @@ def test_a_short_token_logs_a_warning_at_import_time(monkeypatch):
         importlib.reload(main)
     assert any("access_token_weak" in h for h in hits)
     importlib.reload(main)                         # restore module state for the rest of the suite
+
+
+# ---- report download: personal names must not travel in the URL ---------------------------------------------
+
+def test_pdf_post_sets_the_names_and_returns_a_pdf():
+    import io
+    from pypdf import PdfReader
+    sid = _upload().json()["session_id"]
+    r = client.post(f"/api/sessions/{sid}/report.pdf", data={"client": "Cliente Prueba SA", "analyst": "Ana Analista"})
+    assert r.status_code == 200 and r.headers["content-type"] == "application/pdf" and r.content.startswith(b"%PDF")
+    text = " ".join(p.extract_text() for p in PdfReader(io.BytesIO(r.content)).pages)
+    assert "Cliente Prueba SA" in text and "Ana Analista" in text
+
+
+def test_pdf_post_with_hostile_names_does_not_break_the_report():
+    sid = _upload().json()["session_id"]
+    r = client.post(f"/api/sessions/{sid}/report.pdf", data={"client": "</para><b>X&", "analyst": "<script>alert(1)</script>"})
+    assert r.status_code == 200 and r.content.startswith(b"%PDF")
+
+
+def test_pdf_post_on_an_unknown_session_is_404():
+    assert client.post("/api/sessions/nope/report.pdf", data={"client": "a"}).status_code == 404
+
+
+def test_legacy_pdf_get_still_works():
+    sid = _upload().json()["session_id"]
+    assert client.get(f"/api/sessions/{sid}/report.pdf").content.startswith(b"%PDF")
+
+
+def test_the_ui_never_puts_names_in_the_report_url():
+    js = (Path(__file__).resolve().parents[2] / "frontend" / "app.js").read_text(encoding="utf-8")
+    assert "report.pdf?" not in js and "client=${" not in js
+
+
+def test_names_do_not_reach_the_access_log_when_using_post(caplog):
+    caplog.set_level(logging.DEBUG)
+    sid = _upload().json()["session_id"]
+    client.post(f"/api/sessions/{sid}/report.pdf", data={"client": "NOMBRE-SECRETO-CLIENTE", "analyst": "NOMBRE-SECRETO-ANALISTA"})
+    assert "NOMBRE-SECRETO" not in caplog.text

@@ -83,7 +83,7 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 
 ```bash
 # 1. Dependencias del sistema
-sudo apt update && sudo apt install -y python3 python3-venv python3-pip git
+sudo apt update && sudo apt install -y python3 python3-venv python3-pip git make
 
 # 2. Clonar el repositorio
 git clone https://github.com/braianffernandez096-bripto/soc-incident-analyzer.git
@@ -129,11 +129,26 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 - **Claves gratuitas:** crea una cuenta en [VirusTotal](https://www.virustotal.com) y otra en [AbuseIPDB](https://www.abuseipdb.com) y define `VT_API_KEY` y `ABUSEIPDB_API_KEY` en `.env`, o pégalas en la interfaz (solo se usan en esa consulta). Con una sola de las dos funciona igual (AbuseIPDB solo consulta IP; los dominios van solo a VirusTotal).
 - **Límites del plan gratuito:** VirusTotal permite 4 consultas por minuto y 500 por día, así que la app consulta una cada ~15 s (25 indicadores como máximo por consulta, ~6 min). AbuseIPDB permite 1.000 por día. Si una clave es rechazada o se agota la cuota, esa consulta se detiene con un aviso.
 
+## Si algo falla
+
+| Mensaje | Causa | Solución |
+|---|---|---|
+| `Formato no soportado` | La extensión no es `.xlsx`, `.xlsm`, `.csv`, `.tsv`, `.txt`, `.log`, `.json`, `.jsonl` o `.ndjson`. | Exporta o guarda el archivo en uno de esos formatos. |
+| `No encontré una fila de cabecera reconocible` | Las columnas no tienen nombres reconocibles. | Usa nombres como `Timestamp`, `Event_ID`, `Hostname`, `User`, `Source_IP` (ver *Formatos de entrada*). |
+| `…pero su contenido es un ejecutable / un ZIP / …` | El archivo está renombrado y no es lo que dice su extensión. | Vuelve a exportarlo desde el SIEM. Si no esperabas ese contenido, no lo abras. |
+| `El archivo supera el límite de 25 MB` o `el máximo soportado es 100.000 filas` | Export demasiado grande. | Divídelo por rango de fechas. |
+| `No hay API key de Anthropic` | Falta la clave para la redacción con IA. | Defínela en `.env` (`ANTHROPIC_API_KEY`) o pégala en la pestaña Informe. Sin ella el informe sale por reglas. |
+| `VirusTotal rechazó la clave` / `AbuseIPDB rechazó la clave` | Clave inválida o inactiva. | Copia de nuevo la clave desde tu cuenta. |
+| `No hay indicadores públicos para consultar` | Todas las IP son internas o de documentación. | Es lo esperado con el archivo de ejemplo; usa la casilla de prueba o un export con IP públicas. |
+| `Acceso no autorizado` | La instancia tiene `APP_ACCESS_TOKEN`. | Introduce la clave de acceso. |
+| `Demasiadas solicitudes` | Límite de peticiones por IP. | Espera un minuto. |
+| `address already in use` | El puerto 8000 está ocupado. | `make stop`, o inicia con `--port 8001`. |
+
 ## Pruebas
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock       # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 235 pruebas
+python -m pytest                                           # 241 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (94 %)
 ```
 
@@ -143,16 +158,28 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 - `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras), clave de acceso (401 en todas las rutas protegidas, fuerza bruta), capa de IA y consultas de reputación con servidores simulados (las pruebas no usan red ni claves).
 - `tests/e2e/`: arranca el servidor real y recorre carga, análisis y PDF.
 
+## Privacidad: qué datos salen de tu equipo
+
+La app corre en tu equipo y no envía telemetría. Solo salen datos si tú activas una de estas dos funciones:
+
+| Función | Qué se envía | A quién |
+|---|---|---|
+| **Redacción con IA** (botón en la pestaña Informe, requiere clave de Anthropic) | Por incidente y hallazgo: título, criticidad, métricas, explicación del motor y las **filas de evidencia** (`Log_ID`, fecha, equipo, usuario, IP de origen y destino, origen del log, descripción del evento y línea de comandos recortadas, resultado y severidad). También el resumen del conjunto (cantidad de eventos, ventana de tiempo, IP externas). **No** se envían el nombre del cliente ni del analista, ni el archivo completo. | Anthropic |
+| **Reputación** (botón en Indicadores (IoC), requiere clave de VirusTotal o AbuseIPDB) | Solo las IP públicas y dominios que ves y confirmas en pantalla. Nunca IP internas, cuentas, equipos ni comandos. | VirusTotal y AbuseIPDB |
+
+Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones IP reales. Antes de activar la IA, asegúrate de tener permiso para compartir esos datos con un tercero; sin la clave de Anthropic, el informe se genera por reglas y no sale nada.
+
 ## Seguridad
 
 - Las claves (Anthropic, VirusTotal, AbuseIPDB) viven en `.env` (excluido de Git) o se pegan en la interfaz; nunca se guardan, se registran ni se devuelven al navegador.
-- Todo dato del archivo se escapa antes de mostrarse y antes de entrar al PDF. La interfaz aplica una CSP estricta (`script-src 'self'`).
+- Todo dato del archivo se escapa antes de mostrarse y antes de entrar al PDF. La interfaz aplica una CSP estricta (`script-src 'self'`); los estilos en línea están permitidos porque la interfaz los usa, un riesgo aceptado que no permite ejecutar scripts.
 - Límites: 25 MB de subida (lectura acotada), 300 MB descomprimidos, 100.000 filas y límite de peticiones por IP.
 - **Verificación del archivo subido:** el tipo se decide por su contenido, no por la extensión (un ejecutable renombrado a `.xlsx` se rechaza). En los Excel se avisa de macros VBA, objetos incrustados, vínculos externos y conexiones de datos, y se rechazan los que traen declaraciones XML peligrosas o rutas internas sospechosas. También se avisa de celdas con inyección de fórmulas. La app **nunca ejecuta ni evalúa** el archivo, y esto es un primer filtro, no un antivirus: "sin avisos" no significa "archivo seguro".
 - **Clave de acceso opcional:** define `APP_ACCESS_TOKEN` (16 caracteres o más) y toda la API exige `Authorization: Bearer <clave>`; la interfaz la pide al entrar. Es una sola clave compartida, no un sistema de usuarios, y debe servirse detrás de HTTPS. Sin ella, la app no tiene login: úsala en local.
 - La documentación interactiva de la API (`/docs`) está desactivada por defecto (`ENABLE_DOCS=1` la activa).
 - Docker: imagen multi-stage con dependencias verificadas por hash, usuario sin privilegios, sistema de archivos de solo lectura, sin capacidades (`cap_drop: ALL`) y `no-new-privileges`.
 - Integración continua: pruebas con cobertura mínima, `bandit`, `pip-audit` y Trivy sobre la imagen.
+- Alcance, límites y cómo reportar una vulnerabilidad: [SECURITY.md](SECURITY.md).
 
 ## Límites
 
@@ -168,6 +195,9 @@ backend/      parser, reglas de detección, correlación, IA, reputación (Virus
 frontend/     interfaz web sin build (HTML, CSS y JS; fuentes IBM Plex locales)
 sample_data/  export de ejemplo en Excel, CSV y NDJSON
 tests/        unit, integration y e2e
+Makefile      atajos: install, start, stop, test, test-cov, lint, audit, logs, backup, clean
+requirements*.lock  dependencias con versión exacta y hash (requirements*.txt son los rangos de origen)
+SECURITY.md, CHANGELOG.md  política de seguridad y registro de cambios
 examples/     informe técnico de ejemplo en PDF
 img/          capturas del README
 Dockerfile, docker-compose.yml y .github/workflows/tests.yml (imagen y pruebas automáticas)

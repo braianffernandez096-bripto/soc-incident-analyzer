@@ -516,7 +516,8 @@ function bindReport() {
   $("#pdf").onclick = async () => {
     const m = meta(); busy(true, "Generando PDF…");
     try {
-      const r = await fetch(`/api/sessions/${S.sid}/report.pdf?client=${encodeURIComponent(m.client)}&analyst=${encodeURIComponent(m.analyst)}`, { headers: authHeaders() });
+      const fd = new FormData(); fd.append("client", m.client); fd.append("analyst", m.analyst);      // POST: names stay out of the URL and the access logs
+      const r = await fetch(`/api/sessions/${S.sid}/report.pdf`, { method: "POST", body: fd, headers: authHeaders() });
       if (!r.ok) throw new Error("No se pudo generar el PDF.");
       const url = URL.createObjectURL(await r.blob()), a = document.createElement("a");
       a.href = url; a.download = "informe_incidentes_seguridad.pdf"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);

@@ -14,7 +14,7 @@ jobs:
     name: Tests y cobertura
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -29,7 +29,7 @@ jobs:
     name: Seguridad (bandit + pip-audit)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -45,7 +45,7 @@ jobs:
     name: Imagen Docker (build + Trivy)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Construir la imagen
         run: docker build -t soc-incident-analyzer:ci .
       # Trivy se ejecuta como contenedor (mismo origen que la imagen base) en lugar de instalar el binario

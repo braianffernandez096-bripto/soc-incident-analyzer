@@ -1,21 +1,64 @@
-   name: Tests
-   on:
-     push:
-       branches: [main]
-     pull_request:
-   jobs:
-     pytest:
-       runs-on: ubuntu-24.04
-       steps:
-         - uses: actions/checkout@v4
-         - uses: actions/setup-python@v5
-           with:
-             python-version: "3.12"
-             cache: pip
-         - run: pip install -r requirements.txt
-         - run: python -m pytest --cov=backend --cov-report=term-missing
-     docker:
-       runs-on: ubuntu-24.04
-       steps:
-         - uses: actions/checkout@v4
-         - run: docker build -t soc-incident-analyzer .
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege: the workflow can only read the repository
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests y cobertura
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+      - name: Instalar dependencias (versiones exactas con hash)
+        run: pip install --require-hashes -r requirements-dev.lock
+      - name: Pruebas con cobertura mínima
+        run: python -m pytest --cov=backend --cov-report=term-missing --cov-fail-under=85
+
+  security:
+    name: Seguridad (bandit + pip-audit)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+      - run: pip install --require-hashes -r requirements-dev.lock
+      - name: Análisis estático del código
+        run: bandit -q -r backend
+      - name: Vulnerabilidades conocidas en dependencias
+        run: pip-audit -r requirements.lock --require-hashes --disable-pip
+
+  docker:
+    name: Imagen Docker (build + Trivy)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir la imagen
+        run: docker build -t soc-incident-analyzer:ci .
+      - name: Informe de vulnerabilidades (HIGH y CRITICAL, solo informativo)
+        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284  # v0.34.0
+        with:
+          image-ref: soc-incident-analyzer:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "0"
+      - name: Bloquear si hay vulnerabilidades CRITICAL con parche disponible
+        uses: aquasecurity/trivy-action@c1824fd6edce30d7ab345a9989de00bbd46ef284  # v0.34.0
+        with:
+          image-ref: soc-incident-analyzer:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"

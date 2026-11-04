@@ -56,3 +56,16 @@ def test_landing_is_short_and_the_details_live_in_the_help_dialog():
     how = js[js.index("const showHow"):js.index("function initChrome()")]
     assert "Columnas esperadas" in how and "Timestamp" in how and "Event_ID" in how and "ECS" in how
     assert '$("#helpBtn").onclick = showHow' in js and '$("#fmtHelp").onclick = showHow' in js
+
+
+def test_landing_background_is_a_local_script_that_only_runs_on_the_landing():
+    html = client.get("/").text
+    assert '<script src="bg.js"></script>' in html and "<script>" not in html     # CSP: sin scripts en línea
+    js = client.get("/bg.js")
+    assert js.status_code == 200 and "javascript" in js.headers["content-type"]
+    src = js.text
+    assert 'querySelector(".landing")' in src                                      # solo se anima en el inicio
+    assert "data-motion" in src and "prefers-reduced-motion" in src                # respeta movimiento reducido
+    assert "visibilitychange" in src                                               # se pausa con la pestaña oculta
+    css = client.get("/styles.css").text
+    assert "#bgCanvas" in css and "pointer-events:none" in css

@@ -28,8 +28,11 @@ Aplicación web para el reto final del Bootcamp Analista SOC Nivel 2. Recibe el 
 | NDJSON | `.jsonl`, `.ndjson` | Un evento por línea; también el formato de exportación de Splunk (`{"result": {...}}`). |
 
 - **Columnas:** se reconocen por nombre aunque cambien mayúsculas, acentos o idioma (`Descripción`, `hostname`, `Equipo`…) y los campos anidados típicos de Elastic ECS / Winlogbeat (`@timestamp`, `host.name`, `winlog.event_id`, `source.ip`, `user.name`, `process.command_line`…). Solo son indispensables `Timestamp` y `Event_ID`; lo que falte queda vacío y se informa.
+
 - **Marcas de tiempo:** si traen zona horaria (`Z`, `+02:00`) o son epoch (segundos, milisegundos…), se convierten a UTC y el informe lo declara. Si no la traen, se usan tal cual.
+
 - **Log_ID:** si no existe, se generan identificadores `ROW-00001…` estables.
+
 - Un `.txt` o `.log` que contenga JSON se detecta por su contenido.
 
 ## Resultado con el Excel de ejemplo
@@ -130,9 +133,13 @@ Abre http://127.0.0.1:8000. El puerto queda publicado solo en tu equipo (`127.0.
 Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputación** enriquece los indicadores externos con VirusTotal (cuántos motores los marcan como maliciosos) y AbuseIPDB (puntaje de confianza de abuso y reportes de los últimos 90 días). El resultado aparece en la tabla de IoC y en una sección del informe PDF.
 
 - **Tú decides qué sale.** Antes de consultar, la app muestra la lista exacta de indicadores que se enviarán y los que se omiten, con el motivo. Solo viajan IP públicas y dominios; nunca IP internas, cuentas, equipos, comandos ni contenido de los logs.
+
 - **Las IP de documentación (RFC 5737) no se consultan**, porque no tienen reputación real. El export de ejemplo usa solo esas, así que allí no hay nada que enviar; hay una casilla para incluirlas únicamente si quieres probar que tu clave funciona.
+
 - **No cambia la criticidad.** La reputación es contexto para el analista; el motor de reglas sigue decidiendo.
+
 - **Claves gratuitas:** crea una cuenta en [VirusTotal](https://www.virustotal.com) y otra en [AbuseIPDB](https://www.abuseipdb.com) y define `VT_API_KEY` y `ABUSEIPDB_API_KEY` en `.env`, o pégalas en la interfaz (solo se usan en esa consulta). Con una sola de las dos funciona igual (AbuseIPDB solo consulta IP; los dominios van solo a VirusTotal).
+
 - **Límites del plan gratuito:** VirusTotal permite 4 consultas por minuto y 500 por día, así que la app consulta una cada ~15 s (25 indicadores como máximo por consulta, ~6 min). AbuseIPDB permite 1.000 por día. Si una clave es rechazada o se agota la cuota, esa consulta se detiene con un aviso.
 
 ## Si algo falla
@@ -161,7 +168,9 @@ python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (94 %
 Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov`, `make lint`, `make audit` (bandit + pip-audit), `make start`, `make stop`, `make logs`. Con `make help` ves la lista completa.
 
 - `tests/unit/`: motor de detección contra el Excel de ejemplo, límites del parser, formatos de entrada (CSV, TSV, JSON, NDJSON, codificaciones y zonas horarias), verificación de archivos (tipo real por contenido, macros, inyección de fórmulas) y datos de MITRE ATT&CK (todas las técnicas que citan las reglas existen y siguen vigentes, matriz y capa de Navigator).
+
 - `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras), clave de acceso (401 en todas las rutas protegidas, fuerza bruta), capa de IA y consultas de reputación con servidores simulados (las pruebas no usan red ni claves).
+
 - `tests/e2e/`: arranca el servidor real y recorre carga, análisis y PDF.
 
 ## Privacidad: qué datos salen de tu equipo
@@ -198,8 +207,11 @@ Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones
 ## Límites
 
 - Si las marcas de tiempo no traen zona horaria, se usan tal cual; si la traen, se convierten a UTC.
+
 - Los rangos 192.0.2.0/24, 198.51.100.0/24 y 203.0.113.0/24 (documentación) se tratan como externos.
+
 - El mapeo MITRE ATT&CK es orientativo: indica técnicas consistentes con la evidencia, no prueba su uso, y no cambia la criticidad. La reputación de IP es opcional y orientativa; no hay geolocalización propia.
+
 - Los archivos de sesión viven en memoria (máx. 10) y se pierden al reiniciar el servidor.
 
 ## Estructura

@@ -306,7 +306,7 @@ function incidents() {
     </article>`;
   }).join("");
   const hyp = S.a.hypotheses.length ? `<div class="panel"><h3>Posibles relaciones sin evidencia directa</h3><p class="muted">No se fusionan incidentes por compartir recursos u hosts. Estas relaciones quedan como hipótesis de confianza baja para validar.</p><ul>${S.a.hypotheses.map((h) => `<li><b>${esc(h.id)}</b> ${esc(h.statement)} <span class="muted">${esc(h.basis)}</span></li>`).join("")}</ul></div>` : "";
-  return `<div class="page-head"><div><h1>¿Uno o varios incidentes?</h1><p>${esc(A.cross_incident_assessment || "")}</p></div></div>${cards}${hyp}`;
+  return `<div class="page-head"><div><h1>Incidentes</h1><p>${esc(A.cross_incident_assessment || "")}</p></div></div>${cards}${hyp}`;
 }
 function bindIncidents() {
   if (S.openInc) { const el = document.getElementById(S.openInc); S.openInc = null; if (el) { el.scrollIntoView({ block: "start" }); el.classList.add("pulse"); } }

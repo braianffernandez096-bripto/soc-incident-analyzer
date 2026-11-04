@@ -1,4 +1,4 @@
-"""Pruebas del motor de detección contra el Excel de ejemplo del reto."""
+"""Pruebas del motor de detección contra el Excel de ejemplo."""
 from pathlib import Path
 
 import pytest

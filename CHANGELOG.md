@@ -16,6 +16,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - Plurales corregidos en la interfaz («1 hallazgo», «1 evento»).
 - Capturas del README renovadas, con la pantalla de inicio y el rechazo de un archivo falso.
 - README: requisito explícito de Python 3.12.
+- Títulos neutros: la pestaña Incidentes vuelve a llamarse «Incidentes» y la sección 3 del PDF, «Relación entre incidentes». Se quitan los restos del enunciado del reto.
 
 ## [1.1.0] - 2026-11-03
 

@@ -103,7 +103,7 @@ SUMMARY_TOOL = {
         "type": "object",
         "properties": {
             "executive_summary": {**_STR, "description": "120-220 palabras para un directivo no técnico, en 3 párrafos cortos separados por una línea en blanco: (1) qué pasó y gravedad, (2) hechos más graves con Log_ID, (3) qué hacer primero."},
-            "cross_incident_assessment": {**_STR, "description": "¿Fue uno o varios incidentes? Justifica solo con los datos y las hipótesis entregadas."},
+            "cross_incident_assessment": {**_STR, "description": "Valoración de conjunto: indica si los incidentes parecen independientes o relacionados, y justifícalo solo con los datos y las hipótesis entregadas."},
             "prioritized_actions": {
                 "type": "array",
                 "items": {

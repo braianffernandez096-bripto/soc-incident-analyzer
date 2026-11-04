@@ -359,8 +359,8 @@ def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: dic
         rr.append([Paragraph(escape(r["key"]), S["cellb"]), Paragraph(escape(r["description"]), S["cell"]), Paragraph(str(r["hits"]), S["cell"])])
     story += [Spacer(1, 4), table(rr, [30 * mm, CONTENT_W - 30 * mm - 18 * mm, 18 * mm])]
 
-    # ---- 3. ¿uno o varios incidentes? ----------------------------------------
-    story.append(P("3. ¿Uno o varios incidentes?", "h1"))
+    # ---- 3. relación entre incidentes ----------------------------------------
+    story.append(P("3. Relación entre incidentes", "h1"))
     story.append(P(ai["cross_incident_assessment"]))
     if analysis["hypotheses"]:
         hr = [[hcell("ID"), hcell("Hipótesis (no confirmada)"), hcell("Confianza")]]

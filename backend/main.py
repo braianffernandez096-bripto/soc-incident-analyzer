@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import ai as ai_mod
 from . import detection as D
+from . import filecheck
 from . import intel as intel_mod
 from .analysis import analyze, rows_for
 from .parser import SUPPORTED_EXT, ParseError, load_events
@@ -48,6 +49,8 @@ def _load_dotenv() -> None:
 _load_dotenv()
 
 logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO").upper(), format="ts=%(asctime)s level=%(levelname)s logger=%(name)s %(message)s")
+for _noisy in ("httpx", "httpcore", "anthropic", "urllib3"):      # these log every outbound URL at INFO
+    logging.getLogger(_noisy).setLevel(logging.WARNING)
 log = logging.getLogger("soc.api")
 
 
@@ -64,7 +67,9 @@ class SafeJSON(JSONResponse):
         return json.dumps(content, ensure_ascii=False, default=default).encode("utf-8")
 
 
-app = FastAPI(title="SOC Incident Analyzer", version="1.0", default_response_class=SafeJSON)
+_DOCS = os.environ.get("ENABLE_DOCS", "").strip().lower() in ("1", "true", "yes")      # API docs reveal the full surface: opt-in
+app = FastAPI(title="SOC Incident Analyzer", version="1.0", default_response_class=SafeJSON,
+              docs_url="/docs" if _DOCS else None, redoc_url="/redoc" if _DOCS else None, openapi_url="/openapi.json" if _DOCS else None)
 
 
 SECURITY_HEADERS = {
@@ -74,8 +79,43 @@ SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "Referrer-Policy": "no-referrer",
     "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
     "Cache-Control": "no-store",
 }
+
+
+# ---- optional access token --------------------------------------------------------------------------
+# Off by default (the app binds to localhost). When APP_ACCESS_TOKEN is set, every /api/ route except the two
+# below requires "Authorization: Bearer <token>". It is ONE shared secret, not a user system: serve it over HTTPS.
+OPEN_API_PATHS = {"/api/health", "/api/auth/status"}
+
+
+def _access_token() -> str:
+    return os.environ.get("APP_ACCESS_TOKEN", "").strip()
+
+
+def _token_ok(request: Request, token: str) -> bool:
+    scheme, _, supplied = request.headers.get("authorization", "").partition(" ")
+    return scheme.lower() == "bearer" and secrets.compare_digest(supplied.strip().encode(), token.encode())
+
+
+@app.middleware("http")
+async def access_control(request: Request, call_next):
+    token = _access_token()
+    path = request.url.path
+    if token and path.startswith("/api/") and path not in OPEN_API_PATHS and not _token_ok(request, token):
+        try:
+            _rate_limit(request, "/auth-fail", 10, 60)      # only failures count: brute force gets 429
+        except HTTPException as exc:
+            return JSONResponse({"detail": exc.detail}, status_code=429)
+        return JSONResponse({"detail": "Acceso no autorizado. Introduce la clave de acceso."}, status_code=401,
+                            headers={"WWW-Authenticate": "Bearer"})
+    return await call_next(request)
+
+
+if 0 < len(_access_token()) < 16:
+    logging.getLogger("soc.api").warning("access_token_weak length=%d (use 16+ characters)", len(_access_token()))
 
 
 @app.middleware("http")
@@ -83,6 +123,8 @@ async def security_headers(request: Request, call_next):
     response = await call_next(request)
     for k, v in SECURITY_HEADERS.items():
         response.headers.setdefault(k, v)
+    if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
     return response
 
 
@@ -143,21 +185,33 @@ def _new_http():
 
 
 # --------------------------------------------------------------------------
+@app.get("/api/auth/status")
+def auth_status():
+    return {"required": bool(_access_token())}
+
+
+@app.get("/api/auth/check")
+def auth_check():
+    """Reaches here only with a valid token (the middleware answers 401 otherwise)."""
+    return {"ok": True}
+
+
 @app.get("/api/health")
 def health():
     return {"ok": True, "ai_configured": bool(os.environ.get("ANTHROPIC_API_KEY", "").strip()),
             "model": os.environ.get("ANTHROPIC_MODEL") or ai_mod.DEFAULT_MODEL}
 
 
-def _create_session(data: bytes, name: str, client: str, analyst: str) -> dict:
+def _create_session(data: bytes, name: str, client: str, analyst: str, warnings: list[str] | None = None) -> dict:
     try:
         df, meta = load_events(data, name)
     except ParseError as exc:
         raise HTTPException(422, str(exc)) from exc
     t0 = time.perf_counter()
     analysis = analyze(df, meta)
+    analysis["limitations"] = list(analysis.get("limitations", [])) + list(warnings or []) + filecheck.formula_warnings(df)
     log.info("analysis_done rows=%d findings=%d incidents=%d ms=%d", len(df), len(analysis["findings"]), len(analysis["incidents"]), (time.perf_counter() - t0) * 1000)
-    sid = secrets.token_urlsafe(8)
+    sid = secrets.token_urlsafe(16)
     SESSIONS[sid] = Session(df=df, analysis=analysis, ai=ai_mod.build_deterministic(analysis), filename=name,
                             client=client.strip(), analyst=analyst.strip())
     while len(SESSIONS) > MAX_SESSIONS:
@@ -182,7 +236,11 @@ async def upload(request: Request, file: UploadFile = File(...), client: str = F
     data = b"".join(chunks)
     if not data:
         raise HTTPException(400, "El archivo está vacío.")
-    return _create_session(data, name, client, analyst)
+    check = filecheck.inspect_upload(data, name)
+    if check.reject:
+        log.warning("upload_rejected reason=content_mismatch ext=%s size=%d", os.path.splitext(name)[1].lower(), len(data))
+        raise HTTPException(422, check.reject)
+    return _create_session(data, name, client, analyst, check.warnings)
 
 
 @app.get("/api/sessions/{sid}")

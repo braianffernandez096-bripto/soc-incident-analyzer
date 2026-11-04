@@ -3,7 +3,7 @@
 
 const SEV = ["Crítico", "Alto", "Medio", "Bajo"];
 const SEV_COLOR = { "Crítico": "#b3261e", "Alto": "#e07b00", "Medio": "#d4b100", "Bajo": "#3f8f68" };
-const S = { sid: null, filename: "", client: "", analyst: "", a: null, ai: null, aiConfigured: false, intel: null, intelConfirm: false, intelReserved: false,
+const S = { needAuth: false, sid: null, filename: "", client: "", analyst: "", a: null, ai: null, aiConfigured: false, intel: null, intelConfirm: false, intelReserved: false,
             findingFilter: "Todos", findingCat: "", findingQ: "", logs: { page: 1, q: "", severity: "", flagged: "", host: "", user: "", event_id: "", finding: "" } };
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -18,6 +18,10 @@ const pref = { get: (k) => { try { return localStorage.getItem(k); } catch { ret
 const store = { get: (k) => { try { return sessionStorage.getItem(k); } catch { return null; } },
                 set: (k, v) => { try { sessionStorage.setItem(k, v); } catch { /* sin almacenamiento */ } } };
 
+/* Optional access token (server option APP_ACCESS_TOKEN). Kept in sessionStorage: it dies with the tab. */
+const auth = { get: () => store.get("token") || "", set: (v) => store.set("token", v) };
+const authHeaders = () => (auth.get() ? { Authorization: `Bearer ${auth.get()}` } : {});
+
 function toast(msg) {
   const t = $("#toast"); t.textContent = msg; t.classList.add("show");
   clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 3800);
@@ -25,7 +29,8 @@ function toast(msg) {
 function busy(on, text) { $("#busy").hidden = !on; if (text) $("#busyText").textContent = text; }
 
 async function api(path, opts = {}) {
-  const r = await fetch(path, opts);
+  const r = await fetch(path, { ...opts, headers: { ...(opts.headers || {}), ...authHeaders() } });
+  if (r.status === 401 && path !== "/api/auth/check") { auth.set(""); S.needAuth = true; render(); }
   if (!r.ok) {
     let d = r.statusText;
     try { const j = await r.json(); d = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail); } catch { /* sin cuerpo */ }
@@ -69,10 +74,33 @@ function renderRail() {
   $("#newBtn").onclick = () => { S.a = null; S.sid = null; store.set("sid", ""); location.hash = "#/"; render(); };
 }
 
+function accessView() {
+  return `<section class="landing">
+    <h1>Acceso protegido</h1>
+    <p class="lead">Esta instancia requiere una clave de acceso. Pídesela a quien administra la aplicación.</p>
+    <form id="accessForm" class="fields" autocomplete="off">
+      <label class="f" style="max-width:420px">Clave de acceso<input type="password" id="accessKey" autocomplete="current-password" required></label>
+      <button class="btn primary" type="submit">Entrar</button>
+    </form>
+    <p id="accessErr" role="alert" style="color:var(--danger,#b3261e);min-height:1.4em"></p>
+  </section>`;
+}
+function bindAccess() {
+  $("#accessKey").focus();
+  $("#accessForm").onsubmit = async (e) => {
+    e.preventDefault();
+    const k = $("#accessKey").value.trim(); if (!k) return;
+    auth.set(k);
+    try { await api("/api/auth/check"); S.needAuth = false; await start(); }
+    catch (err) { auth.set(""); $("#accessErr").textContent = err.message; }
+  };
+}
+
 function render() {
   hideTip();
   const main = $("#main");
   const r = route();
+  if (S.needAuth) { $("#nav").innerHTML = ""; $("#railFoot").innerHTML = ""; main.innerHTML = `<div class="view">${accessView()}</div>`; bindAccess(); return; }
   if (!S.a) { renderRail(); main.innerHTML = `<div class="view">${landing()}</div>`; bindLanding(); bindHero(); return; }
   renderRail();
   const views = { dashboard, incidents, findings, logs, iocs, report };
@@ -488,7 +516,7 @@ function bindReport() {
   $("#pdf").onclick = async () => {
     const m = meta(); busy(true, "Generando PDF…");
     try {
-      const r = await fetch(`/api/sessions/${S.sid}/report.pdf?client=${encodeURIComponent(m.client)}&analyst=${encodeURIComponent(m.analyst)}`);
+      const r = await fetch(`/api/sessions/${S.sid}/report.pdf?client=${encodeURIComponent(m.client)}&analyst=${encodeURIComponent(m.analyst)}`, { headers: authHeaders() });
       if (!r.ok) throw new Error("No se pudo generar el PDF.");
       const url = URL.createObjectURL(await r.blob()), a = document.createElement("a");
       a.href = url; a.download = "informe_incidentes_seguridad.pdf"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);
@@ -587,12 +615,23 @@ function openPalette() {
 }
 
 /* ---------- arranque ---------- */
-(async function init() {
-  initChrome();
+async function start() {
   try { const h = await api("/api/health"); S.aiConfigured = h.ai_configured; } catch { /* servidor sin health */ }
   const sid = store.get("sid");
   if (sid) {
     try { const r = await api(`/api/sessions/${sid}`); adopt(r); if (!route()) location.hash = "#/dashboard"; } catch { store.set("sid", ""); }
   }
   render();
+}
+(async function init() {
+  initChrome();
+  try {
+    const st = await api("/api/auth/status");
+    if (st.required) {
+      let ok = false;
+      if (auth.get()) { try { await api("/api/auth/check"); ok = true; } catch { auth.set(""); } }
+      if (!ok) { S.needAuth = true; render(); return; }
+    }
+  } catch { /* servidor sin auth/status: se asume acceso abierto */ }
+  await start();
 })();

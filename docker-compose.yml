@@ -2,13 +2,33 @@ services:
   analyzer:
     build: .
     image: soc-incident-analyzer
+    user: "10001:10001"
     ports:
-      # Solo accesible desde tu equipo: la app no tiene login
+      # Only reachable from this computer. Without APP_ACCESS_TOKEN the app has no login.
       - "127.0.0.1:8000:8000"
     environment:
-      # Opcional: se toma de tu entorno o de un archivo .env junto a este archivo
+      # All optional: taken from your shell or from a .env file next to this file
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-}
       - VT_API_KEY=${VT_API_KEY:-}
       - ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY:-}
+      - APP_ACCESS_TOKEN=${APP_ACCESS_TOKEN:-}
+      - ENABLE_DOCS=${ENABLE_DOCS:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Least privilege: read-only filesystem (uploads are spooled to a small tmpfs), no capabilities, no escalation
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    pids_limit: 200
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped

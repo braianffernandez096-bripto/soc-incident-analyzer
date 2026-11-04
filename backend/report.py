@@ -4,7 +4,8 @@ from __future__ import annotations
 import io
 import re
 from datetime import datetime
-from xml.sax.saxutils import escape
+# `escape` only sanitises text for ReportLab markup; this module never parses XML (hence the bandit exemption).
+from xml.sax.saxutils import escape  # nosec B406
 
 import pandas as pd
 from reportlab.graphics.charts.barcharts import HorizontalBarChart, VerticalBarChart

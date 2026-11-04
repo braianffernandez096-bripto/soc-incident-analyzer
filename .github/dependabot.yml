@@ -1,1 +1,12 @@
-
+# Keeps pinned versions fresh: weekly pull requests for Docker images, GitHub Actions and Python packages.
+version: 2
+updates:
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: pip
+    directory: /
+    schedule: { interval: weekly }

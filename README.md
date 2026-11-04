@@ -90,6 +90,8 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 
 ## Instalación y ejecución (Ubuntu 24.04)
 
+**Requiere Python 3.12 o superior** (Ubuntu 24.04 ya lo trae). En Ubuntu 22.04 la versión del sistema es 3.10 y la instalación falla; mira *Si algo falla*.
+
 ```bash
 # 1. Dependencias del sistema
 sudo apt update && sudo apt install -y python3 python3-venv python3-pip git make
@@ -155,6 +157,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 | `No hay indicadores públicos para consultar` | Todas las IP son internas o de documentación. | Es lo esperado con el archivo de ejemplo; usa la casilla de prueba o un export con IP públicas. |
 | `Acceso no autorizado` | La instancia tiene `APP_ACCESS_TOKEN`. | Introduce la clave de acceso. |
 | `Demasiadas solicitudes` | Límite de peticiones por IP. | Espera un minuto. |
+| `No matching distribution found for httpcore2` (o `httpx2`) | Tu Python es anterior a 3.11 (por ejemplo, 3.10 en Ubuntu 22.04). | Instala Python 3.12 (`sudo add-apt-repository ppa:deadsnakes/ppa`, `sudo apt install python3.12 python3.12-venv`), borra `.venv` y recréalo con `python3.12 -m venv .venv`. |
 | `address already in use` | El puerto 8000 está ocupado. | `make stop`, o inicia con `--port 8001`. |
 
 ## Pruebas

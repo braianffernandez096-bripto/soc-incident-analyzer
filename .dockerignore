@@ -1,12 +1,21 @@
-   .git
-   .github
-   .env
-   .venv
-   __pycache__
-   *.pyc
-   .pytest_cache
-   .coverage
-   htmlcov
-   tests
-   img
-   *.pdf
+.git
+.github
+.env
+.env.*
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.coverage
+htmlcov
+tests
+img
+examples
+*.pdf
+requirements-dev.txt
+requirements-dev.lock
+Makefile
+docs
+README.md
+backups
+.run

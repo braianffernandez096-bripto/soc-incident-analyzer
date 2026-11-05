@@ -4,13 +4,6 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
-### Validación con datos reales (punto 3c)
-- **Phishing real:** `scripts/validar_correos.py` analiza los 12.864 correos de phishing_pot: Medio o más 92,2 %, Alto o más 69,6 %, 0,11 s de media. Comprobado con 11.364 correos no usados para ajustar (92,1 % / 69,5 %). Resultados y límites en `docs/VALIDACION.md` (sección 3b).
-- **Comandos ofuscados:** `scripts/validar_ofuscacion.py` mide el desofuscador con 1.360 comandos de Atomic Red Team.
-- **Corregido a partir de esos datos:** un correo con un enlace como `http://[placeholder_1]/` hacía fallar todo el análisis (ahora se marca como enlace inválido); los emoji con selector de variación y las plantillas `{{{ … }}}` ya no se toman por ofuscación; el desofuscador ya no daña los escapes `` `r`n `` de PowerShell y entiende el operador `-f` de Invoke-Obfuscation.
-- **Nuevas señales:** marcas muy suplantadas (criptoactivos, seguridad, bancos y mensajería) en el nombre visible, selectores de variación y marcas combinantes ocultas, estafas de adelanto de pago sin enlaces y cebos de reclamo o validación de criptoactivos.
-- Pendiente: medir falsos positivos con correo legítimo real (no hay un corpus accesible desde el entorno de desarrollo).
-
 ### Añadido (punto 3b: ofuscación)
 - **URLs ofuscadas** (`backend/deobf.py`): se normalizan antes de analizarlas. IP escrita en decimal (`http://3232235777`), hexadecimal, octal o abreviada, e IPv4 dentro de IPv6; `%XX` en el host o en varias capas; caracteres invisibles y entidades HTML numéricas que esconden el esquema (`jav&#x09;ascript:`); barras invertidas. El correo muestra la dirección real que interpreta el navegador y suma una señal de ofuscación.
 - **Redirecciones abiertas y enlaces envueltos:** si la URL lleva otro destino dentro de un parámetro (`?url=…`), ese destino también se analiza. Los reescritores de enlaces corporativos (Safe Links, Proofpoint…) se siguen sin generar ruido.

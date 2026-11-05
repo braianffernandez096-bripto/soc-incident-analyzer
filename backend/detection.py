@@ -23,7 +23,7 @@ from typing import Callable
 
 import pandas as pd
 
-from . import psdecode
+from . import deobf, psdecode
 
 SEV_ORDER = {"Bajo": 1, "Medio": 2, "Alto": 3, "Crítico": 4}
 SEV_NAMES = {v: k for k, v in SEV_ORDER.items()}
@@ -395,6 +395,9 @@ CMD_PATTERNS = [
                        r"|esentutl(\.exe)?[\"']?\s+.*/y\s+.*(ntds|\\sam\b|\\system\b|\\security\b|shadowcopy)"
                        r"|reg(\.exe)?[\"']?\s+save\s+hklm\\(sam|security|system)", re.I),
          why="Extraer credenciales de memoria o del registro permite movimiento lateral y persistencia."),
+    dict(key="obfuscated_cmd", tactic="Evasión de defensas", base="Alto", mitre=["T1027.010", "T1140"],
+         label="Comando ofuscado", rx=re.compile(r"(?!x)x"),       # no coincide por sí solo: solo se asigna cuando la ofuscación escondía un comando relevante
+         why="Partir o disfrazar el nombre de un programa (p^o^w^e^r^s^h^e^l^l, 'Down'+'loadString') solo sirve para esquivar la detección: un administrador no necesita hacerlo."),
     dict(key="web_service_shell", tactic="Ejecución", base="Crítico", mitre=["T1505.003", "T1190"],
          label="Shell iniciada por el servicio web", rx=None,
          why="Un proceso web (IIS) que lanza cmd.exe/powershell es un indicador clásico de webshell o RCE."),
@@ -420,19 +423,36 @@ CMD_PATTERNS = [
 DISCOVERY_DIRECTORY_RE = re.compile(r"\bnltest\b|net1?(\.exe)?\s+(view|user|group|localgroup|share|use)\b|get-localgroupmember|get-smbshare|get-aduser|get-adgroupmember|get-netcomputer", re.I)
 
 
-def _match_cmd(row) -> dict | None:
-    text = f"{row.Event_Description} {row.Process_CommandLine}"
+_OBF: dict[str, dict] = {}          # Log_ID -> resultado de deobf.command cuando la ofuscación escondía el comando (se reinicia en cada análisis)
+_OBF_PATTERN = next(p for p in CMD_PATTERNS if p["key"] == "obfuscated_cmd")
+
+
+def _match_pats(text: str, user: str):
     for p in CMD_PATTERNS:
         if p["key"] == "web_service_shell":
-            if WEB_SVC_USER_RE.search(row.User) and SHELL_RE.search(text):
+            if WEB_SVC_USER_RE.search(user) and SHELL_RE.search(text):
                 return p
         elif p["rx"].search(text):
             return p
     return None
 
 
+def _match_cmd(row) -> dict | None:
+    text = f"{row.Event_Description} {row.Process_CommandLine}"
+    p = _match_pats(text, row.User)
+    if p:
+        return p
+    # Sin coincidencia a simple vista: se quita la ofuscación y se reintenta. Solo cuenta si lo que aparece estaba escondido.
+    res = deobf.command(text)
+    if not deobf.reveals(text, res):
+        return None
+    _OBF[row.Log_ID] = res
+    return _match_pats(res["text"], row.User) or _OBF_PATTERN
+
+
 def rule_commands(st: State) -> None:
     d = st.df
+    _OBF.clear()
     cand = d[(d["Event_ID"].isin(["4688", "4104", "4103", "1"]) | (d["Log_Source"] == "PowerShell"))
              & ~d["Log_Source"].isin(["IIS", "Proxy"])]
     hits = []
@@ -489,9 +509,22 @@ def rule_commands(st: State) -> None:
                 if best["urls"] and any("descarga" in x for x in best["indicators"]) and sev != "Crítico":
                     sev = bump(sev, 1)
                     reasons.append("El comando decodificado descarga contenido de una URL externa: se sube un nivel la criticidad.")
+            obf = [_OBF[i] for i in c["Log_ID"] if i in _OBF]
+            if obf:
+                best_o = obf[0]
+                reasons.append("El comando estaba ofuscado (" + "; ".join(best_o["techniques"][:3]) + "). Sin ofuscar queda: «"
+                               + trunc(re.sub(r"\s+", " ", best_o["text"]), 160) + "».")
+                expl += f" El comando estaba ofuscado; ya normalizado: «{trunc(re.sub(r'\s+', ' ', best_o['text']), 220)}»."
+                iocs.append(_ioc("Comando", trunc(best_o["text"], 200), "Comando tras quitar la ofuscación"))
+                iocs += [_ioc("URL/URI", u, "URL dentro del comando ofuscado") for u in dict.fromkeys(psdecode.URL_RE.findall(best_o["text"]))][:5]
+                if sev not in ("Crítico",) and key != "obfuscated_cmd":
+                    sev = bump(sev, 1)
+                    reasons.append("Quien ofusca un comando de este tipo busca evadir la detección: se sube un nivel la criticidad.")
             title = f"{p['label']} en {host} ({short_user(user)})"
             cat = "Comandos y procesos"
             metrics = {"comandos": len(c), "host": host, "usuario": user, "ejemplos": cmds[:5]}
+            if obf:
+                metrics["ofuscacion"] = obf[0]["techniques"][:4]
             if decoded:
                 metrics["decodificado"] = [{"texto": trunc(x["decoded"], 400), "indicadores": x["indicators"]} for x in decoded[:3]]
             if key == "archive_staging":
@@ -499,7 +532,8 @@ def rule_commands(st: State) -> None:
                 odd_place = bool(re.search(r"\\(ProgramData|Temp|Users\\Public)\\|/tmp/|\s-p\S", blob_c, re.I))
                 if not (ext or odd_place or len(c) >= CONFIG["staging_min_commands"]):
                     metrics["_sin_corroborar"] = True   # se descarta al final si ninguna otra regla lo respalda (p. ej. salida a Internet)
-            _mk(st, f"cmd_{key}", title, cat, p["tactic"], p["mitre"], sev, reasons, expl, c,
+            mitre_ = list(dict.fromkeys(p["mitre"] + (["T1027.010"] if obf else [])))
+            _mk(st, f"cmd_{key}", title, cat, p["tactic"], mitre_, sev, reasons, expl, c,
                 actor_ips=ext_ips[:1], actor_users=[user], metrics=metrics, iocs=iocs)
 
 

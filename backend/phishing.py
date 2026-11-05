@@ -15,7 +15,6 @@ import hashlib
 import ipaddress
 import logging
 import re
-import unicodedata
 import zipfile
 from datetime import datetime, timezone
 from email import policy
@@ -49,18 +48,6 @@ BRANDS = {
     "facebook": {"facebook.com", "fb.com", "meta.com"}, "instagram": {"instagram.com"}, "whatsapp": {"whatsapp.com"},
     "dropbox": {"dropbox.com"}, "docusign": {"docusign.com", "docusign.net"}, "github": {"github.com"},
 }
-# Marcas muy suplantadas en el nombre visible (criptoactivos, seguridad y bancos). Se usan SOLO para el nombre del remitente, con la palabra completa:
-# si entraran en BRANDS, sus nombres cortos darían falsos positivos en la comparación con los dominios de los enlaces.
-NAME_BRANDS = {
-    r"kraken": {"kraken.com"}, r"ledger": {"ledger.com"}, r"trezor": {"trezor.io"}, r"trust\s*wallet": {"trustwallet.com"}, r"metamask": {"metamask.io", "consensys.net"},
-    r"coinbase": {"coinbase.com"}, r"binance": {"binance.com"}, r"lido(?:\.fi| finance)?": {"lido.fi"}, r"electrum": {"electrum.org"}, r"phantom": {"phantom.app", "phantom.com"},
-    r"proton(?:\.me|mail)?": {"proton.me", "protonmail.com", "proton.ch"}, r"ethereum(?:\.org)?": {"ethereum.org"}, r"solana": {"solana.com", "solana.org"},
-    r"leap\s*wallet": {"leapwallet.io"}, r"total\s*av": {"totalav.com"}, r"norton": {"norton.com", "nortonlifelock.com", "gendigital.com"}, r"mcafee": {"mcafee.com"},
-    r"bradesco": {"bradesco.com.br", "bradesco.com"}, r"ita[uú]": {"itau.com.br", "itau.com.ar"}, r"nubank": {"nubank.com.br"},
-    r"wells\s*fargo": {"wellsfargo.com"}, r"bank of america": {"bankofamerica.com", "bofa.com"}, r"american express": {"americanexpress.com", "aexp.com"},
-    r"usps": {"usps.com"}, r"ups": {"ups.com"}, r"correios": {"correios.com.br"}, r"hsbc": {"hsbc.com"},
-    r"telegram": {"telegram.org", "t.me"}, r"adobe": {"adobe.com"},
-}
 FREE_MAIL = {"gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "yahoo.com.ar", "live.com", "icloud.com", "proton.me", "protonmail.com", "gmx.com", "aol.com"}
 SHORTENERS = {"bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "buff.ly", "rebrand.ly", "cutt.ly", "shorturl.at", "t.ly", "rb.gy", "tiny.cc", "lnkd.in"}
 RISKY_TLDS = {"zip", "mov", "top", "xyz", "click", "country", "gq", "tk", "ml", "cf", "ga", "work", "support", "rest", "icu", "monster", "buzz", "cam", "sbs", "cyou", "cfd"}
@@ -78,17 +65,6 @@ CLICKFIX_RE = re.compile(r"(?:irm|iwr|invoke-restmethod|invoke-webrequest|curl|w
 ENABLE_CONTENT = re.compile(r"habilit\w* (?:el )?(?:contenido|las macros|macros|la edici[oó]n)|activ\w* (?:el )?(?:contenido|las macros|macros)|enable (?:content|macros|editing)", re.I)
 CREDENTIALS = re.compile(r"verifica(?:r)? tu (?:cuenta|identidad|contraseña)|confirma(?:r)? tu (?:cuenta|identidad|contraseña)|cuenta (?:suspendida|bloqueada|será (?:suspendida|bloqueada|cerrada))|restablec|actualiza(?:r)? tus datos|inicia(?:r)? sesión|ingresa(?:r)? tu (?:clave|contraseña)|verify your (?:account|identity|password)|confirm your (?:account|password)|account (?:has been )?(?:suspended|locked)|sign in to (?:your|view)|password (?:will )?expire", re.I)
 URL_RE = re.compile(r"https?://[^\s<>\"'\)\]]+", re.I)
-# Estafa de adelanto de pago («419»): herencias, donaciones o fondos sin enlaces, que piden responder a un correo privado. Se exigen varios grupos distintos.
-ADVANCE_FEE = [re.compile(p, re.I) for p in (
-    r"dear (?:beloved|friend|one|sir|madam)|my beloved|beloved (?:one|friend)|querid[oa] (?:amad[oa]|amig[oa])|estimad[oa] (?:amig[oa]|beneficiari[oa])|querido amigo",
-    r"inherit|herencia|next of kin|beneficiar(?:y|ies)|beneficiári[oa]|beneficiari[oa]|unclaimed|consignment|late (?:husband|father|mother)|widow|viuda|fallecid[oa]|deceased",
-    r"\$\s?\d{1,3}(?:[,.]\d{3})+|\b\d+(?:[.,]\d+)?\s?(?:million|millones)|(?:usd|us\$|eur|€|£)\s?\d{1,3}(?:[,.]\d{3})+",
-    r"donat(?:e|ion)|charity|caridad|donaci[oó]n|relief fund|fundaci[oó]n",
-    r"reply (?:to|me)|responde(?:r)? (?:a )?mi|contact (?:me|my)|private (?:e-?mail|address)|correo privado|western union|moneygram|processing fee|clearance fee",
-    r"lawyer|attorney|abogad[oa]|barrister|bank manager|diplomat|dem[oó]cratic republic|burkina|ivory coast|c[oô]te d.ivoire")]
-# Reclamo o validación de criptoactivos (airdrops, migración de billetera): se necesita un objeto cripto y un verbo de acción.
-CRYPTO_OBJ = re.compile(r"airdrop|wallet|billetera|stETH|\bnft\b|\btokens?\b|seed phrase|recovery phrase|frase semilla|bitcoin|ethereum|crypto|\$[A-Z]{3,6}\b", re.I)
-CRYPTO_ACT = re.compile(r"claim|reclam|migrat|validate|valida[rd]|verify|verifica[rd]|connect your|conecta|restore|restaura|synchroni[sz]e|sincroniza|trophy|awaits|waiting for you|te esperan|tus tokens", re.I)
 HOP_FROM_RE = re.compile(r"from\s+(?P<from>\S+)", re.I)
 RECV_WITH_RE = re.compile(r"\bwith\s+(\S+)", re.I)
 BRACKET_IP_RE = re.compile(r"[\[(](?P<ip>(?:\d{1,3}\.){3}\d{1,3}|[0-9a-f:]{3,39})[\])]", re.I)
@@ -188,16 +164,6 @@ def _domain_of(addr: str) -> str:
 def _brand_in(text: str) -> str:
     t = re.sub(r"[^a-z0-9]", "", text.lower())
     return next((b for b in BRANDS if b in t), "")
-
-
-def _name_brand(name: str) -> tuple[str, set[str]] | None:
-    """Marca de NAME_BRANDS citada como palabra entera en el nombre visible (sin caracteres invisibles ni de formato)."""
-    t = " ".join("".join(c for c in unicodedata.normalize("NFKC", name) if not homograph.is_invisible(c)).lower().split())
-    for pat, doms in NAME_BRANDS.items():
-        m = re.search(r"(?<![a-z0-9])(?:" + pat + r")(?![a-z0-9])", t)
-        if m:
-            return m.group(0), doms
-    return None
 
 
 class _Sig:
@@ -536,12 +502,7 @@ def _check_url(url: str, text: str, sig: _Sig, from_domains: set[str], location:
                 ["T1027", "T1566.002"], key=shown_raw[:100])
     if norm["redirect"]:
         info["redirect_target"] = norm["redirect"][:500]
-    try:
-        scheme = urlparse(raw).scheme.lower() if ":" in raw else ""
-    except ValueError:                       # «http://[placeholder]/» u otros corchetes inválidos: no es una URL analizable, pero no debe romper el correo
-        info["flags"].append("URL mal formada")
-        sig.add("URL", "Bajo", 1, "Enlace con formato inválido", "La dirección tiene corchetes u otros caracteres que no forman una URL válida: suele ser una plantilla sin rellenar.", ["T1566.002"], key=shown_raw[:100])
-        return info
+    scheme = urlparse(raw).scheme.lower() if ":" in raw else ""
     if scheme in ("javascript", "data", "vbscript", "file"):
         info["flags"].append("Esquema peligroso")
         sig.add("URL", "Alto", 5, f"Enlace con esquema «{scheme}:»", "El enlace ejecuta código o abre datos en vez de ir a un sitio web.", ["T1566.002", "T1204.001"], key=scheme)
@@ -784,8 +745,6 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
     brand = _brand_in(from_name) or _brand_in(homograph.skeleton(from_name))
     if brand and from_dom and reg_domain(from_dom) not in BRANDS[brand]:
         sig.add("Encabezados", "Alto", 4, f"Se hace pasar por {brand}", f"El nombre visible menciona «{brand}» pero el dominio real es {from_dom}.", ["T1684.001", "T1566"])
-    elif from_dom and (nb := _name_brand(from_name)) and reg_domain(from_dom) not in nb[1]:
-        sig.add("Encabezados", "Alto", 4, f"Se hace pasar por {nb[0]}", f"El nombre visible menciona «{nb[0]}» pero el dominio real es {from_dom}.", ["T1684.001", "T1566"])
     elif from_dom in FREE_MAIL and re.search(r"soporte|support|seguridad|security|banco|bank|admin|servicio|cobranza|facturaci|rrhh|recursos humanos|helpdesk|it\b", from_name, re.I):
         sig.add("Encabezados", "Medio", 2, "Cuenta gratuita con nombre de área oficial", f"«{from_name}» escribe desde {from_dom}: una empresa real usaría su propio dominio.", ["T1684.001"])
     mid = headers["message_id"]
@@ -905,13 +864,6 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
         sig.add("Contenido", "Bajo", 1, "Lenguaje de urgencia", "El mensaje presiona para actuar rápido, un recurso habitual de la ingeniería social.", ["T1566"])
     if CREDENTIALS.search(plain + " " + subject):
         sig.add("Contenido", "Medio", 2, "Pide verificar la cuenta o iniciar sesión", "El texto solicita credenciales o datos de la cuenta.", ["T1566.002", "T1598.003"])
-    scam_hits = sum(bool(rx_.search(plain + " " + subject)) for rx_ in ADVANCE_FEE)
-    if scam_hits >= 3 or (scam_hits >= 2 and from_dom in FREE_MAIL):
-        sig.add("Contenido", "Medio", 3, "Texto típico de estafa de adelanto de pago", "Menciona herencias, donaciones o fondos y pide responder a un correo privado, sin enlaces que revisar. "
-                "Es el patrón de la estafa «419»: el dinero prometido nunca llega y se piden «gastos» por adelantado.", ["T1566"])
-    if CRYPTO_OBJ.search(plain + " " + subject) and CRYPTO_ACT.search(plain + " " + subject) and (urls or attachments):
-        sig.add("Contenido", "Medio", 3, "Pide reclamar o validar criptoactivos", "El texto ofrece tokens o pide validar, migrar o conectar una billetera. Los «airdrops» y avisos de migración "
-                "son un cebo habitual para robar la frase semilla o la autorización de la billetera.", ["T1566.002", "T1598.003"])
     if ENABLE_CONTENT.search(plain + " " + subject):
         sig.add("Contenido", "Medio", 3, "Pide habilitar contenido o macros", "Habilitar el contenido de un documento recibido por correo es la forma de activar sus macros.", ["T1566.001", "T1204.002"])
     if attachments and re.search(r"adjunto|attached|attachment|factura|invoice|comprobante|pago|payment", plain + " " + subject, re.I) and any(a["risk"] != "Bajo" for a in attachments):

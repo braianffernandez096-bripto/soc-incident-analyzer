@@ -112,6 +112,20 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1027/"
   },
+  "T1027.006": {
+   "name": "HTML Smuggling",
+   "tactics": [
+    "stealth"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1027/006/"
+  },
+  "T1027.010": {
+   "name": "Command Obfuscation",
+   "tactics": [
+    "stealth"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1027/010/"
+  },
   "T1027.013": {
    "name": "Encrypted/Encoded File",
    "tactics": [
@@ -183,6 +197,13 @@
     "execution"
    ],
    "url": "https://attack.mitre.org/techniques/T1059/001/"
+  },
+  "T1059.007": {
+   "name": "JavaScript",
+   "tactics": [
+    "execution"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1059/007/"
   },
   "T1069": {
    "name": "Permission Groups Discovery",
@@ -297,6 +318,13 @@
     "discovery"
    ],
    "url": "https://attack.mitre.org/techniques/T1135/"
+  },
+  "T1140": {
+   "name": "Deobfuscate/Decode Files or Information",
+   "tactics": [
+    "stealth"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1140/"
   },
   "T1190": {
    "name": "Exploit Public-Facing Application",

@@ -19,7 +19,7 @@ MAX_PASSES = 40                  # tope de sustituciones de concatenación/repla
 
 # ------------------------------------------------------------------ URLs
 
-_CTRL_RE = re.compile(r"[\t\r\n\x00\x7f​-‍⁠﻿]")        # los navegadores descartan tab y saltos dentro de la URL (no los espacios internos)
+_CTRL_RE = re.compile(r"[\x00-\x20\x7f​-‍⁠﻿]")        # los navegadores descartan tab y saltos dentro de la URL
 _NUM_ENTITY_RE = re.compile(r"&#(?:x[0-9a-fA-F]+|\d+);?")
 _PCT_RE = re.compile(r"%[0-9a-fA-F]{2}")
 _PCT_ALNUM_RE = re.compile(r"%(?:3[0-9]|4[1-9a-fA-F]|5[0-9aA]|6[1-9a-fA-F]|7[0-9aA])")     # 0-9, A-Z, a-z codificados sin necesidad
@@ -180,7 +180,7 @@ def is_wrapper(host: str) -> bool:
 
 # ------------------------------------------------------------------ comandos
 
-TRIGGER_RE = re.compile(r"\^|`|(?i:\[char|frombase64string|\.replace\(|-join|-f\s*['\"])|['\"]\s*\+\s*['\"]|[A-Za-z][\"'][A-Za-z]|(?:[a-z][A-Z]){3}")
+TRIGGER_RE = re.compile(r"\^|`|(?i:\[char|frombase64string|\.replace\(|-join)|['\"]\s*\+\s*['\"]|[A-Za-z][\"'][A-Za-z]|(?:[a-z][A-Z]){3}")
 KEYWORD_RE = re.compile(r"\b(?:powershell|pwsh|cmd|iex|invoke-expression|certutil|mshta|rundll32|regsvr32|wscript|cscript|bitsadmin|msiexec|"
                         r"downloadstring|downloadfile|invoke-webrequest|invoke-restmethod|net\.webclient|frombase64string|start-bitstransfer|"
                         r"mimikatz|vssadmin|wmic|schtasks|whoami|bcdedit)\b", re.I)
@@ -189,7 +189,6 @@ _REPLACE_RE = re.compile(r"""(?P<q>['"])(?P<s>[^'"\n]{1,2000})(?P=q)\s*\.replace
 _CHAR_RE = re.compile(r"\[char\]\s*\(?\s*(0x[0-9a-f]{1,4}|\d{1,5})\s*\)?", re.I)
 _CHARARR_RE = re.compile(r"\[char\[\]\]\s*\(?\s*((?:0x[0-9a-f]{1,4}|\d{1,5})(?:\s*,\s*(?:0x[0-9a-f]{1,4}|\d{1,5}))+)\s*\)?(?:\s*-join\s*(?:''|\"\"))?", re.I)
 _STRARR_JOIN_RE = re.compile(r"""\(\s*((?:'[^'\n]*'|"[^"\n]*")(?:\s*,\s*(?:'[^'\n]*'|"[^"\n]*"))+)\s*\)\s*-join\s*(?:''|"")""", re.I)
-_FMT_RE = re.compile(r"""\(?\s*(?P<q>['"])(?P<f>(?:\{\d+\}|[^'"\n{}])+)(?P=q)\s*-f\s*(?P<args>(?:'[^'\n]*'|"[^"\n]*")(?:\s*,\s*(?:'[^'\n]*'|"[^"\n]*"))*)\s*\)?""", re.I)
 _B64STR_RE = re.compile(r"""frombase64string\(\s*['"]([A-Za-z0-9+/=]{16,%d})['"]\s*\)""" % psdecode.MAX_B64, re.I)
 
 
@@ -213,14 +212,15 @@ def command(text: str) -> dict:
     if n_caret >= 3:
         s = re.sub(r"\^(?=[\w])", "", s)
         tech.append("caracteres «^» intercalados (cmd)")
-    n_tick = len(re.findall(r"(?<=\w)`(?=[A-Za-z])", s))
+    n_tick = len(re.findall(r"(?<=\w)`(?=\w)", s))
     if n_tick >= 3:
-        s = re.sub(r"(?<=\w)`(?=[A-Za-z])", "", s)
+        s = re.sub(r"(?<=\w)`(?=\w)", "", s)
         tech.append("acentos graves «`» intercalados (PowerShell)")
-    split_words = list(re.finditer(r"(?<![\w'\"$.\-])[A-Za-z]+(?:[\"'][A-Za-z]+){2,}[\"']?(?=[\s;|&)]|$)", s))
-    if split_words:                       # po"wer"she"ll": al menos dos cortes dentro de una misma palabra
-        s = re.sub(r"(?<![\w'\"$.\-])[A-Za-z]+(?:[\"'][A-Za-z]+){2,}[\"']?(?=[\s;|&)]|$)", lambda m: re.sub(r"[\"']", "", m.group(0)), s)
-        tech.append("comillas intercaladas dentro de una palabra")
+    if len(re.findall(r"(?<=[A-Za-z])[\"'](?=[A-Za-z])", s)) >= 2:
+        s2 = re.sub(r"(?<=[A-Za-z])[\"'](?=[A-Za-z])", "", s)
+        if s2 != s:
+            s = s2
+            tech.append("comillas intercaladas dentro de una palabra")
     changed_chars = False
     for rx_, fn in ((_CHARARR_RE, lambda m: "'" + "".join(_chr(int(x, 0)) for x in re.split(r"\s*,\s*", m.group(1))) + "'"),
                     (_CHAR_RE, lambda m: "'" + _chr(int(m.group(1), 0)) + "'")):
@@ -233,20 +233,6 @@ def command(text: str) -> dict:
     if s2 != s:
         s = s2
         tech.append("texto armado con -join")
-    n_fmt = 0
-    for _ in range(MAX_PASSES):
-        def _fmt(m):
-            args = [a.strip()[1:-1] for a in re.findall(r"""'[^'\n]*'|"[^"\n]*\"""", m.group("args"))]
-            try:
-                return "'" + re.sub(r"\{(\d+)\}", lambda g: args[int(g.group(1))], m.group("f")) + "'"
-            except IndexError:
-                return m.group(0)
-        s2 = _FMT_RE.sub(_fmt, s, count=1)
-        if s2 == s:
-            break
-        s, n_fmt = s2, n_fmt + 1
-    if n_fmt:
-        tech.append("texto armado con el operador -f de PowerShell")
     for _ in range(MAX_PASSES):
         s2 = _REPLACE_RE.sub(lambda m: m.group("q") + m.group("s").replace(m.group("x"), m.group("y")) + m.group("q"), s, count=1)
         if s2 == s:

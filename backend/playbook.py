@@ -58,6 +58,12 @@ PLAYBOOK: dict[str, dict] = {
         "contain": ["Aislar {host} de la red.", "Deshabilitar la cuenta {user} mientras se investiga."],
         "remediate": ["Habilitar Script Block Logging y AMSI; aplicar Constrained Language Mode/WDAC.", "Alertar -EncodedCommand lanzado desde cmd.exe."],
     },
+    "cmd_obfuscated_cmd": {
+        "impact": "Alguien ejecutó en {host} un comando disfrazado para pasar desapercibido: lo que oculta suele ser una descarga, un volcado o un intérprete de comandos.",
+        "investigate": ["Revisar el comando ya normalizado (ver «Comando tras quitar la ofuscación») y el proceso padre en {host}.", "Buscar conexiones de red y archivos creados por ese proceso, y otras ejecuciones similares de {user}."],
+        "contain": ["Aislar {host} si el comando descargó o ejecutó código.", "Deshabilitar temporalmente la cuenta {user} mientras se investiga."],
+        "remediate": ["Activar Script Block Logging y AMSI; los registros de PowerShell muestran el código ya desofuscado.", "Alertar por patrones de ofuscación en la línea de comandos (4688 con línea de comandos auditada)."],
+    },
     "cmd_discovery": {
         "impact": "El atacante mapea usuarios, grupos y recursos compartidos para decidir sus siguientes pasos (movimiento lateral, objetivos de datos).",
         "investigate": ["Revisar qué recursos enumeró {user} (net view, grupos de administradores) y qué hizo después.", "Correlacionar con accesos a otros hosts en los minutos siguientes."],

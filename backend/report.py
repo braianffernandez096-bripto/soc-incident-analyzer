@@ -410,7 +410,7 @@ def phishing_section(items: list[dict], number: str = "", intel: dict | None = N
             out.append(P("Enlaces", "label"))
             ur = [[hcell("URL (defangeada)"), hcell("Señales")]]
             for u in i["urls"][:15]:
-                ur.append([Paragraph(escape(_u(D.trunc(u["defanged"], 110))), S["cell"]), Paragraph(escape(", ".join(u["flags"]) or "—"), S["cell"])])
+                ur.append([Paragraph(escape(_u(D.trunc(u["defanged"], 110))) + (f"<br/><i>Interpretada como: {escape(_u(D.trunc(u['normalized'], 90)))}</i>" if u.get("normalized") else ""), S["cell"]), Paragraph(escape(", ".join(u["flags"]) or "—"), S["cell"])])
             out.append(table(ur, [CONTENT_W - 60 * mm, 60 * mm]))
         if i["attachments"]:
             out.append(P("Adjuntos", "label"))

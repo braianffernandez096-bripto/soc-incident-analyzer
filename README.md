@@ -114,13 +114,25 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 
 ### Análisis de correos (phishing)
 
-**Phishing: carga de uno o varios `.eml`, con el campo opcional «Remitente esperado»**
+**Phishing: carga de uno o varios `.eml` o de cabeceras pegadas, con el campo opcional «Remitente esperado»**
 
-![Pantalla de carga de correos con el campo Remitente esperado](img/Phishing-inicio.png)
+![Pantalla de carga de correos con las pestañas de herramientas, las cabeceras pegadas y el campo Remitente esperado](img/Phishing-inicio.png)
 
 **Resultados: los correos de ejemplo ordenados por criticidad, con veredicto y puntaje**
 
 ![Tabla de correos analizados con criticidad, remitente, veredicto y puntaje](img/Phishing-resultados.png)
+
+**Recorrido del correo: saltos `Received` del origen al destino, con hora UTC, retraso y avisos**
+
+![Tabla de saltos del correo con hora UTC, retraso entre servidores y un salto marcado con retraso largo](img/Phishing-recorrido.png)
+
+**Puntaje con factores visibles: qué sumó cada señal, los topes por categoría y los umbrales**
+
+![Desglose del puntaje de un correo crítico por categoría y señal](img/Phishing-puntaje.png)
+
+**Dominios parecidos: variantes de typosquatting con descarga de la lista**
+
+![Lista de variantes de un dominio con el tipo de cambio y botones para descargar](img/Phishing-parecidos.png)
 
 **Homógrafos: desglose carácter por carácter de un remitente con una «о» cirílica (U+043E) que parece latina**
 

@@ -54,6 +54,8 @@ CONFIG = {
     # Calibración (docs/VALIDACION.md): un comando suelto de administración no es un hallazgo; la repetición o un contexto raro, sí.
     "discovery_min_commands": 3,
     "staging_min_commands": 3,
+    "kerberoast_min_services": 3,   # tickets de servicio RC4 a ≥3 servicios distintos de una cuenta en la ventana
+    "kerberoast_window_s": 600,
 }
 
 ADMIN_RE = re.compile(r"admin|root", re.I)
@@ -847,6 +849,43 @@ def rule_persist_run(st: State) -> None:
                 iocs=[_ioc("Ruta/archivo", trunc(x[3], 200), "Valor de la clave Run") for x in det[:6] if x[3]])
 
 
+def rule_kerberoast(st: State) -> None:
+    """Kerberoasting (T1558.003): una cuenta pide tickets de servicio con cifrado RC4 (0x17) para varios servicios de usuario."""
+    d = st.df
+    s = d[d["Event_ID"] == "4769"]
+    rows = []
+    for r in s.itertuples():
+        t = r.Event_Description
+        if _field(t, "Ticket Encryption Type").lower() != "0x17":
+            continue
+        svc = _field(t, "Service Name")
+        if not svc or svc.endswith("$") or svc.lower().startswith("krbtgt"):   # cuentas de máquina y krbtgt usan RC4 sin ser señal
+            continue
+        acct = (_field(t, "Account Name") or r.User).split("@")[0]
+        if not acct or acct.endswith("$"):
+            continue
+        rows.append((r.Log_ID, acct, svc))
+    if not rows:
+        return
+    info = {x[0]: x for x in rows}
+    sub = s[s["Log_ID"].isin(info)].copy()
+    sub["_acct"] = sub["Log_ID"].map(lambda i: info[i][1])
+    for (host, acct), g in _groups(sub, ["Hostname", "_acct"]):
+        for c in clusters(g, CONFIG["kerberoast_window_s"]):
+            svcs = list(dict.fromkeys(info[i][2] for i in c["Log_ID"]))
+            if len(svcs) < CONFIG["kerberoast_min_services"]:
+                continue
+            ips = [i for i in dict.fromkeys(c["Source_IP"]) if i]
+            reasons = [f"{acct} pidió tickets de servicio con cifrado RC4 (0x17) para {len(svcs)} servicios distintos en {fmt_dur((c['Timestamp'].max() - c['Timestamp'].min()).total_seconds())}: {', '.join(svcs[:6])}.",
+                       "Un usuario normal pide pocos tickets y con AES; pedirlos en ráfaga con RC4 permite descifrar la contraseña de las cuentas de servicio sin conexión (Kerberoasting)."]
+            expl = (f"En {host}, la cuenta {acct} solicitó {pl(len(c), 'ticket', 'tickets')} Kerberos (4769) con cifrado RC4 para {len(svcs)} cuentas de servicio "
+                    f"({', '.join(svcs[:6])}). Un atacante usa esos tickets para crackear las contraseñas de las cuentas de servicio fuera de línea (T1558.003).")
+            _mk(st, "kerberoast", f"Posible Kerberoasting por {acct} ({len(svcs)} servicios)", "Inicios sospechosos", "Acceso a credenciales",
+                ["T1558.003"], "Alto", reasons, expl, c, actor_users=[acct], hosts=[host],
+                metrics={"host": host, "usuario": acct, "servicios": svcs[:10], "tickets": len(c), "ips": ips[:3]},
+                iocs=[_ioc("Cuenta", s_, "Cuenta de servicio con ticket RC4 solicitado") for s_ in svcs[:8]])
+
+
 def rule_web_attack(st: State) -> None:
     d = st.df
     w = d[(d["Log_Source"] == "IIS") | (d["Event_ID"] == "HTTP_ACCESS")]
@@ -969,6 +1008,7 @@ RULES: list[tuple[str, str, Callable[[State], None]]] = [
     ("cred_lsass", "Acceso a la memoria de LSASS (Sysmon 10) por procesos no habituales", rule_cred_lsass),
     ("cred_dcsync", "DCSync: derechos de replicación de directorio (4662) usados por una cuenta de usuario", rule_cred_dcsync),
     ("persist_run", "Persistencia en claves Run/RunOnce (Sysmon 13)", rule_persist_run),
+    ("kerberoast", "Kerberoasting: ráfaga de tickets de servicio RC4 (4769) de una misma cuenta", rule_kerberoast),
     ("lateral", "Movimiento lateral: autenticación en un host con origen en otro host (source=…)", rule_lateral),
     ("mass_access", "Acceso masivo/secuencial a archivos (4663)", rule_mass_access),
     ("sensitive_share", "Acceso a recursos compartidos sensibles (5140/5145)", rule_sensitive_share),

@@ -65,3 +65,30 @@ def test_run_key_from_installer_is_medium_not_silent():
 def test_non_run_registry_write_is_quiet():
     case = win([sysmon13("C:\\windows\\system32\\lsass.exe", "HKLM\\System\\CurrentControlSet\\Services\\W32Time\\SecureTimeLimits\\RunTime\\x", "QWORD (0x1)")])
     assert "persist_run" not in rules(case)
+
+
+def ev4769(account, service, enc="0x17", t=0):
+    return dict(eid=4769, t=t, desc=f"A Kerberos service ticket was requested.\r\n\r\nAccount Information:\r\n\tAccount Name:\t\t{account}@CORP.LOCAL\r\n"
+                                     f"Service Information:\r\n\tService Name:\t\t{service}\r\n\r\nAdditional Information:\r\n\tTicket Encryption Type:\t{enc}\r\n")
+
+
+def test_kerberoasting_burst_of_rc4_tickets_alerts():
+    assert "kerberoast" in rules(win([ev4769("ana", s, t=i * 5) for i, s in enumerate(["sqlsvc", "websvc", "backupsvc"])]))
+
+
+def test_few_rc4_tickets_are_quiet():
+    assert "kerberoast" not in rules(win([ev4769("ana", s, t=i * 5) for i, s in enumerate(["sqlsvc", "websvc"])]))
+
+
+def test_aes_tickets_machine_accounts_and_krbtgt_are_quiet():
+    rows = [ev4769("ana", s, enc="0x12", t=i) for i, s in enumerate(["a", "b", "c", "d"])]
+    rows += [ev4769("ana", s, t=10 + i) for i, s in enumerate(["PC-01$", "DC-01$", "krbtgt"])]
+    assert "kerberoast" not in rules(win(rows))
+
+
+def test_same_service_repeated_is_not_kerberoasting():
+    assert "kerberoast" not in rules(win([ev4769("ana", "sqlsvc", t=i * 5) for i in range(6)]))
+
+
+def test_slow_requests_outside_the_window_are_quiet():
+    assert "kerberoast" not in rules(win([ev4769("ana", s, t=i * 900) for i, s in enumerate(["a", "b", "c"])]))

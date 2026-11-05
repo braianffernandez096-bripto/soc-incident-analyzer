@@ -8,6 +8,7 @@ import pandas as pd
 
 from . import attack
 from . import detection as D
+from .siemqueries import SUPPORTED as SIEM_SUPPORTED
 
 log = logging.getLogger("soc.analysis")
 
@@ -210,6 +211,7 @@ def analyze(df: pd.DataFrame, meta: dict) -> dict:
         "iocs": iocs,
         "stats": stats,
         "attack": attack.build_matrix(ordered),
+        "siem_rules": sorted(SIEM_SUPPORTED),
         "flag_map": flag_map,
         "limitations": _limitations(df, profile) + [
             f"La regla «{d}» no pudo ejecutarse con este archivo; sus detecciones pueden faltar." for d in failed_rules],

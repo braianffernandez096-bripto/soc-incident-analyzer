@@ -32,6 +32,7 @@ from . import filecheck
 from . import intel as intel_mod
 from . import lookalikes as lookalikes_mod
 from . import phishing as phishing_mod
+from . import siemqueries
 from .analysis import analyze, rows_for
 from .parser import SUPPORTED_EXT, ParseError, load_events
 from .report import build_pdf, build_phishing_pdf
@@ -386,6 +387,30 @@ def finding_evidence(sid: str, fid: str):
     if not f:
         raise HTTPException(404, "Hallazgo no encontrado.")
     return {"rows": rows_for(s.df, f["evidence_ids"], s.analysis["flag_map"])}
+
+
+@app.get("/api/sessions/{sid}/findings/{fid}/queries")
+def finding_queries(sid: str, fid: str):
+    """Consultas Splunk/KQL y regla Sigma del hallazgo, generadas con plantillas (nada sale del servidor)."""
+    s = _get(sid)
+    f = next((x for x in s.analysis["findings"] if x["id"] == fid), None)
+    if not f:
+        raise HTTPException(404, "Hallazgo no encontrado.")
+    qs = siemqueries.queries_for(f)
+    if not qs:
+        raise HTTPException(404, "Este tipo de hallazgo no tiene consultas equivalentes.")
+    return qs
+
+
+@app.get("/api/sessions/{sid}/sigma.yml")
+def sigma_rules(sid: str):
+    """Reglas Sigma de todos los tipos de hallazgo de la sesión (un documento YAML por regla)."""
+    s = _get(sid)
+    text, n = siemqueries.sigma_bundle(s.analysis["findings"])
+    if not n:
+        raise HTTPException(404, "Ningún hallazgo de esta sesión tiene una regla Sigma equivalente.")
+    return Response(text, media_type="application/yaml",
+                    headers={"Content-Disposition": 'attachment; filename="reglas_sigma.yml"'})
 
 
 @app.post("/api/sessions/{sid}/meta")

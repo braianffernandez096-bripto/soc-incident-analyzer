@@ -94,6 +94,12 @@ PLAYBOOK: dict[str, dict] = {
         "contain": ["Deshabilitar {user} y retirar los permisos de replicación.", "Planificar el doble restablecimiento de krbtgt si se confirma."],
         "remediate": ["Auditar quién tiene DS-Replication-Get-Changes(-All) y limitarlo a controladores de dominio.", "Alertar 4662 con esos GUID cuando la cuenta no sea de máquina."],
     },
+    "kerberoast": {
+        "impact": "El atacante obtiene tickets que puede crackear sin conexión para recuperar las contraseñas de cuentas de servicio, que suelen tener privilegios altos y claves débiles.",
+        "investigate": ["Listar los servicios solicitados por {user} y revisar si sus cuentas son privilegiadas.", "Identificar el equipo origen de las peticiones y qué proceso las lanzó."],
+        "contain": ["Aislar el equipo origen y deshabilitar {user} si no es esperable.", "Restablecer las contraseñas de las cuentas de servicio afectadas."],
+        "remediate": ["Usar cuentas de servicio gestionadas (gMSA) o contraseñas largas aleatorias.", "Forzar AES y alertar 4769 con cifrado 0x17 hacia cuentas de usuario."],
+    },
     "persist_run": {
         "impact": "El programa se ejecutará en cada inicio de sesión en {host}: el atacante conserva acceso aunque se reinicie el equipo.",
         "investigate": ["Revisar el ejecutable referenciado (ruta, hash, firma) y el proceso que escribió la clave.", "Comparar con el software instalado y aprobado en {host}."],

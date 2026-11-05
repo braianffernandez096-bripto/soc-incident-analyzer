@@ -21,6 +21,8 @@ from typing import BinaryIO
 
 import pandas as pd
 
+from . import syslog as syslog_mod
+
 CANONICAL = [
     "Log_ID", "Timestamp", "Hostname", "Event_ID", "User", "Source_IP",
     "Destination", "Log_Source", "Event_Description", "Process_CommandLine",
@@ -383,7 +385,9 @@ def _detect_format(data: bytes, filename: str | None) -> str:
         return "json"
     if ext in CSV_EXT:
         head = data[:4096].lstrip(b"\xef\xbb\xbf \t\r\n")
-        return "json" if head[:1] in (b"{", b"[") else "csv"   # un .txt/.log puede traer JSON
+        if head[:1] in (b"{", b"["):
+            return "json"                                       # un .txt/.log puede traer JSON
+        return "syslog" if syslog_mod.looks_like_syslog(_decode_text(data[:65536])) else "csv"   # o un auth.log de Linux
     raise ParseError("Formato no soportado. Usa Excel (.xlsx), CSV/TSV o JSON/NDJSON.")
 
 
@@ -406,10 +410,19 @@ def load_events(source: str | BinaryIO | bytes, filename: str | None = None) -> 
         raw, label = _read_excel(data)
     elif fmt == "json":
         raw, label = _read_json(data)
+    elif fmt == "syslog":
+        events, sl = syslog_mod.parse_auth_log(_decode_text(data))
+        if not events:
+            raise ParseError("Parece un log de syslog, pero no encontré líneas de sshd ni de sudo (inicios de sesión SSH o comandos sudo). "
+                             "Por ahora solo se interpretan esos eventos de auth.log / secure.")
+        raw, label = _read_json(json.dumps(events).encode())
+        label = "auth.log (syslog)"
     else:
         raw, label = _read_csv(data, filename)
     df, meta = _normalize(raw, label)
     meta["format"] = fmt
+    if fmt == "syslog":
+        meta["syslog"] = sl
     return df, meta
 
 

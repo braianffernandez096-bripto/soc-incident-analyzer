@@ -37,10 +37,10 @@ uno declara su técnica en un metadato. Se comparó con las técnicas que cita l
 
 | Resultado | Datasets | % |
 |---|---|---|
-| Misma técnica | 19 | 18 % |
+| Misma técnica | 20 | 19 % |
 | Misma táctica | 3 | 3 % |
 | Otra técnica | 27 | 25 % |
-| Sin hallazgos | 58 | 54 % |
+| Sin hallazgos | 57 | 53 % |
 
 (Resultados con la versión 1.5.0. Antes de la calibración: 13 / 2 / 39 / 53; ver sección 2.1.)
 
@@ -65,7 +65,8 @@ genuina pero distinta (por ejemplo, un servicio nuevo detectado como persistenci
 | Hueco que sigue abierto | Evidencia |
 |---|---|
 | Mimikatz sin acceso a LSASS visible | `extract_keys`, `sam_access`, `dcsync` de Empire y `over_pth_patch_lsass` ya no generan hallazgos incidentales y tampoco el correcto: requieren eventos que el export de ejemplo no trae |
-| Pass-the-hash / Kerberoasting / ticket (4768/4769) | Sin reglas |
+| Pass-the-hash | Sin regla a propósito: el inicio de sesión tipo 9 (`seclogo`) que deja es idéntico al de `runas /netonly`, de uso legítimo, y sin telemetría adicional no se distingue |
+| Pass-the-ticket / AS-REP roasting (4768) | Sin reglas |
 | Modificación de tareas programadas | Solo se detecta la creación (4698), no el cambio |
 | Suscripciones WMI persistentes | Se reporta como persistencia (misma táctica), pero no la técnica T1546.003 |
 | Evasión de defensas | 26 de 37 sin hallazgos |
@@ -76,10 +77,10 @@ Mismos 107 datasets, mismo script, mismo criterio:
 
 | Resultado | Antes | Después |
 |---|---|---|
-| Misma técnica | 13 | **19** |
+| Misma técnica | 13 | **20** |
 | Misma táctica | 2 | **3** |
 | Otra técnica | 39 | 27 |
-| Sin hallazgos | 53 | 58 |
+| Sin hallazgos | 53 | 57 |
 
 Qué cambió y por qué:
 
@@ -90,8 +91,9 @@ Qué cambió y por qué:
 - **«Otra técnica» baja de 39 a 27 por menos ruido, no por menos detección:** 9 datasets tenían como único hallazgo un «comando de
   reconocimiento» suelto (`whoami`, `ipconfig`) ajeno a la técnica del ataque. Ese ruido ya no se reporta, así que pasan a «sin hallazgos».
   La enumeración de dominio (`net user`, `nltest`, `Get-AD*`) sigue alertando con un solo comando.
-- **Un empeoramiento:** `purplesharp_ad_playbook_I` (técnica → ninguno). Coincidía solo porque un `whoami` suelto citaba T1135; era una
-  coincidencia, no una detección del ataque real (Kerberoasting y password spraying).
+- **`purplesharp_ad_playbook_I`:** antes coincidía por casualidad (un `whoami` suelto citaba T1135). Al calibrar quedó sin hallazgos y, con la regla
+  nueva de Kerberoasting (4769, T1558.003), vuelve a coincidir, esta vez por la técnica real del ataque. Es el único dataset donde dispara
+  `kerberoast`: sin falsos positivos en los otros 106.
 - **Los 5 falsos positivos conocidos desaparecen** (sección 3) y se agregaron pruebas de que la calibración no apaga la detección real.
 
 ## 3. Tráfico normal (falsos positivos)
@@ -122,7 +124,7 @@ Otros casos que se observaron y **no** se marcaron como errores porque son decis
 
 ## 4. Cobertura ATT&CK
 
-La app cita **50 técnicas** de ATT&CK en **29 reglas** (16 para exports de Windows y 13 para exports multi-fuente). No cubre la matriz
+La app cita **51 técnicas** de ATT&CK en **30 reglas** (17 para exports de Windows y 13 para exports multi-fuente). No cubre la matriz
 completa y no pretende hacerlo:
 
 | Táctica | Técnicas citadas | Cuáles |
@@ -133,7 +135,7 @@ completa y no pretende hacerlo:
 | Persistencia | 8 | T1053.005 Scheduled Task; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1098 Account Manipulation; T1098.004 SSH Authorized Keys; T1505.003 Web Shell; T1543.003 Windows Service; T1547.001 Registry Run Keys / Startup Folder |
 | Escalamiento de privilegios | 9 | T1053.005 Scheduled Task; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1098 Account Manipulation; T1098.004 SSH Authorized Keys; T1134 Access Token Manipulation; T1543.003 Windows Service; T1547.001 Registry Run Keys / Startup Folder; T1548.001 Setuid and Setgid |
 | Sigilo (evasión de defensas) | 10 | T1027 Obfuscated Files or Information; T1027.013 Encrypted/Encoded File; T1036 Masquerading; T1036.004 Masquerade Task or Service; T1036.007 Double File Extension; T1036.008 Masquerade File Type; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1134 Access Token Manipulation; T1684.001 Impersonation |
-| Acceso a credenciales | 7 | T1003 OS Credential Dumping; T1003.001 LSASS Memory; T1003.006 DCSync; T1003.008 /etc/passwd and /etc/shadow; T1110 Brute Force; T1110.001 Password Guessing; T1110.003 Password Spraying |
+| Acceso a credenciales | 8 | T1003 OS Credential Dumping; T1003.001 LSASS Memory; T1003.006 DCSync; T1003.008 /etc/passwd and /etc/shadow; T1110 Brute Force; T1110.001 Password Guessing; T1110.003 Password Spraying; T1558.003 Kerberoasting |
 | Descubrimiento | 3 | T1069 Permission Groups Discovery; T1087 Account Discovery; T1135 Network Share Discovery |
 | Movimiento lateral | 2 | T1021.001 Remote Desktop Protocol; T1021.002 SMB/Windows Admin Shares |
 | Recolección | 4 | T1005 Data from Local System; T1039 Data from Network Shared Drive; T1074.001 Local Data Staging; T1560.001 Archive via Utility |

@@ -18,7 +18,7 @@ Proyecto personal de Braian Fernandez, hecho para practicar el análisis de inci
 
 ## Cómo funciona
 
-1. **Motor de reglas determinista** (`backend/detection.py`): fuerza bruta y password spraying, inicios de sesión externos, escalamiento de privilegios, comandos y procesos sospechosos, movimiento lateral, acceso masivo a archivos, exfiltración, persistencia, ataques web y problemas de calidad de datos. Cada hallazgo cita los `Log_ID` que lo sustentan y explica por qué tiene esa criticidad. Además de los eventos de Windows (por Event ID), `backend/detection_generic.py` cubre exports de otras fuentes que traen una acción y un mensaje en lugar de Event IDs numéricos: fuerza bruta y password spraying por SSH/RDP/Kerberos, ataques web (inyección SQL, rutas, XSS), exfiltración, phishing con adjuntos de doble extensión, comando y control, persistencia, ransomware, minería de criptomonedas, escalamiento SUID en Linux, túneles DNS y abuso de identidades cloud (IAM).
+1. **Motor de reglas determinista** (`backend/detection.py`): fuerza bruta y password spraying, inicios de sesión externos, escalamiento de privilegios, comandos y procesos sospechosos, movimiento lateral, acceso masivo a archivos, exfiltración, persistencia, acceso a LSASS, DCSync, Kerberoasting, claves Run, ataques web y problemas de calidad de datos. Cada hallazgo cita los `Log_ID` que lo sustentan y explica por qué tiene esa criticidad. Además de los eventos de Windows (por Event ID), `backend/detection_generic.py` cubre exports de otras fuentes que traen una acción y un mensaje en lugar de Event IDs numéricos: fuerza bruta y password spraying por SSH/RDP/Kerberos, ataques web (inyección SQL, rutas, XSS), exfiltración, phishing con adjuntos de doble extensión, comando y control, persistencia, ransomware, minería de criptomonedas, escalamiento SUID en Linux, túneles DNS y abuso de identidades cloud (IAM).
 
 2. **Correlación**: los hallazgos se agrupan en incidentes cuando comparten IP externa o cuenta de actor. Compartir host o recurso no fusiona incidentes; queda como hipótesis de confianza baja.
 
@@ -30,7 +30,8 @@ Proyecto personal de Braian Fernandez, hecho para practicar el análisis de inci
 
 6. **MITRE ATT&CK** (`backend/attack.py`): cada técnica sugerida por un hallazgo se muestra con su nombre oficial y un enlace a attack.mitre.org. La pestaña **ATT&CK** agrupa las técnicas por táctica en una matriz y permite descargar una capa `.json` para [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/). Los datos son los oficiales de MITRE (v20.0), incluidos en `backend/data/` y validados contra las reglas por las pruebas. No se consulta Internet.
 
-7. **Phishing** (`backend/phishing.py`): la pestaña **Phishing** analiza correos `.eml` (hasta 5, 5 MB cada uno). Revisa remitente, Reply-To y suplantación de marcas; SPF, DKIM y DMARC; enlaces engañosos (IP en vez de dominio, acortadores, punycode, dominios casi idénticos a una marca, texto distinto del destino); **ataques homógrafos** (letras de otro alfabeto o «I» por «l» que se ven iguales, con desglose carácter por carácter); y adjuntos (doble extensión, ejecutables disfrazados, macros, comprimidos con contraseña, hash SHA-256). Da un veredicto con puntaje, las señales que lo sustentan, **qué verificar** y acciones sugeridas. Es análisis estático: no se abre ningún enlace ni se ejecuta ningún adjunto.
+7. **Consultas para tu SIEM** (`backend/siemqueries.py`): cada hallazgo de Windows con equivalente directo ofrece el botón **Buscar en tu SIEM**, que muestra la consulta de **Splunk (SPL)**, la de **Microsoft Sentinel/Defender (KQL)** y la regla **Sigma**, con la IP, la cuenta, el equipo y la ventana del hallazgo ya rellenos. La pestaña Hallazgos descarga además todas las reglas Sigma de la sesión en un `.yml`. Son plantillas deterministas (sin IA, sin Internet) y los valores del log se escapan para que no puedan alterar la consulta; cada SIEM nombra índices y campos a su manera, así que hay que revisarlos. No cubren las reglas de otras fuentes, de calidad de datos ni la exfiltración por proxy.
+8. **Phishing** (`backend/phishing.py`): la pestaña **Phishing** analiza correos `.eml` (hasta 5, 5 MB cada uno). Revisa remitente, Reply-To y suplantación de marcas; SPF, DKIM y DMARC; enlaces engañosos (IP en vez de dominio, acortadores, punycode, dominios casi idénticos a una marca, texto distinto del destino); **ataques homógrafos** (letras de otro alfabeto o «I» por «l» que se ven iguales, con desglose carácter por carácter); y adjuntos (doble extensión, ejecutables disfrazados, macros, comprimidos con contraseña, hash SHA-256). Da un veredicto con puntaje, las señales que lo sustentan, **qué verificar** y acciones sugeridas. Es análisis estático: no se abre ningún enlace ni se ejecuta ningún adjunto.
 
 ## Formatos de entrada
 
@@ -40,6 +41,7 @@ Proyecto personal de Braian Fernandez, hecho para practicar el análisis de inci
 | CSV / TSV | `.csv`, `.tsv`, `.txt`, `.log` | Detecta el separador (`,` `;` tab `\|`) y la codificación (UTF-8, UTF-16, Windows-1252). |
 | JSON | `.json` | Arreglo de eventos, contenedores como `{"events": [...]}` (o cualquier otro nombre: se elige la lista que tiene fecha) y respuestas de Elasticsearch/OpenSearch (`hits.hits[]._source`). |
 | NDJSON | `.jsonl`, `.ndjson` | Un evento por línea; también el formato de exportación de Splunk (`{"result": {...}}`). |
+| auth.log / secure | `.log`, `.txt` | Syslog de Linux en texto (fecha clásica o ISO). Se leen los eventos de `sshd` (contraseña o clave aceptada/fallida) y de `sudo`; el resto de líneas se ignora y se avisa cuántas. Ejemplo: `sample_data/auth_log_ejemplo.txt`. Si el archivo no tiene extensión, agrégale `.log`. |
 
 - **Columnas:** se reconocen por nombre aunque cambien mayúsculas, acentos o idioma (`Descripción`, `hostname`, `Equipo`…) y los campos anidados típicos de Elastic ECS / Winlogbeat (`@timestamp`, `host.name`, `winlog.event_id`, `source.ip`, `user.name`, `process.command_line`…). Solo son indispensables `Timestamp` y `Event_ID`; lo que falte queda vacío y se informa. Si el archivo no trae `Event_ID` pero sí `action` (o `event_type`), se usa como código de evento, y `category` pasa a ser la fuente del log.
 
@@ -290,7 +292,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 713 pruebas
+python -m pytest                                           # 746 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
@@ -303,14 +305,15 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 - `tests/e2e/`: arranca el servidor real y recorre carga, análisis y PDF.
 
 - `tests/unit/test_negativos.py`: 35 casos de actividad normal (30 sin ruido y 5 falsos positivos medidos y ya calibrados) que no deben alertar, cerca de los umbrales de cada regla, más pruebas de que la calibración no apaga la detección real.
-- `tests/unit/test_reglas_credenciales.py`: acceso a LSASS (Sysmon 10), DCSync (4662) y claves Run (Sysmon 13), con casos de ataque y de actividad normal.
+- `tests/unit/test_reglas_credenciales.py`: acceso a LSASS (Sysmon 10), DCSync (4662), claves Run (Sysmon 13) y Kerberoasting (4769), con casos de ataque y de actividad normal.
+- `tests/unit/test_siemqueries.py`: consultas Splunk/KQL y Sigma (YAML válido, entidades y ventana, y valores hostiles que no pueden escapar de las comillas). `tests/unit/test_syslog.py`: lectura de `auth.log` (fechas clásicas e ISO, año inferido, sudo, errores claros).
 
 ## Validación de las reglas
 
 Además de las pruebas con escenarios de ataque, las reglas se midieron con datos que no escribí yo. Resultados (detalle, método y límites en [docs/VALIDACION.md](docs/VALIDACION.md)):
 
-- **SSH real (Loghub):** de 11 IPs que atacaron con fuerza bruta, la app detectó las 11, sin falsos positivos.
-- **107 ataques de Windows (OTRF Security-Datasets):** la técnica correcta en 19 (antes de calibrar: 13), hallazgos de otra técnica en 27 y ninguno en 58. La cobertura es limitada y está documentada, con los huecos priorizados (evasión de defensas, movimiento lateral).
+- **SSH real (Loghub):** subiendo el `auth.log` tal cual, de 11 IPs que atacaron con fuerza bruta la app detectó las 11, sin falsos positivos.
+- **107 ataques de Windows (OTRF Security-Datasets):** la técnica correcta en 20 (antes de calibrar: 13), hallazgos de otra técnica en 27 y ninguno en 57. La cobertura es limitada y está documentada, con los huecos priorizados (evasión de defensas, movimiento lateral).
 - **Tráfico normal:** 35 casos de actividad corriente sin hallazgos; los 5 falsos positivos que se midieron primero (por ejemplo, un solo `ipconfig`) se calibraron y el antes y el después están documentados.
 
 Se pueden repetir con `scripts/validar_datasets.py`.
@@ -368,7 +371,7 @@ backend/      parser, reglas de detección, correlación, análisis de correos (
 scripts/      build_attack_data.py regenera backend/data/ desde los datos oficiales de MITRE; build_captcha_assets.py regenera las figuras del captcha; validar_datasets.py mide las reglas con datasets públicos (uso de mantenimiento)
 docs/         VALIDACION.md: método y resultados de la validación de las reglas
 frontend/     interfaz web sin build (HTML, CSS y JS; fuentes IBM Plex locales)
-sample_data/  exports de ejemplo (Windows en Excel/CSV/NDJSON, multi-fuente en JSON y SIEM de 500 eventos) y correos .eml de ejemplo
+sample_data/  exports de ejemplo (Windows en Excel/CSV/NDJSON, multi-fuente en JSON, SIEM de 500 eventos y un auth.log de Linux) y correos .eml de ejemplo
 tests/        unit, integration y e2e
 Makefile      atajos: install, start, stop, test, test-cov, lint, audit, logs, backup, clean
 requirements*.lock  dependencias con versión exacta y hash (requirements*.txt son los rangos de origen)

@@ -59,3 +59,19 @@ def test_ui_declares_the_attack_view_and_only_links_to_mitre():
     js = (Path(__file__).resolve().parents[2] / "frontend" / "app.js").read_text(encoding="utf-8")
     assert '["attack", "ATT&CK"]' in js and "attack-layer.json" in js
     assert 'noopener noreferrer' in js and "attack\\.mitre\\.org" in js           # links validated against the MITRE domain
+
+
+def test_finding_queries_and_sigma_download():
+    res = _upload()
+    sid, a = res["session_id"], res["analysis"]
+    assert a["siem_rules"]
+    ok = next(f for f in a["findings"] if f["rule"] in a["siem_rules"])
+    r = client.get(f"/api/sessions/{sid}/findings/{ok['id']}/queries")
+    assert r.status_code == 200 and r.json()["splunk"] and r.json()["kql"]
+    bad = next((f for f in a["findings"] if f["rule"] not in a["siem_rules"]), None)
+    if bad:
+        assert client.get(f"/api/sessions/{sid}/findings/{bad['id']}/queries").status_code == 404
+    assert client.get(f"/api/sessions/{sid}/findings/NOPE/queries").status_code == 404
+    s = client.get(f"/api/sessions/{sid}/sigma.yml")
+    assert s.status_code == 200 and 'filename="reglas_sigma.yml"' in s.headers["content-disposition"] and "title:" in s.text
+    assert client.get("/api/sessions/zzzz/sigma.yml").status_code in (404, 410)

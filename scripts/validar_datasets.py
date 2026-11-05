@@ -36,6 +36,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from backend.analysis import analyze  # noqa: E402
 from backend.parser import load_events  # noqa: E402
+from backend.syslog import parse_auth_log  # noqa: E402
 
 TACTICS = {"TA0001": "Acceso inicial", "TA0002": "Ejecución", "TA0003": "Persistencia", "TA0004": "Escalamiento de privilegios",
            "TA0005": "Evasión de defensas", "TA0006": "Acceso a credenciales", "TA0007": "Descubrimiento", "TA0008": "Movimiento lateral",
@@ -73,20 +74,12 @@ def classify(expected: list[str], tactics: list[str], findings: list[dict]) -> s
     return "otros"
 
 
-SSH_RE = {"failed": re.compile(r"^(\w{3}\s+\d+ [\d:]+) \S+ sshd\[\d+\]: Failed password for (?:invalid user )?(\S+) from (\S+) port"),
-          "success": re.compile(r"^(\w{3}\s+\d+ [\d:]+) \S+ sshd\[\d+\]: Accepted \w+ for (\S+) from (\S+) port")}
-
-
 def validate_ssh(path: Path, year: int = 2016) -> dict:
-    """Valida la regla de autenticación con un log real de OpenSSH (el log no trae año: se fija uno)."""
-    events = []
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        for status, rx in SSH_RE.items():
-            m = rx.match(line)
-            if m:
-                ts = datetime.strptime(f"{year} {m.group(1)}", "%Y %b %d %H:%M:%S")
-                events.append({"timestamp": ts.strftime("%Y-%m-%dT%H:%M:%SZ"), "category": "authentication", "user": m.group(2), "source_ip": m.group(3),
-                               "destination_ip": "10.0.0.5", "action": "ssh_login", "status": status, "message": f"{status} password for {m.group(2)}"})
+    """Valida la regla de autenticación con un log real de OpenSSH (el log no trae año: se fija uno).
+
+    Usa el mismo lector de auth.log que la aplicación (backend/syslog.py), así que también valida esa lectura.
+    """
+    events, _ = parse_auth_log(path.read_text(encoding="utf-8", errors="replace"), year=year)
     df, meta = load_events(json.dumps(events).encode(), "ssh.json")
     findings = [f for f in analyze(df, meta)["findings"] if f["rule"] == "g_auth"]
     by: dict[str, list[datetime]] = collections.defaultdict(list)

@@ -259,7 +259,7 @@ function landing() {
     <p class="lead">Detecta indicadores de compromiso, los agrupa en incidentes y prepara el informe técnico en PDF.</p>
     <div class="drop" id="drop" tabindex="0" role="button" aria-label="Seleccionar archivo de eventos">
       <strong id="dropTitle">Arrastra el archivo aquí o haz clic para elegirlo</strong>
-      <span>Excel, CSV/TSV o JSON/NDJSON · hasta 25 MB</span>
+      <span>Excel, CSV/TSV, JSON/NDJSON o auth.log de Linux · hasta 25 MB</span>
       <input type="file" id="file" accept=".xlsx,.xlsm,.csv,.tsv,.txt,.log,.json,.jsonl,.ndjson" hidden>
     </div>
     <button class="linkbtn" id="fmtHelp" type="button">¿Qué formato y columnas necesita?</button>
@@ -500,15 +500,26 @@ function findings() {
         <h4>Impacto en la organización</h4><p>${esc(a.impact || "")}</p>
         <h4>Evidencia (${plural(f.evidence_ids.length, "evento", "eventos")})</h4>
         <div class="evbox" data-fid="${esc(f.id)}"><button class="btn" data-loadev="${esc(f.id)}">Ver eventos de log</button></div>
+        ${(S.a.siem_rules || []).includes(f.rule) ? `<h4>Buscar en tu SIEM</h4><div class="siembox"><button class="btn" data-siem="${esc(f.id)}">Ver consultas (Splunk, KQL, Sigma)</button></div>` : ""}
         <h4>Plan de acción</h4>
         <div class="plan"><div><h4>Investigar</h4><ul>${li(ap.investigate)}</ul></div><div><h4>Contener</h4><ul>${li(ap.contain)}</ul></div><div><h4>Remediar</h4><ul>${li(ap.remediate)}</ul></div></div>
       </div></details>`;
   }).join("");
-  return `<div class="page-head"><div><h1>Hallazgos</h1><p>Cada hallazgo cita los Log_ID del archivo que lo sustentan.</p></div></div>
+  return `<div class="page-head"><div><h1>Hallazgos</h1><p>Cada hallazgo cita los Log_ID del archivo que lo sustentan.</p></div>${(S.a.siem_rules || []).some((k) => S.a.findings.some((f) => f.rule === k)) ? '<button class="btn" id="sigmaAll">Descargar reglas Sigma (.yml)</button>' : ""}</div>
     <div class="filters"><input type="search" id="fq" placeholder="Buscar por nombre, técnica (T1110) o táctica" value="${esc(S.findingQ)}" aria-label="Buscar hallazgos">
       <select id="fcat" aria-label="Categoría"><option value="">Todas las categorías</option>${cats.map((c) => `<option ${c === S.findingCat ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>
       <span class="muted">${list.length} de ${plural(S.a.findings.length, "hallazgo", "hallazgos")}</span></div>
     <div class="chip-row">${chips}</div>${items || "<p class='muted'>No hay hallazgos con ese filtro.</p>"}`;
+}
+function siemView(r) {
+  const block = (label, txt) => txt ? `<div class="qblock"><div class="qhead"><b>${label}</b><button class="btn" data-copyq>Copiar</button></div><pre class="mono">${esc(txt)}</pre></div>` : "";
+  return `<p class="muted">Revisa el índice, el sourcetype y los nombres de campo: cada SIEM los nombra distinto. Cubren la ventana del hallazgo ±30 min.</p>${block("Splunk (SPL)", r.splunk)}${block("Microsoft Sentinel / Defender (KQL)", r.kql)}${block("Sigma (YAML)", r.sigma)}`;
+}
+function bindSiemCopy() {
+  document.querySelectorAll("[data-copyq]").forEach((b) => b.onclick = async () => {
+    const txt = b.closest(".qblock").querySelector("pre").textContent;
+    try { await navigator.clipboard.writeText(txt); toast("Copiado"); } catch { toast("No se pudo copiar; selecciona el texto manualmente."); }
+  });
 }
 function evTable(rows) {
   return `<div class="tbl-wrap"><table class="ev-table"><thead><tr><th>Log_ID</th><th>Hora</th><th>Equipo</th><th>Evento</th><th>Usuario</th><th>IP origen</th><th>Destino</th><th>Detalle</th><th>Resultado</th></tr></thead><tbody>${rows.map((r) =>
@@ -523,6 +534,21 @@ function bindFindings() {
     try { const r = await api(`/api/sessions/${S.sid}/findings/${b.dataset.loadev}/evidence`); b.closest(".evbox").innerHTML = evTable(r.rows); }
     catch (e) { toast(e.message); b.disabled = false; }
   });
+  document.querySelectorAll("[data-siem]").forEach((b) => b.onclick = async () => {
+    b.disabled = true;
+    try { const r = await api(`/api/sessions/${S.sid}/findings/${b.dataset.siem}/queries`); b.closest(".siembox").innerHTML = siemView(r); bindSiemCopy(); }
+    catch (e) { toast(e.message); b.disabled = false; }
+  });
+  const sg = $("#sigmaAll");
+  if (sg) sg.onclick = async () => {
+    try {
+      const r = await fetch(`/api/sessions/${S.sid}/sigma.yml`, { headers: authHeaders() });
+      if (!r.ok) throw new Error("No hay reglas Sigma para los hallazgos de esta sesión.");
+      const url = URL.createObjectURL(await r.blob()), a = document.createElement("a");
+      a.href = url; a.download = "reglas_sigma.yml"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast("Reglas Sigma descargadas");
+    } catch (e) { toast(e.message); }
+  };
   const open = S.openFinding && document.getElementById(S.openFinding);
   if (open) { open.scrollIntoView({ block: "start" }); const b = open.querySelector("[data-loadev]"); if (b) b.click(); }
   S.openFinding = null;

@@ -4,6 +4,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+### Añadido (punto 2: consultas y fuentes)
+- **Consultas para el SIEM** (`backend/siemqueries.py`): cada hallazgo de Windows con equivalente directo muestra la consulta de Splunk (SPL), la de Microsoft Sentinel/Defender (KQL) y la regla Sigma, con IP, cuenta, equipo y ventana (±30 min) ya rellenos y botón de copiar. Endpoint `GET /api/sessions/{id}/findings/{fid}/queries` y descarga de todas las reglas Sigma de la sesión (`/sigma.yml`, botón en Hallazgos). Los valores de los logs se escapan para que no puedan salirse de las comillas de la consulta.
+- **Lectura de `auth.log` / `secure` de Linux** (`backend/syslog.py`): se sube el archivo tal cual (fecha clásica o ISO; el año se infiere y nunca queda en el futuro). Se interpretan sshd (contraseña/clave aceptada o fallida) y sudo (fallos y comandos); el resto se ignora y se avisa cuántas líneas. Ejemplo en `sample_data/auth_log_ejemplo.txt`. La validación con SSH real ahora usa este mismo lector (sigue 11 de 11 IPs, 0 falsos positivos).
+- **Kerberoasting** (evento 4769, T1558.003): una cuenta que pide tickets RC4 (0x17) para 3 o más servicios de usuario en 10 minutos. Excluye cuentas de máquina y krbtgt. En OTRF dispara en 1 dataset (el de Kerberoasting) y en ninguno de los otros 106: misma técnica 19 → 20.
+- Pass-the-hash queda sin regla a propósito (ver docs/VALIDACION.md).
+
 ### Cambiado (calibración, punto 1b)
 - **Menos ruido:** un `ipconfig`, `whoami` o `tasklist` suelto ya no genera «Comandos de reconocimiento» (se necesitan ≥3 en el mismo grupo o un origen externo; la enumeración de dominio como `net user` o `nltest` sigue alertando sola); la compresión de datos aislada (`7z a x.7z`) se descarta salvo origen externo, ruta temporal/ProgramData, contraseña, ≥3 comandos o conexión saliente posterior; las tareas de Windows creadas por SYSTEM (`\Microsoft\Windows\…`) ya no se reportan como persistencia.
 - Volcado de credenciales: ahora detecta `reg.exe" save HKLM\sam` entre comillas, `esentutl` sobre SAM/NTDS, `ntds.dit`, Dumpert, NanoDump, lsadump y secretsdump. La regla de compresión ya no confunde un `curl` a un archivo `.tar.gz` con un archivado.

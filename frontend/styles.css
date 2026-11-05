@@ -173,6 +173,9 @@ details.finding[open]>summary::after{transform:rotate(-135deg)}
 .f-body{padding:2px 18px 18px;border-top:1px solid var(--line)}
 .f-body h4{margin:16px 0 4px}
 .f-body ul{margin:4px 0 0;padding-left:20px}
+.qblock{margin:8px 0;border:1px solid var(--line,#d8dee9);border-radius:8px;overflow:hidden}
+.qhead{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--soft2)}
+.qblock pre{margin:0;padding:10px 12px;overflow:auto;max-height:260px;white-space:pre;font-size:12.5px}
 .plan{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .plan>div{background:var(--soft2);border-radius:8px;padding:10px 14px}
 .plan h4{margin-top:0}

@@ -4,6 +4,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+### Cambiado: README más corto
+- El README pasa de 411 a unas 345 líneas (de 5.900 a 3.400 palabras): «Cómo funciona», el detalle del análisis de correos, «Si algo falla», «Pruebas», «Seguridad» y «Estructura» se resumen y su texto completo está en `docs/DESARROLLO.md`. No se eliminó información.
+
 ### Corregido: calibración con correo legítimo de bancos y empresas
 - Con 19 correos reales (Banco Galicia, Naranja X, Personal Pay, Gobierno, boletines) hubo 6 falsos positivos; ahora 0. Causas: dominios propios del banco (`galicia.ar`, cobranzas) que no figuraban, enlaces de rastreo de emBlue y las palabras «billetera» y «tokens» tomadas por cebo de criptoactivos (ahora solo cuentan junto a un verbo de reclamar, validar, migrar o conectar).
 

@@ -73,7 +73,7 @@ jobs:
             aquasec/trivy:0.69.3 image --scanners vuln --severity CRITICAL \
             --ignore-unfixed --exit-code 1 soc-incident-analyzer:ci
 
-              e2e:
+  e2e:
     name: Pruebas de navegador (Playwright)
     runs-on: ubuntu-24.04
     steps:

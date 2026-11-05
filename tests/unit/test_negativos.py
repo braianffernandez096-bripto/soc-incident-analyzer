@@ -1,8 +1,7 @@
 """Pruebas negativas: actividad normal que NO debe generar hallazgos, cerca de los umbrales de cada regla.
 
 Complementa a las pruebas con escenarios de ataque (que solo prueban que la regla dispara) y mide el lado contrario: el ruido.
-Los casos marcados ``xfail(strict=True)`` son falsos positivos CONOCIDOS, medidos con datos normales (ver docs/VALIDACION.md): documentan
-el comportamiento actual y, cuando se calibre la regla, la prueba pasa a verde y obliga a quitar la marca.
+Los falsos positivos medidos con datos normales (ver docs/VALIDACION.md) se calibraron en 1.5.0 y quedan fijados aquí como pruebas normales.
 """
 import json
 from datetime import datetime, timedelta
@@ -109,8 +108,8 @@ def test_multisource_normal_activity_raises_nothing(name):
     assert rules(GEN_NEGATIVE[name]) == []
 
 
-# ---------------------------------------------------------------- Falsos positivos conocidos (calibración pendiente)
-KNOWN_FP = {
+# ---------------------------------------------------------------- Falsos positivos calibrados en 1.5.0 (antes eran xfail)
+CALIBRATED_FP = {
     "un_solo_ipconfig": (win([dict(eid=4688, user="CORP\\helpdesk", desc="process", cmd="ipconfig /all")]), {"cmd_discovery"}),
     "un_solo_whoami": (win([dict(eid=4688, user="CORP\\helpdesk", desc="process", cmd="whoami")]), {"cmd_discovery"}),
     "7z_de_un_usuario": (win([dict(eid=4688, user="CORP\\ana", desc="process", cmd="7z.exe a backup.7z C:\\Docs")]), {"cmd_archive_staging"}),
@@ -121,10 +120,9 @@ KNOWN_FP = {
 }
 
 
-@pytest.mark.parametrize("name", KNOWN_FP)
-@pytest.mark.xfail(strict=True, reason="falso positivo conocido: la regla alerta con actividad normal (ver docs/VALIDACION.md)")
-def test_known_false_positives(name):
-    case, noisy = KNOWN_FP[name]
+@pytest.mark.parametrize("name", CALIBRATED_FP)
+def test_calibrated_false_positives_stay_quiet(name):
+    case, noisy = CALIBRATED_FP[name]
     assert not (set(rules(case)) & noisy)
 
 
@@ -134,3 +132,30 @@ def test_failures_then_success_from_public_ip_is_flagged_on_purpose():
     case = win([dict(eid=4625, user="CORP\\ana", ip="203.0.113.9", res="Failure", desc="failed", t=i * 20) for i in range(3)]
                + [dict(eid=4624, user="CORP\\ana", ip="203.0.113.9", t=90)])
     assert {"brute_force", "external_logon"} <= set(rules(case))
+
+
+# ---------------------------------------------------------------- La calibración no debe apagar la detección real
+def test_discovery_burst_still_alerts():
+    case = win([dict(eid=4688, user="CORP\\helpdesk", desc="process", cmd=c, t=i * 10)
+                for i, c in enumerate(["whoami", "ipconfig /all", "net user /domain"])])
+    assert "cmd_discovery" in rules(case)
+
+
+def test_discovery_from_external_ip_still_alerts():
+    case = win([dict(eid=4688, user="CORP\\svc_web", desc="process", cmd="whoami", ip="203.0.113.9")])
+    assert "cmd_discovery" in rules(case)
+
+
+def test_staging_in_temp_still_alerts():
+    case = win([dict(eid=4688, user="CORP\\ana", desc="process", cmd="7z.exe a C:\\ProgramData\\x.7z C:\\Docs")])
+    assert "cmd_archive_staging" in rules(case)
+
+
+def test_reg_save_with_quoted_exe_is_credential_dump():
+    case = win([dict(eid=4688, user="CORP\\ana", desc="process", cmd='"C:\\windows\\system32\\reg.exe" save HKLM\\sam sam')])
+    assert "cmd_cred_dump" in rules(case)
+
+
+def test_windows_task_by_non_system_still_alerts():
+    case = win([dict(eid=4698, user="CORP\\ana", desc="A scheduled task was created \\Microsoft\\Windows\\Foo\\Bar")])
+    assert "persistence" in rules(case)

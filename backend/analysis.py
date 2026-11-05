@@ -165,6 +165,7 @@ def analyze(df: pd.DataFrame, meta: dict) -> dict:
         except Exception:   # una regla defectuosa no debe tumbar todo el análisis, pero se declara
             log.exception("rule_failed rule=%s", key)
             failed_rules.append(desc)
+    D.prune_uncorroborated(st)
     incidents, others = D.correlate(st)
 
     n = 1

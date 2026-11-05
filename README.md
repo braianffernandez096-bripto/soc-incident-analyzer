@@ -290,7 +290,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 699 pruebas (5 son falsos positivos conocidos, marcados xfail)
+python -m pytest                                           # 713 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
@@ -302,15 +302,16 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 
 - `tests/e2e/`: arranca el servidor real y recorre carga, análisis y PDF.
 
-- `tests/unit/test_negativos.py`: 30 casos de actividad normal que no deben alertar, cerca de los umbrales de cada regla, y 5 falsos positivos conocidos marcados `xfail` hasta que se calibren.
+- `tests/unit/test_negativos.py`: 35 casos de actividad normal (30 sin ruido y 5 falsos positivos medidos y ya calibrados) que no deben alertar, cerca de los umbrales de cada regla, más pruebas de que la calibración no apaga la detección real.
+- `tests/unit/test_reglas_credenciales.py`: acceso a LSASS (Sysmon 10), DCSync (4662) y claves Run (Sysmon 13), con casos de ataque y de actividad normal.
 
 ## Validación de las reglas
 
 Además de las pruebas con escenarios de ataque, las reglas se midieron con datos que no escribí yo. Resultados (detalle, método y límites en [docs/VALIDACION.md](docs/VALIDACION.md)):
 
 - **SSH real (Loghub):** de 11 IPs que atacaron con fuerza bruta, la app detectó las 11, sin falsos positivos.
-- **107 ataques de Windows (OTRF Security-Datasets):** la técnica correcta en 13, hallazgos de otra técnica en 39 y ninguno en 53. La cobertura es limitada y está documentada, con los huecos priorizados (credenciales, evasión de defensas, movimiento lateral).
-- **Tráfico normal:** 30 casos sin ruido y 5 falsos positivos conocidos (por ejemplo, un solo `ipconfig`), también documentados.
+- **107 ataques de Windows (OTRF Security-Datasets):** la técnica correcta en 19 (antes de calibrar: 13), hallazgos de otra técnica en 27 y ninguno en 58. La cobertura es limitada y está documentada, con los huecos priorizados (evasión de defensas, movimiento lateral).
+- **Tráfico normal:** 35 casos de actividad corriente sin hallazgos; los 5 falsos positivos que se midieron primero (por ejemplo, un solo `ipconfig`) se calibraron y el antes y el después están documentados.
 
 Se pueden repetir con `scripts/validar_datasets.py`.
 

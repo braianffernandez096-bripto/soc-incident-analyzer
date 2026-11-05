@@ -4,8 +4,10 @@ Este documento mide qué tan bien detectan las reglas y cuánto ruido generan, c
 reproducibles de este repositorio: `tests/unit/test_negativos.py` y `scripts/validar_datasets.py`.
 
 Resumen honesto: las reglas **funcionan bien contra los ataques para los que fueron diseñadas** (fuerza bruta, descarga de código, volcado de
-credenciales por línea de comandos, tareas programadas), **no cubren muchas técnicas** (sobre todo evasión de defensas y movimiento lateral) y
-**tienen falsos positivos conocidos** con actividad administrativa normal. Todo eso está medido abajo y es la base para calibrar.
+credenciales, acceso a LSASS, DCSync, tareas programadas y claves Run), **no cubren muchas técnicas** (sobre todo evasión de defensas y
+movimiento lateral) y mantienen unas pocas decisiones de diseño que generan alertas con actividad legítima (sección 3). La versión 1.5.0
+calibró los 5 falsos positivos que midió la primera versión de este documento y cubrió los huecos de credenciales; el antes y el después
+están en la sección 2.1.
 
 ## 1. SSH real (Loghub, `OpenSSH_2k.log`)
 
@@ -35,20 +37,22 @@ uno declara su técnica en un metadato. Se comparó con las técnicas que cita l
 
 | Resultado | Datasets | % |
 |---|---|---|
-| Misma técnica | 13 | 12 % |
-| Misma táctica | 2 | 2 % |
-| Otra técnica | 39 | 36 % |
-| Sin hallazgos | 53 | 50 % |
+| Misma técnica | 19 | 18 % |
+| Misma táctica | 3 | 3 % |
+| Otra técnica | 27 | 25 % |
+| Sin hallazgos | 58 | 54 % |
+
+(Resultados con la versión 1.5.0. Antes de la calibración: 13 / 2 / 39 / 53; ver sección 2.1.)
 
 Por táctica del dataset:
 
 | Táctica | Datasets | Técnica | Táctica | Otros | Ninguno |
 |---|---|---|---|---|---|
-| Evasión de defensas | 37 | 0 | 0 | 12 | 25 |
-| Movimiento lateral | 26 | 2 | 2 | 12 | 10 |
-| Acceso a credenciales | 21 | 4 | 0 | 9 | 8 |
-| Descubrimiento | 9 | 4 | 0 | 1 | 4 |
-| Persistencia | 7 | 2 | 0 | 4 | 1 |
+| Evasión de defensas | 37 | 0 | 0 | 11 | 26 |
+| Movimiento lateral | 26 | 1 | 2 | 10 | 13 |
+| Acceso a credenciales | 21 | 9 | 0 | 4 | 8 |
+| Descubrimiento | 9 | 4 | 0 | 0 | 5 |
+| Persistencia | 7 | 4 | 1 | 1 | 1 |
 | Ejecución | 4 | 1 | 0 | 0 | 3 |
 | Escalamiento de privilegios | 2 | 0 | 0 | 1 | 1 |
 | Recolección | 1 | 0 | 0 | 0 | 1 |
@@ -58,13 +62,37 @@ Por táctica del dataset:
 genuina pero distinta (por ejemplo, un servicio nuevo detectado como persistencia cuando el dataset es de movimiento lateral). Aun así, hay
 **huecos concretos dentro del alcance** de la herramienta:
 
-| Hueco | Evidencia |
+| Hueco que sigue abierto | Evidencia |
 |---|---|
-| Volcado de credenciales sin comando reconocible | `reg save` de SAM, `esentutl`, `dumpert` y `powerdump`: sin hallazgos; Mimikatz solo aparece como «PowerShell codificado» o «reconocimiento» |
-| Acceso a LSASS (Sysmon 10) y DCSync (4662) | Sin reglas; el volcado de LSASS con el Administrador de tareas se reportó como inicio externo + privilegios |
-| Claves Run (Sysmon 12/13) | Los datasets de persistencia por registro no disparan «persistencia» (solo la regla de `registry_modify` de otras fuentes) |
+| Mimikatz sin acceso a LSASS visible | `extract_keys`, `sam_access`, `dcsync` de Empire y `over_pth_patch_lsass` ya no generan hallazgos incidentales y tampoco el correcto: requieren eventos que el export de ejemplo no trae |
+| Pass-the-hash / Kerberoasting / ticket (4768/4769) | Sin reglas |
 | Modificación de tareas programadas | Solo se detecta la creación (4698), no el cambio |
-| Evasión de defensas | 25 de 37 sin hallazgos |
+| Suscripciones WMI persistentes | Se reporta como persistencia (misma táctica), pero no la técnica T1546.003 |
+| Evasión de defensas | 26 de 37 sin hallazgos |
+
+### 2.1 Antes y después de la calibración (1.5.0)
+
+Mismos 107 datasets, mismo script, mismo criterio:
+
+| Resultado | Antes | Después |
+|---|---|---|
+| Misma técnica | 13 | **19** |
+| Misma táctica | 2 | **3** |
+| Otra técnica | 39 | 27 |
+| Sin hallazgos | 53 | 58 |
+
+Qué cambió y por qué:
+
+- **Ganancias reales (+6 técnica):** `reg.exe" save HKLM\sam` entre comillas, `esentutl` sobre SAM/NTDS, Dumpert, acceso a LSASS (Sysmon 10),
+  DCSync (4662) y claves Run (Sysmon 13). Las reglas nuevas se probaron contra los 107 datasets: `cred_lsass` solo dispara en volcados de
+  LSASS (más un caso de `wsmprovhost.exe` con acceso total a LSASS en un dataset de PowerShell remoting, que se considera legítimo de
+  investigar), `cred_dcsync` en el DCSync de Covenant y `persist_run` en los datasets de claves Run y de suscripción WMI.
+- **«Otra técnica» baja de 39 a 27 por menos ruido, no por menos detección:** 9 datasets tenían como único hallazgo un «comando de
+  reconocimiento» suelto (`whoami`, `ipconfig`) ajeno a la técnica del ataque. Ese ruido ya no se reporta, así que pasan a «sin hallazgos».
+  La enumeración de dominio (`net user`, `nltest`, `Get-AD*`) sigue alertando con un solo comando.
+- **Un empeoramiento:** `purplesharp_ad_playbook_I` (técnica → ninguno). Coincidía solo porque un `whoami` suelto citaba T1135; era una
+  coincidencia, no una detección del ataque real (Kerberoasting y password spraying).
+- **Los 5 falsos positivos conocidos desaparecen** (sección 3) y se agregaron pruebas de que la calibración no apaga la detección real.
 
 ## 3. Tráfico normal (falsos positivos)
 
@@ -72,15 +100,16 @@ genuina pero distinta (por ejemplo, un servicio nuevo detectado como persistenci
 internos, fallos espaciados, IP privadas, comandos legítimos, descargas entrantes, DNS de CDN, llamadas normales a la nube, etc.
 
 - **30 casos de actividad normal no generan ningún hallazgo** (prueba verde).
-- **5 falsos positivos conocidos** (marcados `xfail`: se vuelven verdes al calibrar la regla y obligan a quitar la marca):
+- **5 falsos positivos medidos en 1.4.0, calibrados en 1.5.0** (ahora son pruebas normales que deben seguir en verde):
 
-| Actividad normal | Lo que hoy se reporta |
+| Actividad normal | Qué se hizo |
 |---|---|
-| Un solo `ipconfig /all` o `whoami` de un usuario de soporte | Hallazgo Medio «Comandos de reconocimiento» |
-| `7z a backup.7z` de un usuario | Hallazgo Alto «Compresión de datos (staging)» |
-| Tarea programada de Windows Update creada por SYSTEM | Hallazgo Medio «Persistencia» |
-| `curl` a un repositorio interno | Hallazgo Alto «Comandos sospechosos» (descarga) |
-| `tasklist`, `systeminfo` o `net use` sueltos | Hallazgo Medio (observado; sin prueba propia, es el mismo caso que `ipconfig`) |
+| Un solo `ipconfig /all`, `whoami`, `tasklist`… de un usuario de soporte | Los comandos de información local necesitan ≥3 en el mismo grupo u origen externo; los de enumeración de dominio siguen alertando solos |
+| `7z a backup.7z` de un usuario | El «staging» se descarta salvo origen externo, ruta temporal/ProgramData, contraseña (`-p`), ≥3 comandos o conexión saliente posterior |
+| Tarea programada de Windows Update creada por SYSTEM | Se ignoran las tareas `\Microsoft\Windows\…` creadas por SYSTEM |
+| `curl` a un repositorio interno (`.tar.gz`) | La regla de compresión exige que el archivador sea el comando, no que el nombre de archivo termine en `.tar.gz` |
+
+Pruebas inversas (`test_discovery_burst_still_alerts`, `test_staging_in_temp_still_alerts`, etc.) fijan que el ruido bajó sin apagar la alerta real.
 
 Otros casos que se observaron y **no** se marcaron como errores porque son decisiones de diseño discutibles:
 
@@ -89,11 +118,11 @@ Otros casos que se observaron y **no** se marcaron como errores porque son decis
 - 9 fallos de RDP desde un equipo interno generan Medio en la regla genérica.
 - 30 MB salientes a un servicio legítimo (OneDrive) generan Alto por superar el umbral, sin lista de destinos conocidos.
 - Una administradora que crea su propia clave de acceso en la nube genera Crítico.
-- Un instalador legítimo (Chrome) que agrega una clave Run genera Alto.
+- Un instalador legítimo que agrega una clave Run genera Medio (`persist_run` solo sube a Alto si el binario está en una ruta escribible o lo escribió un intérprete); sigue apareciendo para que el analista lo descarte.
 
 ## 4. Cobertura ATT&CK
 
-La app cita **48 técnicas** de ATT&CK en **26 reglas** (13 para exports de Windows y 13 para exports multi-fuente). No cubre la matriz
+La app cita **50 técnicas** de ATT&CK en **29 reglas** (16 para exports de Windows y 13 para exports multi-fuente). No cubre la matriz
 completa y no pretende hacerlo:
 
 | Táctica | Técnicas citadas | Cuáles |
@@ -104,7 +133,7 @@ completa y no pretende hacerlo:
 | Persistencia | 8 | T1053.005 Scheduled Task; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1098 Account Manipulation; T1098.004 SSH Authorized Keys; T1505.003 Web Shell; T1543.003 Windows Service; T1547.001 Registry Run Keys / Startup Folder |
 | Escalamiento de privilegios | 9 | T1053.005 Scheduled Task; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1098 Account Manipulation; T1098.004 SSH Authorized Keys; T1134 Access Token Manipulation; T1543.003 Windows Service; T1547.001 Registry Run Keys / Startup Folder; T1548.001 Setuid and Setgid |
 | Sigilo (evasión de defensas) | 10 | T1027 Obfuscated Files or Information; T1027.013 Encrypted/Encoded File; T1036 Masquerading; T1036.004 Masquerade Task or Service; T1036.007 Double File Extension; T1036.008 Masquerade File Type; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1134 Access Token Manipulation; T1684.001 Impersonation |
-| Acceso a credenciales | 5 | T1003 OS Credential Dumping; T1003.008 /etc/passwd and /etc/shadow; T1110 Brute Force; T1110.001 Password Guessing; T1110.003 Password Spraying |
+| Acceso a credenciales | 7 | T1003 OS Credential Dumping; T1003.001 LSASS Memory; T1003.006 DCSync; T1003.008 /etc/passwd and /etc/shadow; T1110 Brute Force; T1110.001 Password Guessing; T1110.003 Password Spraying |
 | Descubrimiento | 3 | T1069 Permission Groups Discovery; T1087 Account Discovery; T1135 Network Share Discovery |
 | Movimiento lateral | 2 | T1021.001 Remote Desktop Protocol; T1021.002 SMB/Windows Admin Shares |
 | Recolección | 4 | T1005 Data from Local System; T1039 Data from Network Shared Drive; T1074.001 Local Data Staging; T1560.001 Archive via Utility |
@@ -122,8 +151,8 @@ confianza, T1055 inyección de procesos) y de movimiento lateral (T1021 sobre WM
 - La comparación por técnica es estricta: un hallazgo útil de otra técnica cuenta como «otros». Por eso se reporta también cuántos datasets
   tienen hallazgos y cuáles.
 - No hay un conjunto de **tráfico normal real** equivalente (solo el sintético de las pruebas negativas), así que la tasa de falsos positivos
-  en producción es desconocida. Los 5 casos de la sección 3 son pruebas puntuales, no una tasa.
-- Los resultados dependen de la versión de la app (1.4.0) y de la versión de los datasets; se pueden regenerar.
+  en producción es desconocida. Los casos de la sección 3 son pruebas puntuales, no una tasa.
+- Los resultados dependen de la versión de la app (1.5.0) y de la versión de los datasets; se pueden regenerar.
 
 ## 6. Cómo reproducirlo
 

@@ -82,6 +82,24 @@ PLAYBOOK: dict[str, dict] = {
         "contain": ["Aislar {host}.", "Restablecer todas las credenciales expuestas."],
         "remediate": ["Habilitar Credential Guard y LSA Protection.", "Limitar sesiones privilegiadas en hosts no administrativos."],
     },
+    "cred_lsass": {
+        "impact": "Quien lee la memoria de LSASS obtiene hashes y contraseñas de todas las cuentas con sesión en {host}; permite moverse a otros equipos con esas identidades.",
+        "investigate": ["Identificar el binario que abrió lsass.exe (hash, firma, origen) y qué lo lanzó.", "Listar las cuentas con sesión en {host} cuando ocurrió, porque se deben considerar expuestas."],
+        "contain": ["Aislar {host} de la red.", "Restablecer las contraseñas de las cuentas con sesión y revocar sus tickets Kerberos."],
+        "remediate": ["Activar LSA Protection (RunAsPPL) y Credential Guard.", "Regla de EDR para accesos a lsass.exe con permisos de lectura de memoria."],
+    },
+    "cred_dcsync": {
+        "impact": "Con derechos de replicación el atacante copia los hashes de todo el dominio, incluida krbtgt: control total y persistencia (Golden Ticket).",
+        "investigate": ["Revisar qué permisos de replicación tiene {user} y cómo los obtuvo.", "Buscar el origen de la petición (IP) y la actividad previa de la cuenta."],
+        "contain": ["Deshabilitar {user} y retirar los permisos de replicación.", "Planificar el doble restablecimiento de krbtgt si se confirma."],
+        "remediate": ["Auditar quién tiene DS-Replication-Get-Changes(-All) y limitarlo a controladores de dominio.", "Alertar 4662 con esos GUID cuando la cuenta no sea de máquina."],
+    },
+    "persist_run": {
+        "impact": "El programa se ejecutará en cada inicio de sesión en {host}: el atacante conserva acceso aunque se reinicie el equipo.",
+        "investigate": ["Revisar el ejecutable referenciado (ruta, hash, firma) y el proceso que escribió la clave.", "Comparar con el software instalado y aprobado en {host}."],
+        "contain": ["Eliminar el valor de la clave Run y aislar {host} si el binario es malicioso."],
+        "remediate": ["Restringir la escritura en las claves Run con AppLocker/WDAC y monitorizar Sysmon 13 sobre ellas."],
+    },
     "cmd_download_cradle": {
         "impact": "Descarga de código externo para ejecutarlo en {host}.",
         "investigate": ["Identificar la URL/archivo descargado y su ejecución posterior."],

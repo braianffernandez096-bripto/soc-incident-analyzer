@@ -63,6 +63,20 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1003/"
   },
+  "T1003.001": {
+   "name": "LSASS Memory",
+   "tactics": [
+    "credential-access"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1003/001/"
+  },
+  "T1003.006": {
+   "name": "DCSync",
+   "tactics": [
+    "credential-access"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1003/006/"
+  },
   "T1003.008": {
    "name": "/etc/passwd and /etc/shadow",
    "tactics": [

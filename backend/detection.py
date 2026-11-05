@@ -51,6 +51,9 @@ CONFIG = {
     "web_min_requests": 10,
     "web_cluster_gap_s": 300,
     "command_cluster_gap_s": 900,
+    # Calibración (docs/VALIDACION.md): un comando suelto de administración no es un hallazgo; la repetición o un contexto raro, sí.
+    "discovery_min_commands": 3,
+    "staging_min_commands": 3,
 }
 
 ADMIN_RE = re.compile(r"admin|root", re.I)
@@ -384,7 +387,9 @@ CMD_PATTERNS = [
          why="Borrar las copias de sombra impide restaurar archivos y es un paso típico previo a ransomware."),
     dict(key="cred_dump", tactic="Acceso a credenciales", base="Crítico", mitre=["T1003"],
          label="Volcado de credenciales",
-         rx=re.compile(r"mimikatz|sekurlsa|procdump.*lsass|comsvcs\.dll.*minidump|ntdsutil|reg(\.exe)?\s+save\s+hklm\\(sam|security|system)", re.I),
+         rx=re.compile(r"mimikatz|sekurlsa|lsadump|procdump.*lsass|comsvcs\.dll.*minidump|ntdsutil|ntds\.dit|\bdumpert\b|nanodump|secretsdump"
+                       r"|esentutl(\.exe)?[\"']?\s+.*/y\s+.*(ntds|\\sam\b|\\system\b|\\security\b|shadowcopy)"
+                       r"|reg(\.exe)?[\"']?\s+save\s+hklm\\(sam|security|system)", re.I),
          why="Extraer credenciales de memoria o del registro permite movimiento lateral y persistencia."),
     dict(key="web_service_shell", tactic="Ejecución", base="Crítico", mitre=["T1505.003", "T1190"],
          label="Shell iniciada por el servicio web", rx=None,
@@ -399,13 +404,16 @@ CMD_PATTERNS = [
          why="Descargar y ejecutar contenido remoto es un patrón de entrega de malware."),
     dict(key="archive_staging", tactic="Recolección", base="Alto", mitre=["T1560.001", "T1074.001"],
          label="Compresión de datos (staging)",
-         rx=re.compile(r"\b(tar|7z|7za|rar|winrar|zip)(\.exe)?\b.*\.(zip|7z|rar|tar|gz)\b|compress-archive", re.I),
+         rx=re.compile(r"(?:^|[\s\\/\"'])(tar|7z|7za|rar|winrar|zip)(\.exe)?[\"']?\s+[^\n]*?\.(zip|7z|rar|tar|gz)\b|compress-archive", re.I),
          why="Agrupar y comprimir archivos suele preceder a su exfiltración."),
     dict(key="discovery", tactic="Descubrimiento", base="Medio", mitre=["T1087", "T1069", "T1135"],
          label="Comandos de reconocimiento",
          rx=re.compile(r"\b(whoami|systeminfo|ipconfig|nltest|quser|tasklist)\b|net1?(\.exe)?\s+(view|user|group|localgroup|share|use)\b|get-localgroupmember|get-smbshare|get-aduser|get-adgroupmember|get-netcomputer", re.I),
          why="Enumerar usuarios, grupos y recursos compartidos es la fase de reconocimiento posterior al acceso."),
 ]
+
+
+DISCOVERY_DIRECTORY_RE = re.compile(r"\bnltest\b|net1?(\.exe)?\s+(view|user|group|localgroup|share|use)\b|get-localgroupmember|get-smbshare|get-aduser|get-adgroupmember|get-netcomputer", re.I)
 
 
 def _match_cmd(row) -> dict | None:
@@ -438,6 +446,11 @@ def rule_commands(st: State) -> None:
         p = pat[key]
         for c in clusters(g, CONFIG["command_cluster_gap_s"]):
             ext = c["Source_IP"].map(is_external).any()
+            # Calibración: un comando de administración suelto (ipconfig, whoami) no es un hallazgo; la ráfaga o el origen externo sí.
+            # Solo se exime la enumeración de cuentas/grupos/recursos del dominio (net user /domain, nltest, Get-AD*): un comando así ya es señal.
+            if (key == "discovery" and not ext and len(c) < CONFIG["discovery_min_commands"]
+                    and not c["Process_CommandLine"].map(lambda x: bool(DISCOVERY_DIRECTORY_RE.search(x))).any()):
+                continue
             sev = bump(p["base"], 1) if (ext and p["base"] != "Crítico") else p["base"]
             cmds = [trunc(x, 140) for x in c["Process_CommandLine"] if x] or [trunc(x, 140) for x in c["Event_Description"]]
             reasons = [f"Coincide con el patrón «{p['label']}»: {p['why']}"]
@@ -464,9 +477,25 @@ def rule_commands(st: State) -> None:
                 iocs.append(_ioc("IP", ext_ips[0], "Origen externo de la actividad"))
             title = f"{p['label']} en {host} ({short_user(user)})"
             cat = "Comandos y procesos"
+            metrics = {"comandos": len(c), "host": host, "usuario": user, "ejemplos": cmds[:5]}
+            if key == "archive_staging":
+                blob_c = " ".join(c["Process_CommandLine"])
+                odd_place = bool(re.search(r"\\(ProgramData|Temp|Users\\Public)\\|/tmp/|\s-p\S", blob_c, re.I))
+                if not (ext or odd_place or len(c) >= CONFIG["staging_min_commands"]):
+                    metrics["_sin_corroborar"] = True   # se descarta al final si ninguna otra regla lo respalda (p. ej. salida a Internet)
             _mk(st, f"cmd_{key}", title, cat, p["tactic"], p["mitre"], sev, reasons, expl, c,
-                actor_ips=ext_ips[:1], actor_users=[user],
-                metrics={"comandos": len(c), "host": host, "usuario": user, "ejemplos": cmds[:5]}, iocs=iocs)
+                actor_ips=ext_ips[:1], actor_users=[user], metrics=metrics, iocs=iocs)
+
+
+def prune_uncorroborated(st: State) -> int:
+    """Descarta los hallazgos marcados como `_sin_corroborar` que ninguna otra regla respaldó. Se llama tras todas las reglas."""
+    keep = [f for f in st.findings if not (f.metrics.get("_sin_corroborar") and not f.metrics.get("_corroborado"))]
+    n = len(st.findings) - len(keep)
+    for f in keep:   # marcas internas: no deben salir en el informe ni en el prompt de la IA
+        f.metrics.pop("_sin_corroborar", None)
+        f.metrics.pop("_corroborado", None)
+    st.findings[:] = keep
+    return n
 
 
 def rule_lateral(st: State) -> None:
@@ -642,6 +671,8 @@ def rule_outbound(st: State) -> None:
                 reasons.append("La conexión la inició un intérprete de comandos (powershell/cmd), no un navegador ni un servicio esperado.")
             if comp:
                 reasons.append(f"La cuenta {user} ya figura como comprometida ({comp['log_id']}).")
+            for pf in prior_stage:
+                pf.metrics["_corroborado"] = True
             if prior_stage:
                 lag = (pd.Timestamp(r0.Timestamp) - pd.Timestamp(prior_stage[0].time_end)).total_seconds()
                 reasons.append(f"Ocurre {fmt_dur(lag)} después de comprimir datos en el mismo host.")
@@ -658,6 +689,10 @@ def rule_outbound(st: State) -> None:
 def rule_persistence(st: State) -> None:
     d = st.df
     p = d[d["Event_ID"].isin(["4698", "7045"])]
+    # Calibración: las tareas propias de Windows creadas por SYSTEM (\Microsoft\Windows\...) son mantenimiento normal.
+    p = p[~(p["User"].str.contains(r"SYSTEM$", case=False, regex=True, na=False)
+            & (p["Event_ID"] == "4698")
+            & p["Event_Description"].str.contains(r"\\Microsoft\\Windows\\", regex=True, na=False))]
     for (host, user), g in _groups(p, ["Hostname", "User"]):
         for c in clusters(g, 1800):
             blob = " ".join(c["Event_Description"] + " " + c["Process_CommandLine"])
@@ -706,6 +741,110 @@ def rule_persistence(st: State) -> None:
                 "Persistencia", ["T1053.005", "T1543.003", "T1036.004"], sev, reasons, expl, rows, actor_users=[user],
                 metrics={"host": host, "usuario": user, "ejecuciones": int(len(execs)), "intervalo_s": gap,
                          "periodico": periodic, "imagenes": targets}, iocs=iocs)
+
+
+# --- Acceso a credenciales / persistencia por Sysmon y 4662 (calibradas contra OTRF, ver docs/VALIDACION.md) ---
+LSASS_BENIGN_SOURCES = {"svchost.exe", "vboxservice.exe", "csrss.exe", "wininit.exe", "winlogon.exe", "services.exe", "lsm.exe",
+                        "msmpeng.exe", "mssense.exe", "collectguestlogs.exe", "wmiprvse.exe", "smss.exe", "sense.exe"}
+# Máscaras que permiten leer la memoria (PROCESS_ALL_ACCESS y variantes de mimikatz/procdump/comsvcs). 0x1000/0x1400/0x1410/0x40 son rutina de Windows.
+LSASS_DUMP_MASKS = {"0x1fffff", "0x1f3fff", "0x1f0fff", "0x143a", "0x1010", "0x1038", "0x1418"}
+DCSYNC_GUIDS = ("1131f6aa-9c07-11d1-f79f-00c04fc2dcd2", "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2", "89e95b76-444d-4c62-991a-0facbeda640c")
+RUNKEY_RE = re.compile(r"\\Software\\(?:Wow6432Node\\)?Microsoft\\Windows\\CurrentVersion\\Run(?:Once)?\\", re.I)
+
+
+def _field(text: str, name: str) -> str:
+    m = re.search(rf"^\s*{name}:\s*(.+?)\s*$", text, re.I | re.M)
+    return m.group(1).strip() if m else ""
+
+
+def rule_cred_lsass(st: State) -> None:
+    d = st.df
+    s = d[d["Event_ID"] == "10"]
+    rows = []
+    for r in s.itertuples():
+        t = r.Event_Description
+        if not _field(t, "TargetImage").lower().endswith("lsass.exe"):
+            continue
+        src = _field(t, "SourceImage")
+        if src.rsplit("\\", 1)[-1].lower() in LSASS_BENIGN_SOURCES:
+            continue
+        if _field(t, "GrantedAccess").lower() not in LSASS_DUMP_MASKS:
+            continue
+        rows.append((r.Log_ID, src))
+    if not rows:
+        return
+    src_by_id = dict(rows)
+    sub = s[s["Log_ID"].isin(src_by_id)].copy()
+    sub["_src"] = sub["Log_ID"].map(src_by_id)
+    for (host, src), g in _groups(sub, ["Hostname", "_src"]):
+        for c in clusters(g, CONFIG["command_cluster_gap_s"]):
+            masks = sorted({_field(x, "GrantedAccess") for x in c["Event_Description"]})
+            exe = src.rsplit("\\", 1)[-1]
+            reasons = [f"{exe} abrió lsass.exe con permisos de lectura de memoria ({', '.join(masks)}); es lo que hacen mimikatz, procdump o comsvcs.dll para extraer credenciales.",
+                       "El proceso no está entre los componentes habituales de Windows que acceden a LSASS."]
+            expl = (f"En {host}, {src} accedió a la memoria de lsass.exe ({pl(len(c), 'evento', 'eventos')} Sysmon 10, {hhmmss(c['Timestamp'].min())}). "
+                    "Con esos permisos se puede volcar la memoria y obtener hashes y contraseñas (T1003.001).")
+            _mk(st, "cred_lsass", f"Acceso a la memoria de LSASS por {exe} en {host}", "Comandos y procesos", "Acceso a credenciales",
+                ["T1003.001"], "Crítico", reasons, expl, c, hosts=[host],
+                metrics={"host": host, "proceso": src, "permisos": masks, "eventos": len(c)},
+                iocs=[_ioc("Ruta/archivo", src, "Proceso que leyó la memoria de LSASS")])
+
+
+def rule_cred_dcsync(st: State) -> None:
+    d = st.df
+    s = d[d["Event_ID"] == "4662"]
+    rows = []
+    for r in s.itertuples():
+        t = r.Event_Description.lower()
+        if not any(g in t for g in DCSYNC_GUIDS):
+            continue
+        acct = _field(r.Event_Description, "Account Name") or r.User
+        if not acct or acct.endswith("$"):       # los controladores de dominio replican entre sí con cuentas de máquina
+            continue
+        rows.append((r.Log_ID, acct))
+    if not rows:
+        return
+    acct_by_id = dict(rows)
+    sub = s[s["Log_ID"].isin(acct_by_id)].copy()
+    sub["_acct"] = sub["Log_ID"].map(acct_by_id)
+    for (host, acct), g in _groups(sub, ["Hostname", "_acct"]):
+        for c in clusters(g, CONFIG["command_cluster_gap_s"]):
+            reasons = [f"La cuenta {acct} solicitó derechos de replicación de directorio (DS-Replication-Get-Changes) sobre el dominio.",
+                       "Solo los controladores de dominio (cuentas de máquina) deberían hacerlo; es la técnica DCSync."]
+            expl = (f"En {host}, la cuenta de usuario {acct} ejerció derechos de replicación del directorio ({pl(len(c), 'evento', 'eventos')} 4662). "
+                    "Un atacante con esos derechos puede extraer los hashes de todas las cuentas del dominio, incluido krbtgt (T1003.006).")
+            _mk(st, "cred_dcsync", f"Posible DCSync por {acct} contra {host}", "Comandos y procesos", "Acceso a credenciales",
+                ["T1003.006"], "Crítico", reasons, expl, c, actor_users=[acct], hosts=[host],
+                metrics={"host": host, "usuario": acct, "eventos": len(c)})
+
+
+def rule_persist_run(st: State) -> None:
+    d = st.df
+    s = d[d["Event_ID"] == "13"]
+    rows = []
+    for r in s.itertuples():
+        t = r.Event_Description
+        target = _field(t, "TargetObject")
+        if not RUNKEY_RE.search(target):
+            continue
+        rows.append((r.Log_ID, target, _field(t, "Image"), _field(t, "Details")))
+    if not rows:
+        return
+    info = {x[0]: x for x in rows}
+    sub = s[s["Log_ID"].isin(info)].copy()
+    for (host,), g in _groups(sub, ["Hostname"]):
+        for c in clusters(g, 1800):
+            det = [info[i] for i in c["Log_ID"]]
+            risky = any(re.search(r"\\(Temp|Users\\Public|ProgramData|AppData)\\|powershell|cmd\.exe|wscript|mshta|rundll32|reg\.exe", x[2] + " " + x[3], re.I) for x in det)
+            sev = "Alto" if risky else "Medio"
+            reasons = [f"Se creó una entrada de inicio automático en {det[0][1].split(chr(92) + 'Run')[0].split('Microsoft')[-1].strip(chr(92)) or 'Run'}\\Run: {trunc(det[0][3], 100)}."]
+            if risky:
+                reasons.append("El ejecutable reside en una ruta escribible por el usuario o lo escribió un intérprete de comandos.")
+            expl = (f"En {host}, {det[0][2] or 'un proceso'} añadió {pl(len(c), 'valor', 'valores')} a las claves Run/RunOnce (Sysmon 13): "
+                    + "; ".join(f"{x[1].rsplit(chr(92), 1)[-1]} = {trunc(x[3], 90)}" for x in det[:4]) + ". Se ejecutará en cada inicio de sesión (T1547.001).")
+            _mk(st, "persist_run", f"Persistencia por clave Run en {host}", "Otras anomalías", "Persistencia", ["T1547.001"], sev, reasons, expl, c, hosts=[host],
+                metrics={"host": host, "valores": [x[1] for x in det][:6], "imagenes": sorted({x[2] for x in det if x[2]})[:4]},
+                iocs=[_ioc("Ruta/archivo", trunc(x[3], 200), "Valor de la clave Run") for x in det[:6] if x[3]])
 
 
 def rule_web_attack(st: State) -> None:
@@ -827,6 +966,9 @@ RULES: list[tuple[str, str, Callable[[State], None]]] = [
     ("privilege", "Privilegios especiales (4672) asociados a origen externo o cuenta comprometida", rule_privilege),
     ("persistence", "Persistencia: tareas programadas (4698) y servicios nuevos (7045)", rule_persistence),
     ("cmd", "Comandos/procesos sospechosos (PowerShell codificado, reconocimiento, compresión, vssadmin, shell del servicio web…)", rule_commands),
+    ("cred_lsass", "Acceso a la memoria de LSASS (Sysmon 10) por procesos no habituales", rule_cred_lsass),
+    ("cred_dcsync", "DCSync: derechos de replicación de directorio (4662) usados por una cuenta de usuario", rule_cred_dcsync),
+    ("persist_run", "Persistencia en claves Run/RunOnce (Sysmon 13)", rule_persist_run),
     ("lateral", "Movimiento lateral: autenticación en un host con origen en otro host (source=…)", rule_lateral),
     ("mass_access", "Acceso masivo/secuencial a archivos (4663)", rule_mass_access),
     ("sensitive_share", "Acceso a recursos compartidos sensibles (5140/5145)", rule_sensitive_share),

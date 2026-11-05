@@ -4,10 +4,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+### Cambiado (calibración, punto 1b)
+- **Menos ruido:** un `ipconfig`, `whoami` o `tasklist` suelto ya no genera «Comandos de reconocimiento» (se necesitan ≥3 en el mismo grupo o un origen externo; la enumeración de dominio como `net user` o `nltest` sigue alertando sola); la compresión de datos aislada (`7z a x.7z`) se descarta salvo origen externo, ruta temporal/ProgramData, contraseña, ≥3 comandos o conexión saliente posterior; las tareas de Windows creadas por SYSTEM (`\Microsoft\Windows\…`) ya no se reportan como persistencia.
+- Volcado de credenciales: ahora detecta `reg.exe" save HKLM\sam` entre comillas, `esentutl` sobre SAM/NTDS, `ntds.dit`, Dumpert, NanoDump, lsadump y secretsdump. La regla de compresión ya no confunde un `curl` a un archivo `.tar.gz` con un archivado.
+
+### Añadido (calibración, punto 1b)
+- **Tres reglas nuevas para Windows/Sysmon:** acceso a la memoria de LSASS por procesos no habituales (Sysmon 10, T1003.001), DCSync (4662 con derechos de replicación de una cuenta que no es de máquina, T1003.006) y persistencia en claves Run/RunOnce (Sysmon 13, T1547.001), con guía de respuesta.
+- Resultado medido sobre los mismos 107 datasets de OTRF: misma técnica **13 → 19**, misma táctica 2 → 3, «otra técnica» 39 → 27 (por menos ruido). Los 5 falsos positivos conocidos pasan a pruebas normales; se agregan pruebas de que la calibración no apaga la detección real.
+
 ### Añadido
-- **Validación de las reglas con datos externos** (`docs/VALIDACION.md`, `scripts/validar_datasets.py`): SSH real de Loghub (11 de 11 IPs atacantes detectadas, sin falsos positivos) y 107 ataques de Windows de OTRF Security-Datasets con su técnica ATT&CK (13 con la técnica correcta, 39 con otra, 53 sin hallazgos), con los huecos de cobertura priorizados.
-- **Pruebas negativas** (`tests/unit/test_negativos.py`): 30 casos de actividad normal que no deben generar hallazgos y 5 falsos positivos conocidos marcados `xfail` hasta calibrar las reglas.
-- Cobertura ATT&CK documentada (48 técnicas en 26 reglas) y lista de técnicas sin cobertura.
+- **Validación de las reglas con datos externos** (`docs/VALIDACION.md`, `scripts/validar_datasets.py`): SSH real de Loghub (11 de 11 IPs atacantes detectadas, sin falsos positivos) y 107 ataques de Windows de OTRF Security-Datasets con su técnica ATT&CK (línea base: 13 con la técnica correcta, 39 con otra, 53 sin hallazgos), con los huecos de cobertura priorizados.
+- **Pruebas negativas** (`tests/unit/test_negativos.py`): 30 casos de actividad normal que no deben generar hallazgos y 5 falsos positivos medidos (calibrados después, ver arriba).
+- Cobertura ATT&CK documentada (ahora 50 técnicas en 29 reglas) y lista de técnicas sin cobertura.
 
 ## [1.4.0] - 2026-11-05
 

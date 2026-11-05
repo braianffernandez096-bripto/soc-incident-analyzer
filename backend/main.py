@@ -32,6 +32,7 @@ from . import filecheck
 from . import intel as intel_mod
 from . import lookalikes as lookalikes_mod
 from . import phishing as phishing_mod
+from . import senderreview
 from . import siemqueries
 from .analysis import analyze, rows_for
 from .parser import SUPPORTED_EXT, ParseError, load_events
@@ -583,6 +584,26 @@ def domain_grade(request: Request, domain: str = Form(...)):
     finally:
         resolver.close()
     log.info("domain_graded grade=%s score=%d queries=%d", result["grade"], result["score"], resolver.queries)
+    return result
+
+
+@app.post("/api/phishing/{pid}/items/{idx}/dns")
+def phishing_sender_dns(pid: str, idx: int, request: Request):
+    """Verifica en DNS el remitente de un correo ya analizado (SPF frente a su IP de origen, clave de su firma DKIM, DMARC). Solo salen nombres de dominio."""
+    p = _get_phish(pid)
+    if not 0 <= idx < len(p.items):
+        raise HTTPException(404, "Correo no encontrado.")
+    _rate_limit(request, "/api/dns", *RATE_LIMITS["/api/dns"])
+    _require_captcha(request)
+    resolver = _new_resolver()
+    try:
+        result = senderreview.review(p.items[idx], resolver)
+    except (dnsdoh.DnsError, domaincheck.DomainNotFound) as exc:
+        raise _dns_errors(exc) from exc
+    finally:
+        resolver.close()
+    p.items[idx]["dns_review"] = result
+    log.info("sender_dns_reviewed grade=%s queries=%d", result["grade"], result["queries"])
     return result
 
 

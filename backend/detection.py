@@ -23,6 +23,8 @@ from typing import Callable
 
 import pandas as pd
 
+from . import psdecode
+
 SEV_ORDER = {"Bajo": 1, "Medio": 2, "Alto": 3, "Crítico": 4}
 SEV_NAMES = {v: k for k, v in SEV_ORDER.items()}
 
@@ -477,9 +479,21 @@ def rule_commands(st: State) -> None:
             ext_ips = [i for i in c["Source_IP"] if is_external(i)]
             if ext_ips:
                 iocs.append(_ioc("IP", ext_ips[0], "Origen externo de la actividad"))
+            decoded = _decode_ps(c) if key == "encoded_ps" else []
+            if decoded:
+                best = decoded[0]
+                reasons.append(psdecode.summary(best))
+                expl += f" Contenido decodificado: «{trunc(re.sub(chr(92) + 's+', ' ', best['decoded']), 220)}»."
+                iocs += [_ioc("URL/URI", u, "URL dentro del comando decodificado") for u in best["urls"]]
+                iocs += [_ioc("IP", i, "IP dentro del comando decodificado") for i in best["ips"] if is_external(i)]
+                if best["urls"] and any("descarga" in x for x in best["indicators"]) and sev != "Crítico":
+                    sev = bump(sev, 1)
+                    reasons.append("El comando decodificado descarga contenido de una URL externa: se sube un nivel la criticidad.")
             title = f"{p['label']} en {host} ({short_user(user)})"
             cat = "Comandos y procesos"
             metrics = {"comandos": len(c), "host": host, "usuario": user, "ejemplos": cmds[:5]}
+            if decoded:
+                metrics["decodificado"] = [{"texto": trunc(x["decoded"], 400), "indicadores": x["indicators"]} for x in decoded[:3]]
             if key == "archive_staging":
                 blob_c = " ".join(c["Process_CommandLine"])
                 odd_place = bool(re.search(r"\\(ProgramData|Temp|Users\\Public)\\|/tmp/|\s-p\S", blob_c, re.I))
@@ -487,6 +501,20 @@ def rule_commands(st: State) -> None:
                     metrics["_sin_corroborar"] = True   # se descarta al final si ninguna otra regla lo respalda (p. ej. salida a Internet)
             _mk(st, f"cmd_{key}", title, cat, p["tactic"], p["mitre"], sev, reasons, expl, c,
                 actor_ips=ext_ips[:1], actor_users=[user], metrics=metrics, iocs=iocs)
+
+
+def _decode_ps(c: pd.DataFrame) -> list[dict]:
+    """Decodifica los -EncodedCommand de las filas del grupo (máx. 3 distintos); solo los que dan texto legible."""
+    out, seen = [], set()
+    for r in c.itertuples():
+        for txt in (r.Process_CommandLine, r.Event_Description):
+            res = psdecode.decode(txt) if txt else None
+            if res and res["plausible"] and res["decoded"] not in seen:
+                seen.add(res["decoded"])
+                out.append(res)
+        if len(out) >= 3:
+            break
+    return out
 
 
 def prune_uncorroborated(st: State) -> int:

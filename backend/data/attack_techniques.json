@@ -319,6 +319,13 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1204/002/"
   },
+  "T1204.004": {
+   "name": "Malicious Copy and Paste",
+   "tactics": [
+    "execution"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1204/004/"
+  },
   "T1486": {
    "name": "Data Encrypted for Impact",
    "tactics": [

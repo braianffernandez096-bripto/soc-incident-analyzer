@@ -9,7 +9,6 @@ Aplicación web para análisis de logs. Recibe el export de un SIEM (Excel, CSV/
 Un SIEM entrega miles de eventos y el analista tiene que decidir cuáles importan, cómo se relacionan y qué hacer primero.
 Esta herramienta toma el export de un SIEM (Excel, CSV o JSON) y lo convierte en incidentes ordenados por criticidad, cada uno con las evidencias que lo sustentan.
 Cada hallazgo se mapea a MITRE ATT&CK y trae un plan de acción (investigar, contener, remediar) y un informe técnico en PDF.
-
 Está pensada para analistas SOC y estudiantes que practican triage, y para quien quiera ver cómo se correlacionan los eventos sin montar un SIEM completo.
 El análisis, los incidentes, MITRE ATT&CK y el informe en PDF funcionan sin Internet y sin costo, porque las reglas son deterministas y el informe usa plantillas. La redacción con IA es opcional: requiere tu propia clave de API de Anthropic (servicio de pago por uso) y solo mejora la redacción, nunca cambia la criticidad.
 
@@ -32,7 +31,9 @@ Proyecto personal de Braian Fernandez, hecho para practicar el análisis de inci
 6. **MITRE ATT&CK** (`backend/attack.py`): cada técnica sugerida por un hallazgo se muestra con su nombre oficial y un enlace a attack.mitre.org. La pestaña **ATT&CK** agrupa las técnicas por táctica en una matriz y permite descargar una capa `.json` para [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/). Los datos son los oficiales de MITRE (v20.0), incluidos en `backend/data/` y validados contra las reglas por las pruebas. No se consulta Internet.
 
 7. **Consultas para tu SIEM** (`backend/siemqueries.py`): cada hallazgo de Windows con equivalente directo ofrece el botón **Buscar en tu SIEM**, que muestra la consulta de **Splunk (SPL)**, la de **Microsoft Sentinel/Defender (KQL)** y la regla **Sigma**, con la IP, la cuenta, el equipo y la ventana del hallazgo ya rellenos. La pestaña Hallazgos descarga además todas las reglas Sigma de la sesión en un `.yml`. Son plantillas deterministas (sin IA, sin Internet) y los valores del log se escapan para que no puedan alterar la consulta; cada SIEM nombra índices y campos a su manera, así que hay que revisarlos. No cubren las reglas de otras fuentes, de calidad de datos ni la exfiltración por proxy.
-8. **Phishing** (`backend/phishing.py`): la pestaña **Phishing** analiza correos `.eml` (hasta 5, 5 MB cada uno). Revisa remitente, Reply-To y suplantación de marcas; SPF, DKIM y DMARC; enlaces engañosos (IP en vez de dominio, acortadores, punycode, dominios casi idénticos a una marca, texto distinto del destino); **ataques homógrafos** (letras de otro alfabeto o «I» por «l» que se ven iguales, con desglose carácter por carácter); y adjuntos (doble extensión, ejecutables disfrazados, macros, comprimidos con contraseña, hash SHA-256). Da un veredicto con puntaje, las señales que lo sustentan, **qué verificar** y acciones sugeridas. Es análisis estático: no se abre ningún enlace ni se ejecuta ningún adjunto.
+8. **Phishing** (`backend/phishing.py`): la pestaña **Phishing** analiza correos `.eml` (hasta 5, 5 MB cada uno). Revisa remitente, Reply-To y suplantación de marcas; SPF, DKIM y DMARC; enlaces engañosos (IP en vez de dominio, acortadores, punycode, dominios casi idénticos a una marca, texto distinto del destino); **ataques homógrafos** (letras de otro alfabeto o «I» por «l» que se ven iguales, con desglose carácter por carácter); y adjuntos (doble extensión, ejecutables disfrazados, macros, comprimidos con contraseña, hash SHA-256). También detecta comandos que el correo pide copiar y ejecutar (la técnica «ClickFix»): un `powershell -enc …` en el cuerpo se **decodifica** y se muestra qué hace (descargas, ocultamiento, desactivar el antimalware), con sus URL e IP como indicadores. Da un veredicto con puntaje, las señales que lo sustentan, **qué verificar** y acciones sugeridas. Es análisis estático: no se abre ningún enlace ni se ejecuta ningún adjunto.
+
+   **Verificar el remitente en DNS** (opcional, botón en cada correo): usa el selector de la propia firma DKIM del correo y la IP que registró el servidor receptor para comprobar, con el DNS de hoy, si el dominio autoriza esa IP en SPF (se evalúa el registro de verdad: `ip4`, `ip6`, `a`, `mx`, `include`, `redirect`, con el límite de 10 consultas), si existe la clave de la firma y qué política DMARC tiene, y lo compara con lo que dicen las cabeceras. Una diferencia (por ejemplo, la cabecera dice `SPF=pass` pero el dominio no autoriza esa IP) no prueba una falsificación, porque el DNS pudo cambiar, pero es justo lo que hay que revisar. Solo salen nombres de dominio por DNS sobre HTTPS; ni la IP ni el contenido del correo. No evalúa macros SPF, `exists` ni `ptr`, y no verifica la firma DKIM en sí (falta el mensaje original byte a byte): comprueba que la clave exista y su tamaño.
 
 ## Formatos de entrada
 
@@ -293,7 +294,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 746 pruebas
+python -m pytest                                           # 804 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
@@ -307,6 +308,7 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 
 - `tests/unit/test_negativos.py`: 35 casos de actividad normal (30 sin ruido y 5 falsos positivos medidos y ya calibrados) que no deben alertar, cerca de los umbrales de cada regla, más pruebas de que la calibración no apaga la detección real.
 - `tests/unit/test_reglas_credenciales.py`: acceso a LSASS (Sysmon 10), DCSync (4662), claves Run (Sysmon 13) y Kerberoasting (4769), con casos de ataque y de actividad normal.
+- `tests/unit/test_psdecode.py`: decodificación de `-EncodedCommand` (todas las grafías de la opción, una capa de compresión, bomba de descompresión, correos con ClickFix). `tests/unit/test_spf_remitente.py`: evaluación de SPF (mecanismos, prefijos, límite de 10 consultas, bucles) y verificación del remitente con DNS simulado.
 - `tests/unit/test_siemqueries.py`: consultas Splunk/KQL y Sigma (YAML válido, entidades y ventana, y valores hostiles que no pueden escapar de las comillas). `tests/unit/test_syslog.py`: lectura de `auth.log` (fechas clásicas e ISO, año inferido, sudo, errores claros).
 
 ## Validación de las reglas

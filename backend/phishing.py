@@ -24,7 +24,7 @@ from html.parser import HTMLParser
 from io import BytesIO
 from urllib.parse import urlparse
 
-from . import homograph
+from . import homograph, psdecode
 
 log = logging.getLogger("soc.phishing")
 
@@ -61,6 +61,7 @@ ARCHIVE_EXT = {"zip", "rar", "7z", "gz", "tar", "cab", "z", "bz2", "xz"}
 HTML_EXT = {"html", "htm", "xhtml", "svg", "shtml", "mht", "mhtml"}
 
 URGENCY = re.compile(r"urgente|inmediat|último aviso|ultimo aviso|vence hoy|en las próximas \d+ horas|dentro de las próximas|act now|immediately|final notice|within 24 hours|expires today", re.I)
+CLICKFIX_RE = re.compile(r"(?:irm|iwr|invoke-restmethod|invoke-webrequest|curl|wget)\b[^\n|]{0,300}\|\s*(?:iex|invoke-expression)\b", re.I)
 ENABLE_CONTENT = re.compile(r"habilit\w* (?:el )?(?:contenido|las macros|macros|la edici[oó]n)|activ\w* (?:el )?(?:contenido|las macros|macros)|enable (?:content|macros|editing)", re.I)
 CREDENTIALS = re.compile(r"verifica(?:r)? tu (?:cuenta|identidad|contraseña)|confirma(?:r)? tu (?:cuenta|identidad|contraseña)|cuenta (?:suspendida|bloqueada|será (?:suspendida|bloqueada|cerrada))|restablec|actualiza(?:r)? tus datos|inicia(?:r)? sesión|ingresa(?:r)? tu (?:clave|contraseña)|verify your (?:account|identity|password)|confirm your (?:account|password)|account (?:has been )?(?:suspended|locked)|sign in to (?:your|view)|password (?:will )?expire", re.I)
 URL_RE = re.compile(r"https?://[^\s<>\"'\)\]]+", re.I)
@@ -262,6 +263,36 @@ def _auth(msg) -> dict:
             res["spf"] = m.group(1).lower()
     res["raw"] = res["raw"][:6]
     return res
+
+
+_DOMAIN_TOKEN = re.compile(r"^[A-Za-z0-9._-]{1,253}$")
+_CLIENT_IP_PATTERNS = [re.compile(p, re.I) for p in (
+    r"client-ip=([0-9a-fA-F:.]+)", r"smtp\.client-ip=([0-9a-fA-F:.]+)", r"sender IP is ([0-9a-fA-F:.]+)",
+    r"(?:does not )?designates? ([0-9a-fA-F:.]+) as", r"\bip=([0-9a-fA-F:.]+)")]
+
+
+def _dkim_signatures(msg) -> list[dict]:
+    """Firmas DKIM del correo: dominio (d=), selector (s=) y algoritmo (a=). Solo valores con forma de nombre de DNS."""
+    out = []
+    for h in _hdr_all(msg, "DKIM-Signature")[:5]:
+        tags = {k.lower(): v.strip() for k, v in re.findall(r"(?:^|;)\s*([a-z]{1,3})\s*=\s*([^;]*)", re.sub(r"\s+", " ", h), re.I)}
+        d, s, a = tags.get("d", "").lower(), tags.get("s", "").lower(), tags.get("a", "").lower()
+        if _DOMAIN_TOKEN.match(d) and _DOMAIN_TOKEN.match(s):
+            out.append({"d": d, "s": s, "a": _clean(a, 30)})
+    return out
+
+
+def _spf_client_ip(msg, auth: dict) -> str:
+    """IP que el servidor receptor evaluó en SPF (la escribe el receptor en Received-SPF / Authentication-Results); vacía si no consta."""
+    for h in _hdr_all(msg, "Received-SPF") + [x for x in auth.get("raw", [])]:
+        for rx in _CLIENT_IP_PATTERNS:
+            m = rx.search(h)
+            if m:
+                try:
+                    return str(ipaddress.ip_address(m.group(1).rstrip(".")))
+                except ValueError:
+                    continue
+    return ""
 
 
 MAX_HOPS = 30
@@ -701,6 +732,7 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
 
     # ---- autenticación ------------------------------------------------------------
     auth = _auth(msg)
+    dkim_sigs = _dkim_signatures(msg)
     favorable: list[str] = []
     if not (auth["spf"] or auth["dkim"] or auth["dmarc"]):
         sig.add("Autenticación", "Bajo", 1, "Sin resultados de SPF/DKIM/DMARC", "El .eml no trae Authentication-Results ni Received-SPF (pudo exportarse sin ellos); no se puede confirmar el origen.")
@@ -787,6 +819,18 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
         sig.add("Contenido", "Medio", 3, "Pide habilitar contenido o macros", "Habilitar el contenido de un documento recibido por correo es la forma de activar sus macros.", ["T1566.001", "T1204.002"])
     if attachments and re.search(r"adjunto|attached|attachment|factura|invoice|comprobante|pago|payment", plain + " " + subject, re.I) and any(a["risk"] != "Bajo" for a in attachments):
         sig.add("Contenido", "Bajo", 1, "El texto empuja a abrir el adjunto", "Factura, pago o comprobante: pretextos frecuentes para que el usuario abra el archivo.", ["T1566.001"])
+    # comandos que el correo pide copiar y ejecutar (técnica «ClickFix»): PowerShell codificado o un «descargar | iex» en el cuerpo
+    ps_cmds: list[dict] = []
+    for m in re.finditer(r"powershell(?:\.exe)?\b[^\n]{0,20000}", plain, re.I):
+        res = psdecode.decode(m.group(0))
+        if res and res["plausible"] and len(ps_cmds) < 3:
+            ps_cmds.append(res)
+    for res in ps_cmds[:1]:
+        sig.add("Comando", "Crítico", 6, "El cuerpo incluye un comando de PowerShell codificado",
+                psdecode.summary(res) + " Un correo legítimo no pide pegar comandos codificados: es la técnica «ClickFix» o una carga de malware.", ["T1059.001", "T1204.004"])
+    if not ps_cmds and CLICKFIX_RE.search(plain):
+        sig.add("Comando", "Crítico", 6, "El cuerpo pide ejecutar un comando que descarga y ejecuta código",
+                "El texto contiene un comando que descarga contenido y lo ejecuta con «iex»: es la técnica «ClickFix».", ["T1059.001", "T1204.004"])
     headers_only = pasted and not urls and not attachments and not plain.strip()
     if not urls and not attachments and not plain.strip() and not headers_only:
         sig.add("Contenido", "Bajo", 0, "Correo sin cuerpo legible", "No se pudo extraer texto, enlaces ni adjuntos.")
@@ -833,6 +877,12 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
     for a in attachments:
         if a["size"]:
             ioc("SHA256", a["sha256"], f"Adjunto {a['filename']}")
+    for res in ps_cmds:
+        for u_ in res["urls"]:
+            ioc("URL/URI", u_, "URL dentro del comando de PowerShell decodificado")
+        for ip_ in res["ips"]:
+            if _public_ip(ip_):
+                ioc("IP", ip_, "IP dentro del comando de PowerShell decodificado")
 
     if severity == "Bajo":
         iocs = []
@@ -866,8 +916,10 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
 
     return {
         "filename": _clean(filename, 120), "size": len(data), "headers": headers, "auth": {k: v for k, v in auth.items() if k != "raw"},
-        "auth_raw": auth["raw"], "hops": hops, "origin_ip": origin["ip"] if origin else "", "urls": urls, "attachments": attachments,
+        "auth_raw": auth["raw"], "hops": hops, "origin_ip": origin["ip"] if origin else "",
+        "dkim_sigs": dkim_sigs, "spf_ip": _spf_client_ip(msg, auth), "mailfrom_domain": auth["spf_domain"] or rpath_dom or from_dom, "urls": urls, "attachments": attachments,
         "signals": sig.items, "favorable": favorable, "score": score, "severity": severity, "verdict": verdict, "mitre": mitre,
+        "ps_decoded": [{"texto": r_["decoded"], "interno": r_["inner"], "indicadores": r_["indicators"], "urls": r_["urls"]} for r_ in ps_cmds],
         "iocs": iocs, "verify": verify, "actions": actions, "homograph": hg, "route": route, "score_breakdown": breakdown,
         "source": "cabeceras pegadas" if pasted else "archivo .eml", "headers_only": headers_only,
         "truncated": n_parts > MAX_PARTS or len(urls) >= MAX_URLS,

@@ -132,3 +132,38 @@ def test_pasted_headers_rejections():
     assert client.post("/api/phishing", data={}).status_code in (400, 422)
     assert client.post("/api/phishing", data={"headers_text": "esto no son cabeceras"}).status_code == 422
     assert client.post("/api/phishing", data={"headers_text": "   "}).status_code in (400, 422)
+
+
+# ---------------------------------------------------------------- verificación del remitente de un correo
+def _mail_session():
+    r = client.post("/api/phishing/sample")
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_sender_dns_review_flow(monkeypatch):
+    res = _mail_session()
+    pid, items = res["phishing_id"], res["items"]
+    idx = next(i for i, m in enumerate(items) if m["headers"]["from_addr"] and "@" in m["headers"]["from_addr"])
+    dom = items[idx]["headers"]["from_addr"].rsplit("@", 1)[-1].lower()
+    f = _use(monkeypatch, Fake({(dom, "TXT"): ["v=spf1 -all"], ("_dmarc." + dom, "TXT"): ["v=DMARC1; p=reject"]}))
+    r = client.post(f"/api/phishing/{pid}/items/{idx}/dns")
+    assert r.status_code == 200 and r.json()["domain"] == dom and r.json()["checks"] and f.closed
+    pdf = client.post(f"/api/phishing/{pid}/report.pdf")
+    assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
+
+
+def test_sender_dns_review_errors(monkeypatch):
+    res = _mail_session()
+    pid = res["phishing_id"]
+    assert client.post(f"/api/phishing/{pid}/items/999/dns").status_code == 404
+    assert client.post("/api/phishing/nope/items/0/dns").status_code == 404
+    _use(monkeypatch, Fake(fail=True))
+    assert client.post(f"/api/phishing/{pid}/items/0/dns").status_code == 502
+
+
+def test_sender_dns_review_respects_the_dns_switch(monkeypatch):
+    res = _mail_session()
+    monkeypatch.setenv("DNS_LOOKUPS", "off")
+    monkeypatch.setattr(main, "_new_resolver", lambda: dnsdoh.DohResolver(http=None))
+    assert client.post(f"/api/phishing/{res['phishing_id']}/items/0/dns").status_code == 503

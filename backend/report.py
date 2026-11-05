@@ -340,6 +340,21 @@ def _route_pdf(i: dict) -> list:
     return out
 
 
+def _dns_pdf(i: dict) -> list:
+    """Verificación en DNS del remitente (solo si el analista la ejecutó): qué dicen las cabeceras frente a lo que publica el dominio."""
+    r = i.get("dns_review")
+    if not r:
+        return []
+    st = {"ok": "OK", "warn": "Revisar", "fail": "Diferencia", "info": "Info"}
+    rows = [[hcell("Resultado"), hcell("Comprobación"), hcell("Detalle")]]
+    for c in r["checks"]:
+        rows.append([Paragraph(st.get(c["status"], c["status"]), S["cellb"]), Paragraph(escape(_u(D.trunc(c["title"], 70))), S["cellb"]), Paragraph(escape(_u(D.trunc(c["detail"], 380))), S["cell"])])
+    return [P(f"Verificación en DNS de {r['domain']} (el {r['checked_at']})", "label"),
+            P(f"Nota del dominio {r['grade']} ({r['score']}/100). Compara las cabeceras del correo con lo que el DNS publica hoy.", "small"),
+            table(rows, [20 * mm, 50 * mm, CONTENT_W - 70 * mm]),
+            P(" ".join(r["limitations"]), "small")]
+
+
 def _breakdown_pdf(i: dict) -> list:
     """Qué sumó cada señal al puntaje, con los topes por categoría y los umbrales de criticidad."""
     bd = i.get("score_breakdown")
@@ -386,6 +401,7 @@ def phishing_section(items: list[dict], number: str = "", intel: dict | None = N
                 sr.append([Paragraph(escape(x["category"]), S["cell"]), Paragraph(x["severity"], S["cell"]), Paragraph(escape(_u(D.trunc(x["title"], 90))), S["cellb"]), Paragraph(escape(_u(D.trunc(x["detail"], 220))), S["cell"])])
             out.append(table(sr, [24 * mm, 15 * mm, 55 * mm, CONTENT_W - 94 * mm]))
         out += _route_pdf(i)
+        out += _dns_pdf(i)
         out += _breakdown_pdf(i)
         out += _hg_pdf(i)
         if i["favorable"]:

@@ -906,11 +906,22 @@ function mailDetail(m) {
         `<tr>${i === 0 ? `<td rowspan="${c.signals.length}"><b>${esc(c.category)}</b><div class="muted" style="font-size:12px">tope ${esc(c.cap)}${c.capped ? ` · se aplicó el tope (${esc(c.raw)} → ${esc(c.applied)})` : ""}</div></td>` : ""}<td>${esc(x.title)}</td><td>${sevPill(x.severity)}</td><td class="mono">+${esc(x.points)}</td><td class="mono">${esc(x.applied)}</td></tr>`).join("")).join("") || `<tr><td colspan="5" class="muted">Ninguna señal sumó puntos.</td></tr>`}</tbody></table></div>
       <p class="muted" style="margin-top:8px"><b>Cómo se decide la criticidad:</b> ${bd.thresholds.map((t) => `${esc(t.severity)}: ${esc(t.rule)}`).join(" · ")}.</p></details>` : "";
   const dom = senderDomain(m);
+  const dr = m.dns_review;
+  const idx = S.ph.items.indexOf(m);
+  const dnsPanel = !dom ? "" : dr ? `<div class="panel"><h3>Verificación en DNS de ${esc(dr.domain)} · nota ${esc(dr.grade)} (${esc(dr.score)}/100)</h3>
+      <p class="muted">Compara lo que dicen las cabeceras del correo (SPF=${esc(dr.claimed.spf || "?")}, DKIM=${esc(dr.claimed.dkim || "?")}, DMARC=${esc(dr.claimed.dmarc || "?")}) con lo que el DNS publica hoy. Consultado el ${esc(dr.checked_at)}.</p>
+      <div class="tbl-wrap"><table><thead><tr><th>Resultado</th><th>Comprobación</th><th>Detalle</th></tr></thead><tbody>${dr.checks.map((c) =>
+        `<tr><td>${sevPill({ ok: "Bajo", info: "Bajo", warn: "Medio", fail: "Alto" }[c.status] || "Bajo", { ok: "OK", info: "Info", warn: "Revisar", fail: "Diferencia" }[c.status])}</td><td><b>${esc(c.title)}</b></td><td>${esc(c.detail)}${c.fix ? `<div class="muted">${esc(c.fix)}</div>` : ""}</td></tr>`).join("")}</tbody></table></div>
+      <p class="muted" style="margin-top:8px">${dr.limitations.map(esc).join(" ")}</p></div>`
+    : `<div class="panel"><h3>Verificar el remitente en DNS</h3>
+      <p class="muted">Comprueba si ${esc(dom)} autoriza hoy la IP de origen del correo (SPF), si existe la clave de su firma DKIM y qué política DMARC tiene, y lo compara con lo que dicen las cabeceras. Solo salen nombres de dominio por DNS sobre HTTPS (Cloudflare o Google); la IP y el contenido no se envían. El dominio puede recibir una consulta desde el resolvedor público, no desde tu red.</p>
+      <p><button class="btn" data-dnsrev="${idx}" type="button">Verificar en DNS</button></p><div class="err" id="dnserr" role="alert" hidden></div></div>`;
   const domBtns = dom ? `<p style="margin-top:10px"><button class="btn" data-dom="phishing/dominio" data-v="${esc(dom)}" type="button">Evaluar SPF/DKIM/DMARC de ${esc(dom)}</button> <button class="btn" data-dom="phishing/parecidos" data-v="${esc(dom)}" type="button">Dominios parecidos a ${esc(dom)}</button></p>` : "";
   return `<div class="panel"><h3>${esc(m.id)} · ${esc(h.subject || "(sin asunto)")} ${sevPill(m.severity)}</h3>
       <p><b>${esc(m.verdict)}</b> · puntaje ${esc(m.score)} · ${m.source ? `origen <b>${esc(m.source)}</b>` : `archivo <span class="mono">${esc(m.filename)}</span>`}</p>${m.headers_only ? `<div class="notice">Solo se analizaron las cabeceras: sin el cuerpo no se evaluaron enlaces ni adjuntos.</div>` : ""}
       <div class="tbl-wrap"><table><tbody>${facts.map(([k, v]) => `<tr><th style="width:190px;text-align:left">${esc(k)}</th><td class="mono" style="word-break:break-all">${esc(v)}</td></tr>`).join("")}</tbody></table></div>
       <p style="margin-top:10px">${authChip("SPF", a.spf)} ${authChip("DKIM", a.dkim)} ${authChip("DMARC", a.dmarc)} ${m.favorable.length ? `<span class="muted">A favor: ${m.favorable.map(esc).join(", ")}</span>` : ""}</p>${domBtns}</div>
+    ${dnsPanel}
     ${hops}
     <div class="panel"><h3>Señales detectadas</h3>${sig}</div>${why}
     ${hgPanel(m)}
@@ -977,6 +988,12 @@ function bindPhishing() {
   const P = S.ph, base = `/api/phishing/${P.pid}`;
   document.querySelectorAll("[data-dom]").forEach((b) => { b.onclick = () => { b.dataset.dom === "phishing/dominio" ? (S.dom = { q: b.dataset.v, res: null, err: "" }) : (S.look = { q: b.dataset.v, check: false, res: null, err: "" }); location.hash = "#/" + b.dataset.dom; }; });
   $("#pagain").onclick = () => { clearInterval(P.intelTimer); S.ph = null; render(); };
+  document.querySelectorAll("[data-dnsrev]").forEach((b) => b.onclick = async () => {
+    busy(true, "Consultando el DNS…");
+    try { const r = await api(`${base}/items/${b.dataset.dnsrev}/dns`, { method: "POST" }); P.items[+b.dataset.dnsrev].dns_review = r; S.keepScroll = true; render(); }
+    catch (e) { const el = $("#dnserr"); if (el) { el.textContent = e.message; el.hidden = false; } else toast(e.message); }
+    finally { busy(false); }
+  });
   document.querySelectorAll("[data-mail]").forEach((tr) => {
     const open = () => { P.sel = tr.dataset.mail; S.keepScroll = true; render(); };
     tr.onclick = open; tr.onkeydown = (e) => { if (e.key === "Enter") open(); };
@@ -1049,6 +1066,8 @@ const showHow = () => {
         <li><b>Sin el .eml</b>: abre «¿No tienes el .eml?» y pega las cabeceras o el origen del mensaje. Se analizan remitente, autenticación y recorrido (sin cuerpo no hay enlaces ni adjuntos).</li>
         <li><b>Recorrido</b>: los saltos Received se ordenan del origen al destino, con hora UTC y retraso entre servidores; se marcan horas fuera de orden y retrasos largos. Son pistas de bajo peso: el atacante puede inventar los Received que añade.</li>
         <li><b>Puntaje explicado</b>: «¿Cómo se calculó el puntaje?» muestra qué sumó cada señal, los topes por categoría y los umbrales de criticidad.</li>
+        <li><b>Verificar en DNS</b> (opcional, en cada correo): usa el selector de la firma DKIM del correo y la IP que registró tu servidor receptor para comprobar si el dominio autoriza esa IP en SPF y si existe la clave de la firma, y lo compara con lo que dicen las cabeceras. Solo salen nombres de dominio.</li>
+        <li><b>Comandos en el cuerpo</b>: un <span class="mono">powershell -enc …</span> en el texto del correo se decodifica y se muestra qué hace; pedir pegar un comando así es la técnica «ClickFix».</li>
         <li><b>Resultado</b>: un veredicto con las señales que lo respaldan, qué verificar y un informe PDF. El análisis de correos es independiente del de logs.</li></ol>
       <h4>Herramientas de dominio</h4>
       <p><b>Evaluar dominio</b> lee los registros SPF, DKIM y DMARC y da una nota de A a F con lo que resta cada falla. <b>Dominios parecidos</b> genera variantes de typosquatting para vigilar o bloquear; la comprobación de cuáles están registradas es opcional. Ambas consultan el DNS público solo cuando tú lo pides, y únicamente envían nombres de dominio.</p>

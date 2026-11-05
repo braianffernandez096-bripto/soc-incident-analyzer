@@ -124,7 +124,7 @@ Otros casos que se observaron y **no** se marcaron como errores porque son decis
 
 ## 4. Cobertura ATT&CK
 
-La app cita **51 técnicas** de ATT&CK en **30 reglas** (17 para exports de Windows y 13 para exports multi-fuente). No cubre la matriz
+La app cita **52 técnicas** de ATT&CK en **30 reglas** (17 para exports de Windows y 13 para exports multi-fuente). No cubre la matriz
 completa y no pretende hacerlo:
 
 | Táctica | Técnicas citadas | Cuáles |

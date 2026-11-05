@@ -4,6 +4,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+### Añadido (punto 3: phishing)
+- **Decodificador de `-EncodedCommand`** (`backend/psdecode.py`): acepta todas las grafías de la opción (`-e`, `-ec`, `-enc`…), decodifica el Base64 UTF-16, revisa una capa más de compresión (con tope de tamaño contra bombas de descompresión) y marca lo que hace el comando (descarga, IEX, oculta la ventana, intenta desactivar AMSI…). En los hallazgos de logs se muestra el contenido, se extraen sus URL e IP como indicadores y, si descarga algo de una URL externa, sube un nivel la criticidad.
+- **Comandos en el cuerpo de un correo («ClickFix»)**: un `powershell -enc …` o un `irm … | iex` en el texto se marca como Crítico (T1059.001, T1204.004) y se muestra decodificado.
+- **Verificar el remitente en DNS** (`backend/senderreview.py`, `backend/spfeval.py`): botón opcional en cada correo. Usa el selector DKIM de la propia firma y la IP que registró el servidor receptor; evalúa SPF de verdad contra el DNS actual (ip4, ip6, a, mx, include, redirect, límite de 10 consultas); comprueba que exista la clave de la firma y su tamaño; y compara todo con lo que dicen las cabeceras. Incluido en el PDF de phishing. Solo salen nombres de dominio.
+- «Evaluar dominio» ahora busca primero el selector DKIM del propio correo; el análisis de SPF entiende `mx/24` y `a/28`.
+
 ### Añadido (punto 2: consultas y fuentes)
 - **Consultas para el SIEM** (`backend/siemqueries.py`): cada hallazgo de Windows con equivalente directo muestra la consulta de Splunk (SPL), la de Microsoft Sentinel/Defender (KQL) y la regla Sigma, con IP, cuenta, equipo y ventana (±30 min) ya rellenos y botón de copiar. Endpoint `GET /api/sessions/{id}/findings/{fid}/queries` y descarga de todas las reglas Sigma de la sesión (`/sigma.yml`, botón en Hallazgos). Los valores de los logs se escapan para que no puedan salirse de las comillas de la consulta.
 - **Lectura de `auth.log` / `secure` de Linux** (`backend/syslog.py`): se sube el archivo tal cual (fecha clásica o ISO; el año se infiere y nunca queda en el futuro). Se interpretan sshd (contraseña/clave aceptada o fallida) y sudo (fallos y comandos); el resto se ignora y se avisa cuántas líneas. Ejemplo en `sample_data/auth_log_ejemplo.txt`. La validación con SSH real ahora usa este mismo lector (sigue 11 de 11 IPs, 0 falsos positivos).

@@ -45,6 +45,9 @@ def parse_spf(record: str) -> dict:
         if term[:1] in "+-~?":
             q, term = term[0], term[1:]
         kind, _, arg = term.partition(":")
+        if not arg and "/" in kind:                  # «mx/24» y «a/24»: el prefijo va pegado al mecanismo, sin dominio
+            kind, _, arg = kind.partition("/")
+            arg = "/" + arg
         kind = kind.lower()
         if kind == "all":
             all_q = q
@@ -213,14 +216,15 @@ def rsa_bits(p_b64: str) -> int | None:
         return None
 
 
-def _grade_dkim(domain: str, resolver) -> tuple[list[dict], dict]:
+def _grade_dkim(domain: str, resolver, extra=()) -> tuple[list[dict], dict]:
     def probe(sel: str):
         res = resolver.query(f"{sel}._domainkey.{domain}", "TXT")
         recs = [t for t in res["answers"] if re.search(r"(^|;)\s*(v=DKIM1|p=)", t, re.I)]
         return sel, recs[0] if recs else ""
+    selectors = list(dict.fromkeys(list(extra) + COMMON_SELECTORS))      # los selectores del propio correo primero
     with ThreadPoolExecutor(max_workers=6) as ex:
-        found = [(s, r) for s, r in ex.map(probe, COMMON_SELECTORS) if r]
-    info = {"tried": COMMON_SELECTORS, "found": []}
+        found = [(s, r) for s, r in ex.map(probe, selectors) if r]
+    info = {"tried": selectors, "found": []}
     checks: list[dict] = []
     for sel, rec in found:
         tags = parse_tags(rec)
@@ -260,14 +264,14 @@ def grade_of(score: int) -> str:
     return "A" if score >= 90 else "B" if score >= 75 else "C" if score >= 60 else "D" if score >= 40 else "F"
 
 
-def grade_domain(domain: str, resolver) -> dict:
+def grade_domain(domain: str, resolver, selectors=()) -> dict:
     """Evalúa SPF, DKIM y DMARC de ``domain`` (ya validado con ``dnsdoh.clean_domain``). ``resolver.query(name, tipo)`` hace las consultas."""
     apex = resolver.query(domain, "TXT")
     if apex["status"] == 3:
         raise DomainNotFound(f"El dominio «{domain}» no existe en el DNS (NXDOMAIN).")
     spf_checks, spf = _grade_spf(domain, apex["answers"], resolver)
     dmarc_checks, dmarc = _grade_dmarc(domain, resolver)
-    dkim_checks, dkim = _grade_dkim(domain, resolver)
+    dkim_checks, dkim = _grade_dkim(domain, resolver, selectors)
     mx, receives = _grade_mx(domain, resolver)
     checks = spf_checks + dmarc_checks + dkim_checks
     sends_nothing = False

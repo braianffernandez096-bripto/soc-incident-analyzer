@@ -4,6 +4,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+## [1.5.0] - 2026-11-05
+
 ### Pruebas de navegador, inyección de prompts y regeneración segura del informe (punto 4)
 - **Pruebas de navegador** (`tests/e2e/test_ui.py`, Playwright + Chromium): cargan un export, recorren panel, hallazgos y filtros, descargan el PDF, analizan correos de phishing (crítico y legítimo, y un enlace escrito con entidades HTML) y comprueban que un log con `<img onerror>` y `<script>` se muestra como texto y no se ejecuta. Fallan si aparece cualquier error de JavaScript o violación de la política CSP. Se saltan solas si no hay Chromium instalado.
 - **Inyección de prompts en la capa de IA** (`tests/integration/test_prompt_injection.py`): logs con instrucciones («ignora lo anterior», `</analisis>`, etiquetas falsas) no apagan la detección ni cierran el bloque de datos; un modelo que obedece la inyección (baja severidades, inventa IP y Log_ID, mete `<img src="file:///…">` o `javascript:`) no cambia la criticidad del motor, sus citas inventadas se descartan y el PDF no genera enlaces activos.

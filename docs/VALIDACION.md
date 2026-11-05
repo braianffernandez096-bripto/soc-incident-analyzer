@@ -122,6 +122,42 @@ Otros casos que se observaron y **no** se marcaron como errores porque son decis
 - Una administradora que crea su propia clave de acceso en la nube genera Crítico.
 - Un instalador legítimo que agrega una clave Run genera Medio (`persist_run` solo sube a Alto si el binario está en una ruta escribible o lo escribió un intérprete); sigue apareciendo para que el analista lo descarte.
 
+## 3b. Correos de phishing reales y comandos ofuscados
+
+**Correos.** Se analizaron los **12.864 correos** del corpus público [phishing_pot](https://github.com/rf-peixoto/phishing_pot) (phishing y spam recibidos de verdad)
+con `scripts/validar_correos.py`, de forma estática. Los números salen del análisis completo, no de una muestra:
+
+| Resultado | Correos | % |
+|---|---|---|
+| Crítico | 1.468 | 11,4 |
+| Alto | 7.482 | 58,2 |
+| Medio | 2.912 | 22,6 |
+| Bajo (sin señales relevantes) | 1.000 | 7,8 |
+| Rechazados por el propio análisis (no es un .eml / supera 5 MB) | 2 | 0,0 |
+
+Detectados como **Medio o más: 92,2 %**; **Alto o más: 69,6 %**. Tiempo medio 0,11 s por correo y máximo 1,3 s.
+
+Cómo se mejoró sin engañarse: se ajustó mirando una muestra aleatoria de 1.500 correos (semilla 1) y se comprobó después con los **11.364 restantes**, que no se habían usado
+para ajustar: 92,1 % Medio o más y 69,5 % Alto o más, prácticamente igual, así que no hay sobreajuste visible. En la muestra, Medio o más pasó de 90,0 % a 93,1 % y los correos sin señales de 149 a 105.
+
+Lo que el corpus real enseñó (y quedó corregido, con pruebas en `tests/unit/test_casos_reales.py`):
+- **Un fallo real:** una plantilla sin rellenar (`http://[placeholder_1]/`) hacía fallar el análisis de todo el correo. Ahora se marca como enlace inválido.
+- **Falsos positivos propios:** los emoji (`❤️`, `⚠️`) usan un selector de variación legítimo y se marcaban como caracteres invisibles; y los espacios dentro de una plantilla (`{{{ pm:unsubscribe }}}`) se tomaban por ofuscación.
+- **Huecos:** marcas muy suplantadas que no estaban (Ledger, MetaMask, Trust Wallet, Kraken, Bradesco, Correios…); nombres con selectores de variación o marcas combinantes (`Tr󠄹u󠄹st Wallet`, `Ap͏ple`); estafas de adelanto de pago sin ningún enlace; y cebos de «reclamar tokens» o validar la billetera.
+- **Ofuscación de URL en el mundo real:** aparecieron IP en octal y decimal (`http://0137.0323.0053.0062/` = 95.211.43.50), HTML smuggling y JavaScript ofuscado en adjuntos. El desofuscador de URL ya las resolvía.
+
+Lo que **no** se pudo medir: los falsos positivos en correo legítimo. No hay un corpus de correo legítimo accesible desde este entorno; el único que se probó (los correos de prueba de
+SpamAssassin, 101 archivos) son casos de prueba artificiales (adjuntos `.js` a propósito, cabeceras SPF rotas), no correo real: dio 48,5 % de Medio o más y **no es una tasa de falsos positivos**.
+Sigue pendiente medirlo con correo corporativo y boletines reales. Además, el corpus mezcla phishing con spam comercial (casinos, ofertas): los 1.000 correos sin señales son sobre todo
+spam sin enlaces peligrosos ni suplantación, que la herramienta no pretende filtrar como tal.
+
+**Comandos ofuscados.** `scripts/validar_ofuscacion.py` pasa por el desofuscador los **1.360 comandos de cmd y PowerShell** de las pruebas públicas de
+[Atomic Red Team](https://github.com/redcanaryco/atomic-red-team) (299 técnicas): 11 contienen alguna ofuscación que se resuelve, en 2 la ofuscación escondía un programa relevante
+(ambos solo se detectan tras desofuscar) y ninguno de los otros 1.349 comandos genera la regla de «comando ofuscado» (sin falsos positivos en ese corpus). La corrida encontró dos
+fallos propios que ya están corregidos: el desofuscador **dañaba** escapes legítimos de PowerShell (`` `r`n ``) y no entendía la ofuscación con el operador `-f` (`"{1}{0}" -f 'a','b'`), muy
+usada por Invoke-Obfuscation. Es una muestra pequeña de ofuscación real (la mayoría de los comandos de Atomic no están ofuscados), por lo que mide falsos positivos mejor que cobertura.
+Sigue sin resolverse todo lo que exige ejecutar código (ver sección 5).
+
 ## 4. Cobertura ATT&CK
 
 La app cita **56 técnicas** de ATT&CK en **31 reglas** (18 para exports de Windows y 13 para exports multi-fuente). No cubre la matriz
@@ -168,6 +204,13 @@ python scripts/validar_datasets.py Security-Datasets --json resultados.json
 # SSH real (Loghub)
 git clone --depth 1 https://github.com/logpai/loghub
 python scripts/validar_datasets.py --loghub loghub/OpenSSH/OpenSSH_2k.log
+
+# Correos de phishing reales (phishing_pot) y comandos ofuscados (Atomic Red Team)
+git clone --depth 1 https://github.com/rf-peixoto/phishing_pot
+python scripts/validar_correos.py phishing_pot/email --json correos.json
+git clone --depth 1 --filter=blob:none --sparse https://github.com/redcanaryco/atomic-red-team
+cd atomic-red-team && git sparse-checkout set --no-cone 'atomics/T*/T*.yaml' && cd ..
+python scripts/validar_ofuscacion.py atomic-red-team --json ofuscacion.json
 
 # Pruebas con tráfico normal
 python -m pytest tests/unit/test_negativos.py

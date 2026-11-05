@@ -294,7 +294,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 859 pruebas
+python -m pytest                                           # 890 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
@@ -308,6 +308,7 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 
 - `tests/unit/test_negativos.py`: 35 casos de actividad normal (30 sin ruido y 5 falsos positivos medidos y ya calibrados) que no deben alertar, cerca de los umbrales de cada regla, más pruebas de que la calibración no apaga la detección real.
 - `tests/unit/test_reglas_credenciales.py`: acceso a LSASS (Sysmon 10), DCSync (4662), claves Run (Sysmon 13) y Kerberoasting (4769), con casos de ataque y de actividad normal.
+- `tests/unit/test_casos_reales.py`: casos tomados de correos y comandos públicos reales (el fallo de las plantillas sin rellenar, marcas cripto, caracteres invisibles, estafas sin enlaces, ofuscación con `-f`), con los casos normales que no deben alertar.
 - `tests/unit/test_ofuscacion.py`: ofuscación de URLs (IP numérica, `%XX`), comandos (`^`, acentos graves, `+`, `[char]`) y HTML (smuggling, `atob`, `meta refresh`, texto oculto), con sus casos normales que no deben alertar.
 - `tests/unit/test_psdecode.py`: decodificación de `-EncodedCommand` (todas las grafías de la opción, una capa de compresión, bomba de descompresión, correos con ClickFix). `tests/unit/test_spf_remitente.py`: evaluación de SPF (mecanismos, prefijos, límite de 10 consultas, bucles) y verificación del remitente con DNS simulado.
 - `tests/unit/test_siemqueries.py`: consultas Splunk/KQL y Sigma (YAML válido, entidades y ventana, y valores hostiles que no pueden escapar de las comillas). `tests/unit/test_syslog.py`: lectura de `auth.log` (fechas clásicas e ISO, año inferido, sudo, errores claros).
@@ -318,6 +319,7 @@ Además de las pruebas con escenarios de ataque, las reglas se midieron con dato
 
 - **SSH real (Loghub):** subiendo el `auth.log` tal cual, de 11 IPs que atacaron con fuerza bruta la app detectó las 11, sin falsos positivos.
 - **107 ataques de Windows (OTRF Security-Datasets):** la técnica correcta en 20 (antes de calibrar: 13), hallazgos de otra técnica en 27 y ninguno en 57. La cobertura es limitada y está documentada, con los huecos priorizados (evasión de defensas, movimiento lateral).
+- **Phishing real (12.864 correos de phishing_pot):** 92,2 % con criticidad Medio o más y 69,6 % Alto o más; comprobado con 11.364 correos no usados para ajustar (92,1 % y 69,5 %). Los falsos positivos en correo legítimo todavía no se pudieron medir; está explicado en `docs/VALIDACION.md`.
 - **Tráfico normal:** 35 casos de actividad corriente sin hallazgos; los 5 falsos positivos que se midieron primero (por ejemplo, un solo `ipconfig`) se calibraron y el antes y el después están documentados.
 
 Se pueden repetir con `scripts/validar_datasets.py`.
@@ -372,7 +374,7 @@ Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones
 
 ```
 backend/      parser, reglas de detección, correlación, análisis de correos (.eml) y de homógrafos, captcha local, IA, reputación (VirusTotal/AbuseIPDB), MITRE ATT&CK, informe PDF y API (FastAPI)
-scripts/      build_attack_data.py regenera backend/data/ desde los datos oficiales de MITRE; build_captcha_assets.py regenera las figuras del captcha; validar_datasets.py mide las reglas con datasets públicos (uso de mantenimiento)
+scripts/      build_attack_data.py regenera backend/data/ desde los datos oficiales de MITRE; build_captcha_assets.py regenera las figuras del captcha; validar_datasets.py mide las reglas con datasets públicos; validar_correos.py y validar_ofuscacion.py miden phishing y desofuscación con correos y comandos reales (uso de mantenimiento)
 docs/         VALIDACION.md: método y resultados de la validación de las reglas
 frontend/     interfaz web sin build (HTML, CSS y JS; fuentes IBM Plex locales)
 sample_data/  exports de ejemplo (Windows en Excel/CSV/NDJSON, multi-fuente en JSON, SIEM de 500 eventos y un auth.log de Linux) y correos .eml de ejemplo

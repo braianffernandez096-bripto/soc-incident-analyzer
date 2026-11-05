@@ -47,18 +47,71 @@ function captchaModal() {
         <button class="btn" id="capX" type="button">Cancelar</button><button class="btn primary" id="capV" type="button" disabled>Verificar</button></div>
     </div>`;
     document.body.appendChild(box);
-    const picks = new Set(); let token = "";
+    const picks = new Set(); let token = "", mode = "images", ro = null, trk = [], x = 0;
     const g = $("#capG", box), err = $("#capE", box), ok = $("#capV", box);
-    const close = (fn) => { document.removeEventListener("keydown", onKey, true); box.remove(); if (wasBusy) busy(true); if (prev && prev.focus) prev.focus(); fn(); };
+    const close = (fn) => { document.removeEventListener("keydown", onKey, true); if (ro) ro.disconnect(); box.remove(); if (wasBusy) busy(true); if (prev && prev.focus) prev.focus(); fn(); };
     const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(() => reject(new Error("Verificación cancelada."))); } };
     document.addEventListener("keydown", onKey, true);
-    const sync = () => { ok.disabled = picks.size !== 3; $("#capP", box).textContent = `Marca las 3 imágenes que muestran la misma figura (pueden estar giradas o de otro color). Elegidas: ${picks.size} de 3.`; };
+    const sync = () => { if (mode === "puzzle") return; ok.disabled = picks.size !== 3; $("#capP", box).textContent = `Marca las 3 imágenes que muestran la misma figura (pueden estar giradas o de otro color). Elegidas: ${picks.size} de 3.`; };
     const say = (m) => { err.textContent = m || ""; err.hidden = !m; };
+    /* Rompecabezas: se arrastra la pieza (ratón, dedo o flechas del teclado) hasta el hueco. El servidor decide si encaja. */
+    function drawPuzzle(c) {
+      if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(c.background) || !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(c.piece)) throw new Error("Desafío no válido.");
+      mode = "puzzle"; trk = []; x = 0; picks.clear(); ok.disabled = true;
+      g.className = "cap-puz"; g.removeAttribute("role"); g.replaceChildren();
+      const scene = document.createElement("div"); scene.className = "cap-scene"; scene.style.aspectRatio = `${c.width} / ${c.height}`;
+      const bg = document.createElement("img"); bg.className = "cap-bg"; bg.alt = "Imagen con un hueco en forma de pieza de rompecabezas"; bg.src = c.background; bg.draggable = false;
+      const piece = document.createElement("img"); piece.className = "cap-piece"; piece.alt = ""; piece.src = c.piece; piece.draggable = false;
+      scene.append(bg, piece);
+      const rail = document.createElement("div"); rail.className = "cap-rail";
+      const handle = document.createElement("div"); handle.className = "cap-handle"; handle.tabIndex = 0; handle.setAttribute("role", "slider");
+      handle.setAttribute("aria-label", "Pieza del rompecabezas: desliza hasta el hueco (flechas izquierda y derecha)");
+      const maxX = c.width - c.piece_size;
+      handle.setAttribute("aria-valuemin", "0"); handle.setAttribute("aria-valuemax", String(maxX)); handle.setAttribute("aria-valuenow", "0");
+      handle.textContent = "›››"; rail.appendChild(handle);
+      const hint = document.createElement("span"); hint.className = "cap-hint"; hint.textContent = "Desliza hacia la derecha"; rail.appendChild(hint);
+      g.append(scene, rail);
+      const railMax = () => Math.max(1, rail.clientWidth - handle.offsetWidth - 4);
+      let tStart = 0, dragging = false;
+      const place = (xi) => {
+        const nx = Math.max(0, Math.min(maxX, Math.round(xi)));
+        if (nx !== x || !trk.length) {
+          x = nx;
+          if (!trk.length) tStart = performance.now();
+          trk.push([Math.round(performance.now() - tStart), x]);
+          if (trk.length >= 380) trk = trk.filter((_, i) => i % 2 === 0 || i === trk.length - 1);
+        }
+        const sc = scene.clientWidth / c.width;
+        piece.style.left = `${x * sc}px`; piece.style.top = `${c.piece_y * sc}px`; piece.style.width = `${c.piece_size * sc}px`;
+        handle.style.left = `${2 + (x / maxX) * railMax()}px`;
+        handle.setAttribute("aria-valuenow", String(x)); handle.setAttribute("aria-valuetext", `posición ${x} de ${maxX}`);
+        ok.disabled = x < 4; hint.hidden = x > 0;
+        if (x > 0 && !err.hidden) say("");
+      };
+      const layout = () => { const sc = scene.clientWidth / c.width; piece.style.left = `${x * sc}px`; piece.style.top = `${c.piece_y * sc}px`; piece.style.width = `${c.piece_size * sc}px`; handle.style.left = `${2 + (x / maxX) * railMax()}px`; };
+      layout();
+      handle.onpointerdown = (e) => { dragging = true; handle.setPointerCapture(e.pointerId); handle.classList.add("on"); e.preventDefault(); };
+      handle.onpointermove = (e) => { if (!dragging) return; const r = rail.getBoundingClientRect(); place(((e.clientX - r.left - handle.offsetWidth / 2 - 2) / railMax()) * maxX); };
+      const stop = () => { dragging = false; handle.classList.remove("on"); };
+      handle.onpointerup = stop; handle.onpointercancel = stop;
+      handle.onkeydown = (e) => {
+        const step = e.shiftKey ? 12 : 4;
+        if (e.key === "ArrowRight") { place(x + step); e.preventDefault(); }
+        else if (e.key === "ArrowLeft") { place(x - step); e.preventDefault(); }
+        else if (e.key === "Enter" && !ok.disabled) { ok.click(); e.preventDefault(); }
+      };
+      ro = new ResizeObserver(layout); ro.observe(scene);
+      $("#capP", box).textContent = c.prompt || "Desliza la pieza hasta que encaje en el hueco de la imagen.";
+      handle.focus();
+    }
     async function load() {
+      if (ro) { ro.disconnect(); ro = null; }
+      mode = "images"; g.className = "cap-grid"; g.setAttribute("role", "group");
       picks.clear(); say(""); g.replaceChildren(); ok.disabled = true; $("#capP", box).textContent = "Cargando desafío…";
       try {
         const c = await api("/api/captcha/challenge", { method: "POST" });
         token = c.token;
+        if (c.type === "puzzle") { drawPuzzle(c); return; }
         c.images.forEach((src, i) => {
           if (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(src)) return;
           const b = document.createElement("button"); b.type = "button"; b.className = "cap-tile";
@@ -79,7 +132,7 @@ function captchaModal() {
     ok.onclick = async () => {
       ok.disabled = true;
       try {
-        const r = await api("/api/captcha/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, selected: [...picks] }) });
+        const r = await api("/api/captcha/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(mode === "puzzle" ? { token, x, track: trk } : { token, selected: [...picks] }) });
         CAP.pass = r.pass; close(resolve);
       } catch (e) { await load(); say(e.message); }
     };
@@ -678,19 +731,49 @@ function phishingUpload() {
       <input type="file" id="pfile" accept=".eml" multiple hidden>
     </div>
     <p class="muted" style="max-width:640px">En Outlook, Thunderbird o Gmail, abre el correo y guárdalo como .eml («Guardar como», «Descargar mensaje» u «Origen del mensaje»). Los archivos .msg no se admiten.</p>
+    <label class="f" style="max-width:640px;margin:14px 0"><span><b>Remitente esperado</b> (opcional)</span>
+      <input id="pexp" type="text" maxlength="200" autocomplete="off" spellcheck="false" placeholder="banco.universal@bancouniversal.gob">
+      <span style="font-weight:400">Si lo escribes, la app compara carácter por carácter la dirección del correo con la tuya y señala qué letra cambió (por ejemplo una «I» mayúscula por una «l»).</span></label>
     <div class="row">
       <button class="btn primary" id="pgo" disabled>Analizar correos</button>
       <button class="btn" id="psample" type="button">Probar con correos de ejemplo</button>
     </div>
     ${S.sid ? `<p class="muted">Los correos analizados se agregarán al informe PDF del análisis de logs que tienes abierto.</p>` : ""}
     <div class="err" id="perr" role="alert" hidden></div>
-    <ul class="checks"><li>Remitente, Reply-To y suplantación</li><li>SPF, DKIM y DMARC</li><li>Enlaces engañosos y dominios parecidos</li><li>Adjuntos peligrosos, macros y hash</li></ul>
+    <ul class="checks"><li>Remitente, Reply-To y suplantación</li><li>Homógrafos: letras que se ven iguales y no lo son</li><li>SPF, DKIM y DMARC</li><li>Enlaces engañosos y dominios parecidos</li><li>Adjuntos peligrosos, macros y hash</li></ul>
   </section>`;
 }
 function mailRow(m, sel) {
   const h = m.headers;
   return `<tr class="${sel ? "sel" : ""}" data-mail="${esc(m.id)}" tabindex="0" style="cursor:pointer"><td><b>${esc(m.id)}</b></td><td>${sevPill(m.severity)}</td><td>${esc(h.subject || "(sin asunto)")}</td>
     <td class="mono" style="word-break:break-all">${esc(h.from_addr || h.from)}</td><td>${esc(m.verdict)}</td><td class="mono">${esc(m.score)}</td></tr>`;
+}
+/* Desglose carácter por carácter: lo que el ojo no distingue (I/l, a latina/cirílica) se ve con su código y alfabeto. */
+function hgTable(cells, truncated) {
+  const row = (fn) => cells.map(fn).join("");
+  return `<div class="hg-wrap"><table class="hg-tbl" aria-label="Desglose carácter por carácter"><tbody>
+    <tr><th scope="row">Carácter</th>${row((c) => `<td class="hg ${c.flag ? "bad" : ""}" title="${esc(c.code + " · " + c.name + " · " + c.script)}"><span class="hg-ch">${esc(c.ch)}</span></td>`)}</tr>
+    <tr><th scope="row">Código</th>${row((c) => `<td class="hg ${c.flag ? "bad" : ""}"><span class="hg-cd">${esc(c.code.slice(2))}</span></td>`)}</tr>
+    <tr><th scope="row">Alfabeto</th>${row((c) => `<td class="hg ${c.flag ? "bad" : ""}"><span class="hg-sc">${esc(c.script.slice(0, 4))}</span></td>`)}</tr>
+    <tr><th scope="row">Aviso</th>${row((c) => `<td class="hg ${c.flag ? "bad" : ""}">${c.flag ? `<span class="hg-warn" aria-label="sospechoso">▲</span>` : ""}</td>`)}</tr>
+  </tbody></table></div>${truncated ? `<p class="muted">Se muestran los primeros ${cells.length} caracteres.</p>` : ""}`;
+}
+function hgPanel(m) {
+  const g = m.homograph;
+  if (!g || !g.entries.length) return "";
+  const cmpText = (d) => `posición ${d.pos}: tiene ${d.found_detail.map((c) => `«${esc(c.ch)}» (${esc(c.code)} ${esc(c.name)})`).join(", ") || "nada"}, debía ser ${d.expected_detail.map((c) => `«${esc(c.ch)}» (${esc(c.code)} ${esc(c.name)})`).join(", ") || "nada"}`;
+  const exp = g.expected ? `<div class="hg-exp ${g.expected.kind === "igual" ? "ok" : "bad"}"><b>Comparación con la dirección esperada</b> (<span class="mono">${esc(g.expected.expected)}</span>): ${
+      g.expected.kind === "igual" ? "coincide carácter por carácter." :
+      `<b>${esc({ parecida: "se ve igual pero NO es la misma", casi: "es casi idéntica", distinta: "es distinta" }[g.expected.kind])}</b>.${g.expected.diffs.length ? `<ul>${g.expected.diffs.map((d) => `<li>${cmpText(d)}</li>`).join("")}</ul>` : ""}`}</div>` : "";
+  const cmp = g.comparisons.length ? `<ul>${g.comparisons.map((c) => `<li><b>${esc(c.between[0])}</b> y <b>${esc(c.between[1])}</b> se ven iguales pero no lo son: <span class="mono">${esc(c.a)}</span> / <span class="mono">${esc(c.b)}</span>${c.diffs.length ? ` (${c.diffs.slice(0, 2).map(cmpText).join("; ")})` : ""}</li>`).join("")}</ul>` : "";
+  return `<div class="panel"><h3>Verificación de caracteres ${g.suspicious ? sevPill("Alto") : ""}</h3>
+    <p class="muted">Cada carácter por separado, con su código Unicode y su alfabeto. Una «I» mayúscula y una «l» minúscula, o la «a» latina (U+0061) y la «а» cirílica (U+0430), se ven iguales pero tienen códigos distintos. Compáralo con la dirección del contacto real.</p>
+    ${exp}${cmp}
+    ${g.entries.map((e) => `<div class="hg-entry ${e.suspicious ? "bad" : ""}"><h4>${esc(e.label)}${e.suspicious ? " · sospechoso" : ""}</h4>
+      <p class="mono hg-val">${esc(e.value)}</p>
+      <p class="mono hg-spell">${esc(e.spelled)}</p>
+      ${e.notes.length ? `<ul>${e.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : `<p class="muted">Sin caracteres sospechosos (alfabetos: ${esc(e.scripts.join(", ") || "—")}).</p>`}
+      ${hgTable(e.chars, e.truncated)}</div>`).join("")}</div>`;
 }
 function mailDetail(m) {
   const h = m.headers, a = m.auth;
@@ -699,7 +782,7 @@ function mailDetail(m) {
   const sig = m.signals.length ? `<div class="tbl-wrap"><table><thead><tr><th>Categoría</th><th>Criticidad</th><th>Señal</th><th>Detalle</th></tr></thead><tbody>${m.signals.map((x) =>
     `<tr><td>${esc(x.category)}</td><td>${sevPill(x.severity)}</td><td><b>${esc(x.title)}</b></td><td>${esc(x.detail)}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">No se detectaron señales de phishing.</p>`;
   const urls = m.urls.length ? `<div class="tbl-wrap"><table><thead><tr><th>URL (defangeada: no es un enlace)</th><th>Dónde</th><th>Texto visible</th><th>Señales</th></tr></thead><tbody>${m.urls.map((u) =>
-    `<tr><td class="mono" style="word-break:break-all">${esc(u.defanged)}</td><td>${esc(u.location)}</td><td>${esc(u.text || "—")}</td><td>${u.flags.length ? u.flags.map((f) => `<span class="tag">${esc(f)}</span>`).join(" ") : `<span class="muted">—</span>`}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">El correo no contiene enlaces.</p>`;
+    `<tr><td class="mono" style="word-break:break-all">${esc(u.defanged)}${u.host_unicode || u.host_ascii ? `<div class="muted" style="font-size:12px">${u.host_unicode ? `Dominio (Unicode): ${esc(u.host_unicode)} ` : ""}${u.host_ascii ? `· forma técnica: ${esc(u.host_ascii)}` : ""}</div>` : ""}${u.host_chars ? `<details><summary class="muted">Desglose del dominio</summary>${hgTable(u.host_chars, false)}</details>` : ""}</td><td>${esc(u.location)}</td><td>${esc(u.text || "—")}</td><td>${u.flags.length ? u.flags.map((f) => `<span class="tag">${esc(f)}</span>`).join(" ") : `<span class="muted">—</span>`}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">El correo no contiene enlaces.</p>`;
   const att = m.attachments.length ? `<div class="tbl-wrap"><table><thead><tr><th>Archivo</th><th>Riesgo</th><th>Tamaño</th><th>SHA-256</th><th>Notas</th></tr></thead><tbody>${m.attachments.map((x) =>
     `<tr><td><b>${esc(x.filename)}</b><div class="muted" style="font-size:12px">${esc(x.content_type)}</div></td><td>${sevPill(x.risk)}</td><td class="mono">${num(x.size)} B</td><td class="mono" style="word-break:break-all;font-size:11px">${esc(x.sha256)}</td><td>${x.notes.length ? x.notes.map(esc).join("<br>") : `<span class="muted">—</span>`}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">Sin adjuntos.</p>`;
   const hops = m.hops.length ? `<details style="margin-top:10px"><summary class="muted">Recorrido del correo (${m.hops.length} saltos, del más reciente al más antiguo)</summary><ol>${m.hops.map((x) =>
@@ -709,6 +792,7 @@ function mailDetail(m) {
       <div class="tbl-wrap"><table><tbody>${facts.map(([k, v]) => `<tr><th style="width:190px;text-align:left">${esc(k)}</th><td class="mono" style="word-break:break-all">${esc(v)}</td></tr>`).join("")}</tbody></table></div>
       <p style="margin-top:10px">${authChip("SPF", a.spf)} ${authChip("DKIM", a.dkim)} ${authChip("DMARC", a.dmarc)} ${m.favorable.length ? `<span class="muted">A favor: ${m.favorable.map(esc).join(", ")}</span>` : ""}</p>${hops}</div>
     <div class="panel"><h3>Señales detectadas</h3>${sig}</div>
+    ${hgPanel(m)}
     <div class="panel"><h3>Enlaces</h3>${urls}</div>
     <div class="panel"><h3>Adjuntos</h3>${att}<p class="muted" style="margin-top:8px">No se abrió ni ejecutó nada. Para saber si un hash es conocido, usa la reputación de abajo.</p></div>
     <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-top:16px">
@@ -746,7 +830,7 @@ async function sendEml(files, sample) {
   busy(true, "Analizando correos…");
   try {
     const fd = new FormData(); if (S.sid) fd.append("sid", S.sid);
-    if (!sample) files.forEach((f) => fd.append("files", f));
+    if (!sample) { files.forEach((f) => fd.append("files", f)); fd.append("expected", ($("#pexp") || {}).value || ""); }
     adoptPhishing(await api(sample ? "/api/phishing/sample" : "/api/phishing", { method: "POST", body: fd }));
     render();
   } catch (e) { const b = $("#perr"); if (b) { b.textContent = e.message; b.hidden = false; } else toast(e.message); }

@@ -277,6 +277,42 @@ def _on_page(canvas, doc, meta):
 # --------------------------------------------------------------------------
 # documento
 # --------------------------------------------------------------------------
+def _u(text) -> str:
+    """Helvetica solo dibuja Latin-1: los demás caracteres se muestran como [U+XXXX] (es justo lo que hay que ver en un homógrafo)."""
+    return "".join(c if ord(c) < 256 and c.isprintable() else f"[U+{ord(c):04X}]" for c in str(text or ""))
+
+
+def _hg_pdf(i: dict) -> list:
+    g = i.get("homograph") or {}
+    if not g.get("entries"):
+        return []
+    out: list = [P("Verificación de caracteres (homógrafos)", "label"),
+                 P("Cada carácter con su código Unicode: una «I» mayúscula y una «l» minúscula, o la «a» latina (U+0061) y la «a» cirílica (U+0430), se ven iguales pero no lo son.", "small")]
+    ex = g.get("expected")
+    if ex:
+        verdict = {"igual": "coincide carácter por carácter", "parecida": "SE VE IGUAL PERO NO ES LA MISMA", "casi": "es casi idéntica", "distinta": "es distinta"}[ex["kind"]]
+        out.append(P(f"Dirección esperada {_u(ex['expected'])}: {verdict}.", "small"))
+        for d in ex["diffs"][:4]:
+            got = ", ".join(f"{_u(c['ch'])} ({c['code']} {c['name']})" for c in d["found_detail"]) or "nada"
+            want = ", ".join(f"{_u(c['ch'])} ({c['code']} {c['name']})" for c in d["expected_detail"]) or "nada"
+            out.append(P(f"• posición {d['pos']}: tiene {got}; debía ser {want}", "small"))
+    for c in g.get("comparisons", []):
+        out.append(P(f"• {c['between'][0]} y {c['between'][1]} se ven iguales pero no lo son: {_u(c['a'])} / {_u(c['b'])}", "small"))
+    for e in g["entries"]:
+        out.append(P(f"{e['label']}: {_u(e['value'])}" + (" (sospechoso)" if e["suspicious"] else ""), "small"))
+        out.append(P("Letra por letra: " + _u(e["spelled"]), "small"))
+        for n in e["notes"]:
+            out.append(P("• " + _u(n), "small"))
+        flagged = [c for c in e["chars"] if c["flag"]]
+        if flagged:
+            rows = [[hcell("Pos."), hcell("Código"), hcell("Nombre"), hcell("Alfabeto"), hcell("Parece")]]
+            for c in flagged[:8]:
+                rows.append([Paragraph(str(c["pos"]), S["cell"]), Paragraph(c["code"], S["cell"]), Paragraph(escape(c["name"]), S["cell"]),
+                             Paragraph(escape(c["script"]), S["cell"]), Paragraph(escape(c["looks_like"] or "—"), S["cell"])])
+            out.append(table(rows, [14 * mm, 22 * mm, CONTENT_W - 14 * mm - 22 * mm - 28 * mm - 20 * mm, 28 * mm, 20 * mm]))
+    return out
+
+
 def phishing_section(items: list[dict], number: str = "", intel: dict | None = None) -> list:
     """Sección con el análisis de correos sospechosos. Enlaces siempre «defangeados»; nada de lo que viene del correo se interpreta como marcado."""
     pre = f"{number}. " if number else ""
@@ -285,15 +321,15 @@ def phishing_section(items: list[dict], number: str = "", intel: dict | None = N
                    "(hxxp, [.]) para que no sean enlaces activos. La criticidad la fijan reglas con pesos fijos y es una ayuda para el triage, no una prueba.")]
     rows = [[hcell("ID"), hcell("Criticidad"), hcell("Asunto"), hcell("Remitente"), hcell("Veredicto")]]
     for i in items:
-        rows.append([Paragraph(f"<b>{i['id']}</b>", S["cell"]), Paragraph(i["severity"], S["cell"]), Paragraph(escape(D.trunc(i["headers"]["subject"] or "(sin asunto)", 70)), S["cell"]),
-                     Paragraph(escape(D.trunc(i["headers"]["from_addr"] or i["headers"]["from"], 50)), S["cell"]), Paragraph(escape(i["verdict"]), S["cell"])])
+        rows.append([Paragraph(f"<b>{i['id']}</b>", S["cell"]), Paragraph(i["severity"], S["cell"]), Paragraph(escape(_u(D.trunc(i["headers"]["subject"] or "(sin asunto)", 70))), S["cell"]),
+                     Paragraph(escape(_u(D.trunc(i["headers"]["from_addr"] or i["headers"]["from"], 50))), S["cell"]), Paragraph(escape(i["verdict"]), S["cell"])])
     out += [Spacer(1, 4), table(rows, [16 * mm, 18 * mm, CONTENT_W - 16 * mm - 18 * mm - 45 * mm - 40 * mm, 45 * mm, 40 * mm])]
     for i in items:
         h, a = i["headers"], i["auth"]
         out.append(CondPageBreak(70 * mm))
-        out.append(heading_badge(D.trunc(h["subject"] or i["filename"], 80), i["severity"], "h2", i["id"]))
-        out.append(P(f"Veredicto: {i['verdict']} · puntaje {i['score']} · archivo {i['filename']}", "small"))
-        facts = [("De", h["from"]), ("Reply-To", h["reply_to"] or "—"), ("Return-Path", h["return_path"] or "—"), ("Para", h["to"] or "—"), ("Fecha", h["date"] or "—"),
+        out.append(heading_badge(_u(D.trunc(h["subject"] or i["filename"], 80)), i["severity"], "h2", i["id"]))
+        out.append(P(f"Veredicto: {i['verdict']} · puntaje {i['score']} · archivo {_u(i['filename'])}", "small"))
+        facts = [("De", _u(h["from"])), ("Reply-To", _u(h["reply_to"]) or "—"), ("Return-Path", _u(h["return_path"]) or "—"), ("Para", _u(h["to"]) or "—"), ("Fecha", h["date"] or "—"),
                  ("SPF / DKIM / DMARC", f"{a.get('spf') or 'sin dato'} / {a.get('dkim') or 'sin dato'} / {a.get('dmarc') or 'sin dato'}"),
                  ("Origen probable (IP)", i["origin_ip"] or "no determinado")]
         out += [Spacer(1, 3), table([[Paragraph(f"<b>{escape(k)}</b>", S["cell"]), Paragraph(escape(D.trunc(v, 160)), S["cell"])] for k, v in facts], [34 * mm, CONTENT_W - 34 * mm], header=False)]
@@ -301,22 +337,23 @@ def phishing_section(items: list[dict], number: str = "", intel: dict | None = N
             out.append(P("Señales detectadas", "label"))
             sr = [[hcell("Cat."), hcell("Crit."), hcell("Señal"), hcell("Detalle")]]
             for x in i["signals"]:
-                sr.append([Paragraph(escape(x["category"]), S["cell"]), Paragraph(x["severity"], S["cell"]), Paragraph(escape(D.trunc(x["title"], 90)), S["cellb"]), Paragraph(escape(D.trunc(x["detail"], 220)), S["cell"])])
+                sr.append([Paragraph(escape(x["category"]), S["cell"]), Paragraph(x["severity"], S["cell"]), Paragraph(escape(_u(D.trunc(x["title"], 90))), S["cellb"]), Paragraph(escape(_u(D.trunc(x["detail"], 220))), S["cell"])])
             out.append(table(sr, [24 * mm, 15 * mm, 55 * mm, CONTENT_W - 94 * mm]))
+        out += _hg_pdf(i)
         if i["favorable"]:
-            out.append(P("A favor: " + ", ".join(i["favorable"]), "small"))
+            out.append(P("A favor: " + _u(", ".join(i["favorable"])), "small"))
         if i["urls"]:
             out.append(P("Enlaces", "label"))
             ur = [[hcell("URL (defangeada)"), hcell("Señales")]]
             for u in i["urls"][:15]:
-                ur.append([Paragraph(escape(D.trunc(u["defanged"], 110)), S["cell"]), Paragraph(escape(", ".join(u["flags"]) or "—"), S["cell"])])
+                ur.append([Paragraph(escape(_u(D.trunc(u["defanged"], 110))), S["cell"]), Paragraph(escape(", ".join(u["flags"]) or "—"), S["cell"])])
             out.append(table(ur, [CONTENT_W - 60 * mm, 60 * mm]))
         if i["attachments"]:
             out.append(P("Adjuntos", "label"))
             ar_ = [[hcell("Archivo"), hcell("Tamaño"), hcell("SHA-256"), hcell("Notas")]]
             for x in i["attachments"]:
-                ar_.append([Paragraph(escape(D.trunc(x["filename"], 50)), S["cellb"]), Paragraph(f"{x['size']:,} B".replace(",", "."), S["cell"]),
-                            Paragraph(escape(x["sha256"]), S["tiny"]), Paragraph(escape("; ".join(x["notes"]) or "—"), S["cell"])])
+                ar_.append([Paragraph(escape(_u(D.trunc(x["filename"], 50))), S["cellb"]), Paragraph(f"{x['size']:,} B".replace(",", "."), S["cell"]),
+                            Paragraph(escape(x["sha256"]), S["tiny"]), Paragraph(escape(_u("; ".join(x["notes"]) or "—")), S["cell"])])
             out.append(table(ar_, [38 * mm, 18 * mm, CONTENT_W - 38 * mm - 18 * mm - 40 * mm, 40 * mm]))
         out.append(P("Qué verificar", "label"))
         out += bullets(i["verify"], "bullet_s")

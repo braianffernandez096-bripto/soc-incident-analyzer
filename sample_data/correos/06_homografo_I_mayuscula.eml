@@ -1,0 +1,20 @@
+From: "banco.universal@bancouniversal.gob" <banco.universaI@bancouniversal.gob>
+To: cliente@ejemplo.com.ar
+Subject: Su cuenta fue bloqueada: verifique sus datos hoy
+Received: from mail-envios.example ([203.0.113.45])
+	by mx.ejemplo.com.ar with ESMTPS; Tue, 03 Nov 2026 09:58:10 +0000
+Authentication-Results: mx.ejemplo.com.ar; spf=softfail smtp.mailfrom=bancouniversal.gob; dkim=none; dmarc=fail header.from=bancouniversal.gob
+Date: Tue, 03 Nov 2026 09:57:00 +0000
+Message-ID: <7f3a9c@mail-envios.example>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Estimado cliente:
+
+Detectamos actividad inusual y su cuenta será suspendida en las próximas 24 horas. Para evitarlo, verifique su cuenta ingresando aquí:
+
+https://bancouniversal-gob.verificar-cuenta.example/ingresar
+
+Atentamente,
+Banco Universal

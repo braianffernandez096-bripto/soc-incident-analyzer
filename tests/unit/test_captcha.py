@@ -12,6 +12,7 @@ from backend import captcha
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
     monkeypatch.delenv("CAPTCHA", raising=False)
+    monkeypatch.setenv("CAPTCHA_TYPE", "imagenes")          # las pruebas de este bloque son del captcha de imágenes
     captcha.reset()
     yield
     captcha.reset()
@@ -207,3 +208,137 @@ def test_expired_entries_are_purged():
     captcha._challenges[c["token"]] = (ans, time.time() - 1)
     captcha.new_challenge()
     assert c["token"] not in captcha._challenges
+
+
+# ======================================================================== rompecabezas deslizante
+def _puz():
+    return captcha.new_challenge("rompecabezas")
+
+
+def _tx(c):
+    return captcha._challenges[c["token"]][0]
+
+
+def _track(x, steps=10, ms=60):
+    return [[i * ms, round(x * i / steps)] for i in range(steps + 1)]
+
+
+def _png(uri):
+    assert uri.startswith("data:image/png;base64,")
+    return Image.open(io.BytesIO(base64.b64decode(uri.split(",", 1)[1])))
+
+
+def test_puzzle_challenge_shape_and_images():
+    c = _puz()
+    assert c["type"] == "puzzle" and c["width"] == captcha.PUZ_W and c["height"] == captcha.PUZ_H and c["piece_size"] == captcha.PW
+    assert set(c) == {"type", "token", "background", "piece", "piece_y", "width", "height", "piece_size", "prompt", "expires_in"}
+    bg, pc = _jpeg(c["background"]), _png(c["piece"])
+    assert bg.size == (320, 160) and pc.size == (64, 64) and pc.mode == "RGBA"
+    assert 0 <= c["piece_y"] <= captcha.PUZ_H - captcha.PW
+    assert isinstance(_tx(c), int) and captcha.PW <= _tx(c) <= captcha.PUZ_W - captcha.PW      # el hueco no está pegado al punto de partida
+
+
+def test_puzzle_piece_is_a_shape_not_a_square():
+    alpha = _png(_puz()["piece"]).getchannel("A")
+    solid = sum(alpha.histogram()[201:])
+    assert 1500 < solid < 3400          # un cuadrado completo tendría 4096 píxeles opacos
+
+
+def test_puzzle_hole_is_visible_in_the_background():
+    """El hueco está más oscuro que la pieza que lo rellena (si no, no habría nada que encajar)."""
+    c = _puz()
+    bg, pc = _jpeg(c["background"]).convert("L"), _png(c["piece"])
+    tx, ty = _tx(c), c["piece_y"]
+    pts = [(x, y) for x in range(captcha.PW) for y in range(captcha.PW) if pc.getchannel("A").getpixel((x, y)) > 250]
+    hole = sum(bg.getpixel((tx + x, ty + y)) for x, y in pts) / len(pts)
+    piece = sum(pc.convert("L").getpixel((x, y)) for x, y in pts) / len(pts)
+    assert hole < piece * 0.8
+
+
+def test_puzzle_answer_is_not_in_the_response():
+    c = _puz()
+    assert "answer" not in c and "x" not in c and "target" not in c
+
+
+def test_puzzle_target_position_varies():
+    assert len({_tx(_puz()) for _ in range(25)}) >= 10
+
+
+def test_puzzle_correct_drop_gives_a_pass():
+    c = _puz()
+    x = _tx(c)
+    assert captcha.verify_puzzle(c["token"], x, _track(x), "ip")
+
+
+@pytest.mark.parametrize("off", [-captcha.TOL, -3, 0, 3, captcha.TOL])
+def test_puzzle_tolerance_accepts_small_offsets(off):
+    c = _puz()
+    x = _tx(c) + off
+    assert captcha.verify_puzzle(c["token"], x, _track(x))
+
+
+@pytest.mark.parametrize("off", [captcha.TOL + 1, -(captcha.TOL + 1), 40, -60])
+def test_puzzle_wrong_position_is_rejected(off):
+    c = _puz()
+    x = max(0, _tx(c) + off)
+    assert captcha.verify_puzzle(c["token"], x, _track(x)) is None
+
+
+def test_puzzle_challenge_is_single_use_even_after_failure():
+    c = _puz()
+    x = _tx(c)
+    assert captcha.verify_puzzle(c["token"], x + 50, _track(x + 50)) is None
+    assert captcha.verify_puzzle(c["token"], x, _track(x)) is None
+
+
+def test_puzzle_expired_or_unknown_token_fails():
+    c = _puz()
+    x = _tx(c)
+    captcha._challenges[c["token"]] = (x, time.time() - 1)
+    assert captcha.verify_puzzle(c["token"], x, _track(x)) is None
+    assert captcha.verify_puzzle("no-existe", 100, _track(100)) is None
+
+
+@pytest.mark.parametrize("bad", [
+    lambda x: [], lambda x: _track(x)[:3], lambda x: [[0, x]] * 8,                               # vacío, corto, sin movimiento
+    lambda x: [[0, 0], [10, x // 4], [20, x // 2], [30, 3 * x // 4], [40, x]],                  # un «salto» en 40 ms
+    lambda x: [[t, px] for t, px in reversed(_track(x))],                                       # tiempo hacia atrás
+    lambda x: _track(x)[:-1] + [[600, x - 30]],                                                  # termina lejos de donde dice
+    lambda x: [[i * 60, "a"] for i in range(8)], lambda x: [[1, 2, 3]] * 8, lambda x: "no es una lista",
+    lambda x: [[i * 60, 9999] for i in range(8)], lambda x: [[-5 + i * 60, i * 10] for i in range(8)],
+    lambda x: [[i * 60_000, i * 10] for i in range(8)]])
+def test_puzzle_implausible_drags_are_rejected(bad):
+    c = _puz()
+    x = _tx(c)
+    assert captcha.verify_puzzle(c["token"], x, bad(x)) is None
+
+
+def test_puzzle_wrong_types_are_rejected():
+    for x in ("100", 100.0, None, True):
+        c = _puz()
+        assert captcha.verify_puzzle(c["token"], x, _track(100)) is None
+
+
+def test_challenge_types_do_not_cross():
+    img, puz = captcha.new_challenge("imagenes"), _puz()
+    assert captcha.verify(puz["token"], [0, 1, 2]) is None
+    assert captcha.verify_puzzle(img["token"], 100, _track(100)) is None
+
+
+# ---- selección del tipo
+def test_type_selection_by_environment(monkeypatch):
+    for value, expected in (("imagenes", "images"), ("rompecabezas", "puzzle")):
+        monkeypatch.setenv("CAPTCHA_TYPE", value)
+        assert {captcha.new_challenge()["type"] for _ in range(6)} == {expected}
+
+
+def test_random_type_serves_both(monkeypatch):
+    monkeypatch.setenv("CAPTCHA_TYPE", "aleatorio")
+    monkeypatch.setattr(captcha, "render_tile", lambda n, t, rng=None: b"x")
+    assert {captcha.new_challenge()["type"] for _ in range(60)} == {"images", "puzzle"}
+
+
+@pytest.mark.parametrize("v,expected", [("", "aleatorio"), ("banana", "aleatorio"), ("ROMPECABEZAS", "rompecabezas"), ("  imagenes ", "imagenes")])
+def test_type_defaults_to_random(monkeypatch, v, expected):
+    monkeypatch.setenv("CAPTCHA_TYPE", v)
+    assert captcha.captcha_type() == expected

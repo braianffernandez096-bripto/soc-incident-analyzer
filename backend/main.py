@@ -13,6 +13,7 @@ import threading
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
+from typing import Annotated
 from pathlib import Path
 
 import pandas as pd
@@ -234,8 +235,11 @@ def _require_captcha(request: Request) -> None:
 
 
 class CaptchaAnswer(BaseModel):
+    """Imágenes: ``selected``. Rompecabezas: ``x`` (posición final de la pieza) y ``track`` ([ms, x] del arrastre)."""
     token: str = Field(max_length=100)
-    selected: list[int] = Field(max_length=captcha_mod.GRID)
+    selected: list[int] = Field(default_factory=list, max_length=captcha_mod.GRID)
+    x: int | None = Field(default=None, ge=0, le=captcha_mod.PUZ_W)
+    track: list[Annotated[list[int], Field(min_length=2, max_length=2)]] = Field(default_factory=list, max_length=400)
 
 
 @app.get("/api/captcha/status")
@@ -256,7 +260,10 @@ def captcha_verify(request: Request, body: CaptchaAnswer):
     if not captcha_mod.enabled():
         raise HTTPException(404, "El captcha no está activado en este servidor.")
     _rate_limit(request, "/api/captcha", *RATE_LIMITS["/api/captcha"])
-    grant = captcha_mod.verify(body.token, body.selected, _client_ip(request))
+    if body.x is not None:
+        grant = captcha_mod.verify_puzzle(body.token, body.x, body.track, _client_ip(request))
+    else:
+        grant = captcha_mod.verify(body.token, body.selected, _client_ip(request))
     if not grant:
         _rate_limit(request, "/captcha-fail", 10, 300)         # solo los fallos cuentan: adivinar a ciegas acaba en 429
         raise HTTPException(400, "Selección incorrecta o desafío caducado. Prueba con uno nuevo.")
@@ -470,7 +477,7 @@ def _get_phish(pid: str) -> PhishSession:
 
 
 @app.post("/api/phishing")
-async def phishing_upload(request: Request, files: list[UploadFile] = File(...), sid: str = Form("")):
+async def phishing_upload(request: Request, files: list[UploadFile] = File(...), sid: str = Form(""), expected: str = Form("")):
     """Analiza hasta 5 archivos .eml. Solo se leen como texto: no se abre ningún enlace ni se ejecuta ningún adjunto."""
     _rate_limit(request, "/api/upload", *RATE_LIMITS["/api/upload"])
     _require_captcha(request)
@@ -488,7 +495,7 @@ async def phishing_upload(request: Request, files: list[UploadFile] = File(...),
                 raise HTTPException(413, f"«{name}» supera el límite de 5 MB.")
             chunks.append(chunk)
         batch.append((name, b"".join(chunks)))
-    result = phishing_mod.analyze_many(batch)
+    result = phishing_mod.analyze_many(batch, expected.strip()[:200])
     _enrich_mitre(result["items"])
     if not result["items"]:
         raise HTTPException(422, result["errors"][0]["error"] if result["errors"] else "No se pudo analizar ningún correo.")
@@ -503,13 +510,14 @@ async def phishing_upload(request: Request, files: list[UploadFile] = File(...),
 
 
 SAMPLE_EML_DIR = ROOT / "sample_data" / "correos"
+MAX_SAMPLE_EML = 12          # los ejemplos son archivos del repositorio (carpeta fija), no una subida: no aplica el tope de 5
 
 
 @app.post("/api/phishing/sample")
 def phishing_sample(request: Request, sid: str = Form("")):
     """Analiza los correos sintéticos del repositorio (carpeta fija: nada de la petición elige los archivos)."""
     _rate_limit(request, "/api/upload", *RATE_LIMITS["/api/upload"])
-    paths = sorted(SAMPLE_EML_DIR.glob("*.eml"))[:MAX_EML_FILES]
+    paths = sorted(SAMPLE_EML_DIR.glob("*.eml"))[:MAX_SAMPLE_EML]
     if not paths:
         raise HTTPException(404, "Este despliegue no incluye los correos de ejemplo.")
     result = phishing_mod.analyze_many([(q.name, q.read_bytes()) for q in paths])

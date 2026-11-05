@@ -1,0 +1,17 @@
+From: "Mesa de ayuda TI" <sоporte@ejemplo.com.ar>
+To: usuario@ejemplo.com.ar
+Subject: Su contraseña vence hoy
+Reply-To: soporte@ejemplo.com.ar
+Received: from sender.example ([203.0.113.9])
+	by mx.ejemplo.com.ar with ESMTPS; Tue, 03 Nov 2026 09:58:10 +0000
+Date: Tue, 03 Nov 2026 11:03:00 +0000
+Message-ID: <c44e10@sender.example>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Hola:
+
+Su contraseña vence hoy. Ingrese a https://ejemplo.com.ar.recuperar-clave.example/inicio para actualizar sus datos y evitar el bloqueo de su cuenta.
+
+Mesa de ayuda TI

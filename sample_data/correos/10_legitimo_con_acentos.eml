@@ -1,0 +1,16 @@
+From: "José Pérez" <josé.pérez@empresa.com.ar>
+To: equipo@empresa.com.ar
+Subject: Agenda de la reunión del jueves
+Authentication-Results: mx.empresa.com.ar; spf=pass smtp.mailfrom=empresa.com.ar; dkim=pass header.d=empresa.com.ar; dmarc=pass header.from=empresa.com.ar
+Date: Tue, 03 Nov 2026 08:30:00 +0000
+Message-ID: <e12b34@empresa.com.ar>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Hola equipo:
+
+Les paso la agenda de la reunión del jueves: 1) avances del trimestre, 2) presupuesto, 3) próximos pasos.
+
+Saludos,
+José

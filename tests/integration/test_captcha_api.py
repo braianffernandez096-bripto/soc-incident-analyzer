@@ -16,6 +16,7 @@ EML = sorted((DATA / "correos").glob("*.eml"))[0]
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
     monkeypatch.delenv("CAPTCHA", raising=False)
+    monkeypatch.setenv("CAPTCHA_TYPE", "imagenes")          # el tipo se fija por prueba; abajo hay un bloque para el rompecabezas
     monkeypatch.delenv("APP_ACCESS_TOKEN", raising=False)
     main._hits.clear()
     captcha.reset()
@@ -124,7 +125,7 @@ def test_challenge_requests_are_rate_limited(on):
     assert codes.count(200) == main.RATE_LIMITS["/api/captcha"][0] and 429 in codes
 
 
-@pytest.mark.parametrize("body", [{}, {"token": "x"}, {"selected": [1, 2, 3]}, {"token": "x", "selected": "abc"},
+@pytest.mark.parametrize("body", [{}, {"selected": [1, 2, 3]}, {"token": "x", "selected": "abc"},
                                   {"token": "x", "selected": [0, 1, 2, 3, 4, 5, 6]}, {"token": "x" * 500, "selected": [1]}])
 def test_malformed_verify_body_is_422(on, body):
     assert client.post("/api/captcha/verify", json=body).status_code == 422
@@ -132,7 +133,7 @@ def test_malformed_verify_body_is_422(on, body):
 
 def test_challenge_response_does_not_leak_the_answer(on):
     c = client.post("/api/captcha/challenge").json()
-    assert set(c) == {"token", "images", "prompt", "expires_in"}
+    assert set(c) == {"type", "token", "images", "prompt", "expires_in"}
     assert len(c["images"]) == 6
 
 
@@ -148,3 +149,68 @@ def test_access_token_still_guards_captcha_routes(on, monkeypatch):
     assert client.post("/api/captcha/challenge").status_code == 401
     ok = client.post("/api/captcha/challenge", headers={"Authorization": "Bearer correct-horse-battery-staple-9"})
     assert ok.status_code == 200
+
+
+# ---- rompecabezas deslizante
+def _track(x, steps=10, ms=60):
+    return [[i * ms, round(x * i / steps)] for i in range(steps + 1)]
+
+
+def _solve_puzzle(ok=True, track=None):
+    c = client.post("/api/captcha/challenge").json()
+    assert c["type"] == "puzzle"
+    x = captcha._challenges[c["token"]][0] + (0 if ok else 40)
+    return client.post("/api/captcha/verify", json={"token": c["token"], "x": x, "track": _track(x) if track is None else track})
+
+
+@pytest.fixture
+def puzzle(on, monkeypatch):
+    monkeypatch.setenv("CAPTCHA_TYPE", "rompecabezas")
+
+
+def test_puzzle_challenge_over_the_api(puzzle):
+    c = client.post("/api/captcha/challenge").json()
+    assert c["type"] == "puzzle" and c["background"].startswith("data:image/jpeg;base64,") and c["piece"].startswith("data:image/png;base64,")
+    assert "answer" not in c and "x" not in c
+
+
+def test_puzzle_flow_unlocks_one_analysis(puzzle):
+    r = _solve_puzzle()
+    assert r.status_code == 200
+    assert _up({"X-Captcha-Pass": r.json()["pass"]}).status_code == 200
+
+
+def test_puzzle_wrong_drop_is_rejected(puzzle):
+    r = _solve_puzzle(ok=False)
+    assert r.status_code == 400 and "pass" not in r.json()
+
+
+def test_puzzle_instant_jump_is_rejected(puzzle):
+    assert _solve_puzzle(track=[[0, 100], [5, 200]]).status_code == 400
+
+
+def test_puzzle_bodies_are_validated(puzzle):
+    c = client.post("/api/captcha/challenge").json()
+    for body in ({"token": c["token"], "x": -1, "track": []}, {"token": c["token"], "x": 9999, "track": []}, {"token": c["token"], "x": "a", "track": []},
+                 {"token": c["token"], "x": 10, "track": [[1, 2, 3]] * 8}, {"token": c["token"], "x": 10, "track": [[0, 1]] * 401},
+                 {"token": c["token"], "x": 10, "track": "no"}):
+        assert client.post("/api/captcha/verify", json=body).status_code == 422
+
+
+def test_random_type_serves_both_kinds_over_the_api(on, monkeypatch):
+    monkeypatch.setenv("CAPTCHA_TYPE", "aleatorio")
+    main._hits.clear()
+    kinds = set()
+    for _ in range(25):
+        kinds.add(client.post("/api/captcha/challenge").json()["type"])
+        main._hits.clear()
+    assert kinds == {"images", "puzzle"}
+
+
+def test_puzzle_guessing_ends_in_429(puzzle):
+    codes = [client.post("/api/captcha/verify", json={"token": "x", "x": 100, "track": _track(100)}).status_code for _ in range(12)]
+    assert codes[:10] == [400] * 10 and 429 in codes[10:]
+
+
+def test_verify_without_any_answer_is_just_a_failure(on):
+    assert client.post("/api/captcha/verify", json={"token": "x"}).status_code == 400

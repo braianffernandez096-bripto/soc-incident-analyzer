@@ -57,7 +57,7 @@ def test_upload_returns_items_sorted_with_mitre_names():
 
 def test_sample_endpoint_uses_the_fixed_folder():
     r = client.post("/api/phishing/sample")
-    assert r.status_code == 200 and len(r.json()["items"]) == 5
+    assert r.status_code == 200 and len(r.json()["items"]) == len(list(DIR.glob("*.eml"))) >= 10     # el ejemplo no está limitado a 5: es una carpeta fija del repositorio
 
 
 @pytest.mark.parametrize("name,data,code", [
@@ -150,3 +150,35 @@ def test_phishing_routes_need_the_access_token_when_one_is_set(monkeypatch):
     assert client.post("/api/phishing/sample").status_code == 401
     ok = client.post("/api/phishing", files=[("files", ("a.eml", FACTURA, "message/rfc822"))], headers={"Authorization": "Bearer " + "x" * 20})
     assert ok.status_code == 200
+
+
+# ---- homógrafos
+FAKE = (DIR / "06_homografo_I_mayuscula.eml").read_bytes()
+CYR = (DIR / "07_homografo_cirilico_dominio.eml").read_bytes()
+
+
+def test_expected_sender_field_is_applied():
+    r = up(("a.eml", FAKE), expected="banco.universal@bancouniversal.gob")
+    item = r.json()["items"][0]
+    assert r.status_code == 200 and item["homograph"]["expected"]["kind"] == "parecida"
+    assert any("imita visualmente la dirección esperada" in s["title"] for s in item["signals"])
+
+
+def test_expected_sender_field_is_optional_and_bounded():
+    assert up(("a.eml", FAKE)).json()["items"][0]["homograph"]["expected"] is None
+    r = up(("a.eml", FAKE), expected="x" * 5000)
+    assert r.status_code == 200 and len(r.json()["items"][0]["homograph"]["expected"]["expected"]) <= 200
+
+
+def test_homograph_breakdown_travels_in_the_response():
+    e = up(("a.eml", CYR)).json()["items"][0]["homograph"]["entries"][0]
+    assert e["suspicious"] and any(c["code"] == "U+0430" for c in e["chars"])
+
+
+def test_pdf_shows_homograph_characters_as_codes_not_as_missing_glyphs():
+    pid = up(("a.eml", CYR)).json()["phishing_id"]
+    r = client.post(f"/api/phishing/{pid}/report.pdf", data={"client": "X", "analyst": "Y"})
+    assert r.status_code == 200
+    text = "\n".join(p.extract_text() for p in PdfReader(io.BytesIO(r.content)).pages)
+    assert "Verificación de caracteres" in text and "U+0430" in text and "CYRILLIC SMALL LETTER A" in text
+    assert "\u25a0" not in text          # sin cuadros negros de glifos que Helvetica no dibuja

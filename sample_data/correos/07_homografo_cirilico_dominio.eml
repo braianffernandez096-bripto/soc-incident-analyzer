@@ -1,0 +1,19 @@
+From: "Soporte Banco Universal" <soporte@bаncouniversal.gob>
+To: cliente@ejemplo.com.ar
+Subject: Confirme su identidad para mantener su tarjeta activa
+Received: from envios-masivos.example ([198.51.100.77])
+	by mx.ejemplo.com.ar with ESMTPS; Tue, 03 Nov 2026 09:58:10 +0000
+Authentication-Results: mx.ejemplo.com.ar; spf=fail smtp.mailfrom=xn--bncouniversal-gfj.gob; dkim=none; dmarc=none
+Date: Tue, 03 Nov 2026 10:12:00 +0000
+Message-ID: <b81d20@envios-masivos.example>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Estimado cliente:
+
+Para mantener su tarjeta activa debe confirmar su identidad. Inicie sesión en:
+
+https://bаncouniversal.gob/ingresar
+
+Si no lo hace hoy, su cuenta será bloqueada.

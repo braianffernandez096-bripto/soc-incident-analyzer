@@ -19,10 +19,12 @@ import zipfile
 from datetime import datetime, timezone
 from email import policy
 from email.parser import BytesParser
-from email.utils import parseaddr, parsedate_to_datetime
+from email.utils import getaddresses, parseaddr, parsedate_to_datetime
 from html.parser import HTMLParser
 from io import BytesIO
 from urllib.parse import urlparse
+
+from . import homograph
 
 log = logging.getLogger("soc.phishing")
 
@@ -391,6 +393,27 @@ def _check_url(url: str, text: str, sig: _Sig, from_domains: set[str], location:
     if p.username is not None or "@" in (p.netloc or ""):
         info["flags"].append("Usuario en la URL")
         sig.add("URL", "Alto", 4, "URL con «@»: el destino real no es el que parece", f"Todo lo anterior a «@» es un usuario; el sitio real es {host}.", mitre, key=host)
+    uni = homograph.decode_host(host)
+    hres = homograph.inspect(uni, "host")
+    if uni != host:
+        info["host_unicode"] = uni
+    if not uni.isascii():
+        info["host_ascii"] = homograph.ascii_form(uni) or host
+    if hres["mixed"]:
+        m = hres["mixed"][0]
+        info["flags"].append("Alfabetos mezclados")
+        sig.add("URL", "Alto", 5, "Dominio con alfabetos mezclados", f"«{uni}» mezcla letras {' y '.join(m['scripts'])} en «{m['word']}»: "
+                + "; ".join(f"{homograph.describe_char(c['ch'])} parece «{c['looks_like']}»" for c in m["chars"][:3] if c["looks_like"]) + ". Es la técnica del ataque homógrafo.", ["T1566.002", "T1684.001"], key=host)
+    elif hres["whole_script"]:
+        w = hres["whole_script"][0]
+        info["flags"].append("Alfabeto que imita letras latinas")
+        sig.add("URL", "Alto", 4, "Dominio escrito con letras de otro alfabeto que imitan las latinas", f"«{w['word']}» ({w['script']}) se ve como «{w['as']}».", ["T1566.002", "T1684.001"], key=host)
+    elif not uni.isascii():
+        info["flags"].append("Dominio con caracteres no ASCII")
+        sig.add("URL", "Bajo", 1, "Dominio internacionalizado (IDN)", f"«{uni}» usa caracteres fuera de ASCII (forma técnica: {info['host_ascii']}). Puede ser legítimo; compáralo carácter por carácter con el sitio real.", mitre, key=host)
+    if hres["suspicious"]:
+        cells, _ = homograph.breakdown(uni, hres["flagged"])
+        info["host_chars"] = cells
     if host.startswith("xn--") or ".xn--" in host:
         info["flags"].append("Punycode")
         sig.add("URL", "Medio", 3, "Dominio con punycode (xn--)", f"{host} puede mezclar caracteres de otros alfabetos para parecerse a otro dominio.", mitre, key=host)
@@ -411,11 +434,11 @@ def _check_url(url: str, text: str, sig: _Sig, from_domains: set[str], location:
             info["flags"].append(f"Suplanta {brand_hit}")
             sig.add("URL", "Alto", 5, f"Dominio que imita a {brand_hit}", f"{host} contiene «{brand_hit}» pero su dominio real es {dom}, que no es de esa empresa.", ["T1566.002", "T1684.001"], key=dom)
         else:
-            label = dom.split(".")[0]
+            label = reg_domain(uni).split(".")[0]
             for b, official in BRANDS.items():
                 if dom in official or len(b) < 5:
                     continue
-                if _squash(label) == b or (0 < _lev(label.replace("-", ""), b) <= 1 and abs(len(label) - len(b)) <= 1):
+                if _squash(label) == b or homograph.skeleton(label) == b or (0 < _lev(label.replace("-", ""), b) <= 1 and abs(len(label) - len(b)) <= 1):
                     info["flags"].append(f"Parecido a {b}")
                     sig.add("URL", "Alto", 5, f"Dominio casi idéntico a {b}", f"{dom} se parece a «{b}» con letras cambiadas (typosquatting).", ["T1566.002", "T1684.001"], key=dom)
                     break
@@ -429,7 +452,126 @@ def _check_url(url: str, text: str, sig: _Sig, from_domains: set[str], location:
     return info
 
 
-def analyze_eml(data: bytes, filename: str = "correo.eml") -> dict:
+_HG_MITRE = ["T1684.001", "T1566"]
+
+
+def _raw_hdr(msg, name: str) -> str:
+    """Cabecera tal cual (sin quitar caracteres invisibles: justo eso hay que detectarlo)."""
+    try:
+        v = msg.get(name)
+        return str(v).strip()[:500] if v is not None else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _hg_entry(label: str, value: str, kind: str = "address") -> tuple[dict, dict]:
+    res = homograph.inspect(value, kind)
+    cells, trunc = homograph.breakdown(value, res["flagged"])
+    notes = []
+    for m in res["mixed"]:
+        notes.append(f"Mezcla {' y '.join(m['scripts'])} en «{m['word']}»")
+    for w in res["whole_script"]:
+        notes.append(f"«{w['word']}» ({w['script']}) imita «{w['as']}»")
+    for o in res["odd_case"]:
+        notes.append(f"«{o['ch']}» mayúscula en posición {o['pos']}: se confunde con «{o['looks_like']}»")
+    for d in res["digit_swap"]:
+        notes.append(f"«{d['ch']}» entre letras en posición {d['pos']}: se confunde con «{d['looks_like']}»")
+    for i in res["invisible"]:
+        notes.append(f"Carácter invisible {i['code']} ({i['name']}) en posición {i['pos']}")
+    if res["idn"]:
+        notes.append(f"Forma técnica del dominio: {res['idn']}")
+    return ({"label": label, "value": value, "spelled": homograph.spelled(value), "chars": cells, "truncated": trunc, "scripts": res["scripts"],
+             "suspicious": res["suspicious"], "notes": notes}, res)
+
+
+def _hg_signals(sig: _Sig, label: str, value: str, res: dict) -> None:
+    key = (label, value)
+    if res["mixed"]:
+        m = res["mixed"][0]
+        det = "; ".join(f"{homograph.describe_char(c['ch'])} parece «{c['looks_like']}»" if c["looks_like"] else homograph.describe_char(c["ch"]) for c in m["chars"][:3])
+        sig.add("Encabezados", "Alto", 5, f"Alfabetos mezclados en {label}", f"«{value}» mezcla letras {' y '.join(m['scripts'])} dentro de «{m['word']}»: {det}. A simple vista parece una palabra normal; es la técnica del ataque homógrafo.", _HG_MITRE, key)
+    elif res["whole_script"]:
+        w = res["whole_script"][0]
+        sig.add("Encabezados", "Medio", 3, f"Letras de otro alfabeto que imitan letras latinas en {label}", f"«{w['word']}» está escrita en alfabeto {w['script']} pero se ve como «{w['as']}».", _HG_MITRE, key)
+    if res["odd_case"]:
+        o = res["odd_case"][0]
+        sig.add("Encabezados", "Medio", 3, f"Mayúscula inusual en {label}", f"La «{o['ch']}» mayúscula en la posición {o['pos']} de «{o['word']}» se confunde con «{o['looks_like']}». Las direcciones no distinguen mayúsculas: escribirla así busca engañar a simple vista.", _HG_MITRE, key)
+    if res["digit_swap"]:
+        d = res["digit_swap"][0]
+        sig.add("Encabezados", "Bajo", 1, f"Cifra que imita una letra en {label}", f"La cifra «{d['ch']}» entre letras (posición {d['pos']} de «{d['word']}») se parece a «{d['looks_like']}».", _HG_MITRE, key)
+    if res["invisible"]:
+        i = res["invisible"][0]
+        sig.add("Encabezados", "Alto", 4, f"Caracteres invisibles en {label}", f"{i['code']} ({i['name']}) en la posición {i['pos']}: no se ve, pero cambia la dirección.", _HG_MITRE, key)
+    if res["idn"]:
+        sig.add("Encabezados", "Bajo", 1, f"Dominio con caracteres no ASCII en {label}", f"Forma técnica: {res['idn']}. Puede ser legítimo; compáralo carácter por carácter.", _HG_MITRE, key)
+
+
+def _diff_text(cmp: dict) -> str:
+    out = []
+    for d in cmp["diffs"][:4]:
+        got = ", ".join(homograph.describe_char(c["ch"]) for c in d["found_detail"]) or "nada"
+        want = ", ".join(homograph.describe_char(c["ch"]) for c in d["expected_detail"]) or "nada"
+        out.append(f"posición {d['pos']}: tiene {got} y debía ser {want}")
+    return "; ".join(out)
+
+
+def _homograph_review(sig: _Sig, favorable: list[str], *, from_cs: str, from_name: str, reply_cs: str, rpath_cs: str, to_raw: str, shown_email: str, expected: str) -> dict:
+    entries: list[dict] = []
+    from_dom = _domain_of(from_cs)
+    targets = [("Remitente (From)", "el remitente (From)", from_cs, "address", True), ("Reply-To", "el Reply-To", reply_cs, "address", False),
+               ("Return-Path", "el Return-Path", rpath_cs, "address", False), ("Nombre visible", "el nombre visible", from_name, "name", False)]
+    for title, label, value, kind, always in targets:
+        if not value:
+            continue
+        entry, res = _hg_entry(title, value, kind)
+        _hg_signals(sig, label, value, res)
+        if always or res["suspicious"]:
+            entries.append(entry)
+    # direcciones del mismo correo que se ven iguales y no lo son
+    pairs = [("el remitente (From)", from_cs), ("el Reply-To", reply_cs), ("el Return-Path", rpath_cs), ("la dirección escrita en el nombre visible", shown_email)]
+    comparisons: list[dict] = []
+    for i, (la, a) in enumerate(pairs):
+        for lb, b in pairs[i + 1:]:
+            if a and b and homograph.lc(a) != homograph.lc(b) and homograph.skeleton(a) == homograph.skeleton(b):
+                cmp = homograph.compare(a, b)
+                comparisons.append({"between": [la, lb], "a": a, "b": b, **cmp})
+                sig.add("Encabezados", "Alto", 5, "Direcciones que se ven iguales pero no lo son", f"{la} ({a}) y {lb} ({b}) se ven idénticas; difieren en {_diff_text(cmp)}.", _HG_MITRE, key=(a, b))
+    # dominio del remitente frente al del destinatario (suplantar a la propia organización)
+    for _, rcpt in getaddresses([to_raw])[:10]:
+        rd = rcpt.lower().rsplit("@", 1)[-1] if "@" in rcpt else ""
+        if rd and from_dom and homograph.lc(from_dom) != rd and homograph.skeleton(from_dom) == homograph.skeleton(rd):
+            cmp = homograph.compare(from_dom, rd)
+            comparisons.append({"between": ["dominio del remitente", "dominio del destinatario"], "a": from_dom, "b": rd, **cmp})
+            sig.add("Encabezados", "Crítico", 8, "El dominio del remitente imita al del destinatario", f"El correo dice venir de {from_dom}, que se ve igual que el dominio del destinatario ({rd}) pero difiere en {_diff_text(cmp)}: suplanta a tu propia organización.", _HG_MITRE, key=(from_dom, rd))
+    # marca conocida escrita con letras parecidas
+    if from_dom:
+        rd_ = reg_domain(from_dom)
+        label = rd_.split(".")[0]
+        sk = homograph.skeleton(label)
+        for b, official in BRANDS.items():
+            if len(b) >= 5 and rd_ not in official and sk == b and label != b and homograph.lc(label) != b:
+                sig.add("Encabezados", "Alto", 5, f"El dominio del remitente imita a {b}", f"{from_dom} se ve como «{b}» pero está escrito con otros caracteres; el dominio real de esa empresa es otro.", _HG_MITRE, key=("marca", b, rd_))
+                break
+    # dirección esperada (la aporta el analista)
+    expected_out = None
+    exp = (expected or "").strip()[:200]
+    if exp:
+        target = from_cs if "@" in exp else from_dom
+        cmp = homograph.compare(target, exp)
+        expected_out = {"expected": exp, "compared": target, **cmp, "spelled_expected": homograph.spelled(exp)}
+        if cmp["kind"] == "igual":
+            favorable.append("El remitente coincide carácter por carácter con la dirección esperada")
+        elif cmp["kind"] == "parecida":
+            sig.add("Encabezados", "Crítico", 10, "El remitente imita visualmente la dirección esperada", f"{target} se ve igual que {exp} pero no es la misma: {_diff_text(cmp)}.", _HG_MITRE, key=("esp", target))
+        elif cmp["kind"] == "casi":
+            sig.add("Encabezados", "Alto", 6, "El remitente es casi idéntico a la dirección esperada", f"{target} difiere de {exp} en {_diff_text(cmp)}.", _HG_MITRE, key=("esp", target))
+        else:
+            sig.add("Encabezados", "Medio", 3, "El remitente no es la dirección esperada", f"{target} no coincide con {exp}.", _HG_MITRE, key=("esp", target))
+    return {"entries": entries, "comparisons": comparisons, "expected": expected_out,
+            "suspicious": any(e["suspicious"] for e in entries) or bool(comparisons) or bool(expected_out and expected_out["kind"] not in ("igual",))}
+
+
+def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "") -> dict:
     if len(data) > MAX_EML_BYTES:
         raise EmlError("El correo supera el límite de 5 MB.")
     head = data[:8192].decode("utf-8", errors="ignore")
@@ -461,7 +603,7 @@ def analyze_eml(data: bytes, filename: str = "correo.eml") -> dict:
     shown_email = re.search(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", from_name)
     if shown_email and shown_email.group(0).lower() != from_addr:
         sig.add("Encabezados", "Alto", 4, "El nombre visible muestra otra dirección", f"Dice «{shown_email.group(0)}» pero el correo real es {from_addr}.", ["T1684.001"])
-    brand = _brand_in(from_name)
+    brand = _brand_in(from_name) or _brand_in(homograph.skeleton(from_name))
     if brand and from_dom and reg_domain(from_dom) not in BRANDS[brand]:
         sig.add("Encabezados", "Alto", 4, f"Se hace pasar por {brand}", f"El nombre visible menciona «{brand}» pero el dominio real es {from_dom}.", ["T1684.001", "T1566"])
     elif from_dom in FREE_MAIL and re.search(r"soporte|support|seguridad|security|banco|bank|admin|servicio|cobranza|facturaci|rrhh|recursos humanos|helpdesk|it\b", from_name, re.I):
@@ -497,6 +639,12 @@ def analyze_eml(data: bytes, filename: str = "correo.eml") -> dict:
         sig.add("Autenticación", "Medio", 2, "SPF pasa pero no se alinea", f"SPF validó el dominio {auth['spf_domain']}, distinto del visible ({from_dom}): el «pass» no prueba que sea quien dice.", ["T1566"])
     if auth["dkim"] == "pass" and auth["dkim_domain"] and from_dom and reg_domain(auth["dkim_domain"]) != reg_domain(from_dom):
         sig.add("Autenticación", "Medio", 2, "DKIM pasa pero no se alinea", f"La firma es de {auth['dkim_domain']}, no de {from_dom}.", ["T1566"])
+
+    # ---- homógrafos: direcciones que se ven iguales y no lo son ---------------------------
+    raw_name, raw_from = parseaddr(_raw_hdr(msg, "From"))
+    hg = _homograph_review(sig, favorable, from_cs=raw_from.strip()[:200], from_name=raw_name.strip()[:150], reply_cs=parseaddr(_raw_hdr(msg, "Reply-To"))[1].strip()[:200],
+                           rpath_cs=parseaddr(_raw_hdr(msg, "Return-Path"))[1].strip()[:200], to_raw=_raw_hdr(msg, "To"),
+                           shown_email=shown_email.group(0) if shown_email else "", expected=expected)
 
     # ---- recorrido ----------------------------------------------------------------
     hops = _hops(msg)
@@ -602,6 +750,9 @@ def analyze_eml(data: bytes, filename: str = "correo.eml") -> dict:
     if severity == "Bajo":
         iocs = []
     verify: list[str] = []
+    if hg["suspicious"]:
+        verify.append("Comparar la dirección carácter por carácter con la del contacto real (agenda, correos anteriores o sitio oficial), no con la que se ve en pantalla: "
+                      "caracteres de otro alfabeto o «I» mayúscula por «l» minúscula son indistinguibles a simple vista.")
     if severity != "Bajo":
         verify.append("Confirmar con el supuesto remitente, por otro canal (llamada o chat interno), que envió este correo. No respondas al mismo mensaje.")
     if auth["raw"]:
@@ -630,20 +781,21 @@ def analyze_eml(data: bytes, filename: str = "correo.eml") -> dict:
         "filename": _clean(filename, 120), "size": len(data), "headers": headers, "auth": {k: v for k, v in auth.items() if k != "raw"},
         "auth_raw": auth["raw"], "hops": hops, "origin_ip": origin["ip"] if origin else "", "urls": urls, "attachments": attachments,
         "signals": sig.items, "favorable": favorable, "score": score, "severity": severity, "verdict": verdict, "mitre": mitre,
-        "iocs": iocs, "verify": verify, "actions": actions,
+        "iocs": iocs, "verify": verify, "actions": actions, "homograph": hg,
         "truncated": n_parts > MAX_PARTS or len(urls) >= MAX_URLS,
         "limitations": ["Análisis estático: no se abrieron enlaces ni se ejecutaron adjuntos.",
                         "Los pesos de las señales son orientativos; el veredicto es una ayuda para el triage, no una prueba.",
-                        "El mapeo a ATT&CK es orientativo."],
+                        "El mapeo a ATT&CK es orientativo."]
+        + (["Sin una dirección de referencia no se puede saber cuál es la legítima: el desglose carácter por carácter sirve para compararla con el contacto real."] if hg["suspicious"] else []),
     }
 
 
-def analyze_many(files: list[tuple[str, bytes]]) -> dict:
+def analyze_many(files: list[tuple[str, bytes]], expected: str = "") -> dict:
     items: list[dict] = []
     errors: list[dict] = []
     for name, data in files:
         try:
-            r = analyze_eml(data, name)
+            r = analyze_eml(data, name, expected)
             r["id"] = f"MAIL-{len(items) + 1:02d}"
             items.append(r)
         except EmlError as exc:

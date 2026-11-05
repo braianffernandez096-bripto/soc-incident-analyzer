@@ -9,7 +9,6 @@ Aplicación web para análisis de logs. Recibe el export de un SIEM (Excel, CSV/
 Un SIEM entrega miles de eventos y el analista tiene que decidir cuáles importan, cómo se relacionan y qué hacer primero.
 Esta herramienta toma el export de un SIEM (Excel, CSV o JSON) y lo convierte en incidentes ordenados por criticidad, cada uno con las evidencias que lo sustentan.
 Cada hallazgo se mapea a MITRE ATT&CK y trae un plan de acción (investigar, contener, remediar) y un informe técnico en PDF.
-
 Está pensada para analistas SOC y estudiantes que practican triage, y para quien quiera ver cómo se correlacionan los eventos sin montar un SIEM completo.
 El análisis, los incidentes, MITRE ATT&CK y el informe en PDF funcionan sin Internet y sin costo, porque las reglas son deterministas y el informe usa plantillas. La redacción con IA es opcional: requiere tu propia clave de API de Anthropic (servicio de pago por uso) y solo mejora la redacción, nunca cambia la criticidad.
 
@@ -291,7 +290,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 663 pruebas
+python -m pytest                                           # 699 pruebas (5 son falsos positivos conocidos, marcados xfail)
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
@@ -302,6 +301,18 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 - `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras), clave de acceso (401 en todas las rutas protegidas, fuerza bruta), capa de IA y consultas de reputación con servidores simulados (las pruebas no usan red ni claves) el botón de datos de ejemplo, el módulo de phishing (PDF, reputación y remitente esperado) y el captcha de imágenes y de rompecabezas.
 
 - `tests/e2e/`: arranca el servidor real y recorre carga, análisis y PDF.
+
+- `tests/unit/test_negativos.py`: 30 casos de actividad normal que no deben alertar, cerca de los umbrales de cada regla, y 5 falsos positivos conocidos marcados `xfail` hasta que se calibren.
+
+## Validación de las reglas
+
+Además de las pruebas con escenarios de ataque, las reglas se midieron con datos que no escribí yo. Resultados (detalle, método y límites en [docs/VALIDACION.md](docs/VALIDACION.md)):
+
+- **SSH real (Loghub):** de 11 IPs que atacaron con fuerza bruta, la app detectó las 11, sin falsos positivos.
+- **107 ataques de Windows (OTRF Security-Datasets):** la técnica correcta en 13, hallazgos de otra técnica en 39 y ninguno en 53. La cobertura es limitada y está documentada, con los huecos priorizados (credenciales, evasión de defensas, movimiento lateral).
+- **Tráfico normal:** 30 casos sin ruido y 5 falsos positivos conocidos (por ejemplo, un solo `ipconfig`), también documentados.
+
+Se pueden repetir con `scripts/validar_datasets.py`.
 
 ## Privacidad: qué datos salen de tu equipo
 
@@ -353,7 +364,8 @@ Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones
 
 ```
 backend/      parser, reglas de detección, correlación, análisis de correos (.eml) y de homógrafos, captcha local, IA, reputación (VirusTotal/AbuseIPDB), MITRE ATT&CK, informe PDF y API (FastAPI)
-scripts/      build_attack_data.py regenera backend/data/ desde los datos oficiales de MITRE; build_captcha_assets.py regenera las figuras del captcha (uso de mantenimiento)
+scripts/      build_attack_data.py regenera backend/data/ desde los datos oficiales de MITRE; build_captcha_assets.py regenera las figuras del captcha; validar_datasets.py mide las reglas con datasets públicos (uso de mantenimiento)
+docs/         VALIDACION.md: método y resultados de la validación de las reglas
 frontend/     interfaz web sin build (HTML, CSS y JS; fuentes IBM Plex locales)
 sample_data/  exports de ejemplo (Windows en Excel/CSV/NDJSON, multi-fuente en JSON y SIEM de 500 eventos) y correos .eml de ejemplo
 tests/        unit, integration y e2e

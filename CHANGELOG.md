@@ -4,6 +4,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+### Añadido
+- **Validación de las reglas con datos externos** (`docs/VALIDACION.md`, `scripts/validar_datasets.py`): SSH real de Loghub (11 de 11 IPs atacantes detectadas, sin falsos positivos) y 107 ataques de Windows de OTRF Security-Datasets con su técnica ATT&CK (13 con la técnica correcta, 39 con otra, 53 sin hallazgos), con los huecos de cobertura priorizados.
+- **Pruebas negativas** (`tests/unit/test_negativos.py`): 30 casos de actividad normal que no deben generar hallazgos y 5 falsos positivos conocidos marcados `xfail` hasta calibrar las reglas.
+- Cobertura ATT&CK documentada (48 técnicas en 26 reglas) y lista de técnicas sin cobertura.
+
 ## [1.4.0] - 2026-11-05
 
 ### Añadido

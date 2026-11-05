@@ -15,6 +15,7 @@ import hashlib
 import ipaddress
 import logging
 import re
+import unicodedata
 import zipfile
 from datetime import datetime, timezone
 from email import policy
@@ -24,7 +25,7 @@ from html.parser import HTMLParser
 from io import BytesIO
 from urllib.parse import urlparse
 
-from . import homograph, psdecode
+from . import deobf, homograph, htmlscan, psdecode
 
 log = logging.getLogger("soc.phishing")
 
@@ -48,6 +49,18 @@ BRANDS = {
     "facebook": {"facebook.com", "fb.com", "meta.com"}, "instagram": {"instagram.com"}, "whatsapp": {"whatsapp.com"},
     "dropbox": {"dropbox.com"}, "docusign": {"docusign.com", "docusign.net"}, "github": {"github.com"},
 }
+# Marcas muy suplantadas en el nombre visible (criptoactivos, seguridad y bancos). Se usan SOLO para el nombre del remitente, con la palabra completa:
+# si entraran en BRANDS, sus nombres cortos darían falsos positivos en la comparación con los dominios de los enlaces.
+NAME_BRANDS = {
+    r"kraken": {"kraken.com"}, r"ledger": {"ledger.com"}, r"trezor": {"trezor.io"}, r"trust\s*wallet": {"trustwallet.com"}, r"metamask": {"metamask.io", "consensys.net"},
+    r"coinbase": {"coinbase.com"}, r"binance": {"binance.com"}, r"lido(?:\.fi| finance)?": {"lido.fi"}, r"electrum": {"electrum.org"}, r"phantom": {"phantom.app", "phantom.com"},
+    r"proton(?:\.me|mail)?": {"proton.me", "protonmail.com", "proton.ch"}, r"ethereum(?:\.org)?": {"ethereum.org"}, r"solana": {"solana.com", "solana.org"},
+    r"leap\s*wallet": {"leapwallet.io"}, r"total\s*av": {"totalav.com"}, r"norton": {"norton.com", "nortonlifelock.com", "gendigital.com"}, r"mcafee": {"mcafee.com"},
+    r"bradesco": {"bradesco.com.br", "bradesco.com"}, r"ita[uú]": {"itau.com.br", "itau.com.ar"}, r"nubank": {"nubank.com.br"},
+    r"wells\s*fargo": {"wellsfargo.com"}, r"bank of america": {"bankofamerica.com", "bofa.com"}, r"american express": {"americanexpress.com", "aexp.com"},
+    r"usps": {"usps.com"}, r"ups": {"ups.com"}, r"correios": {"correios.com.br"}, r"hsbc": {"hsbc.com"},
+    r"telegram": {"telegram.org", "t.me"}, r"adobe": {"adobe.com"},
+}
 FREE_MAIL = {"gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "yahoo.com.ar", "live.com", "icloud.com", "proton.me", "protonmail.com", "gmx.com", "aol.com"}
 SHORTENERS = {"bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "buff.ly", "rebrand.ly", "cutt.ly", "shorturl.at", "t.ly", "rb.gy", "tiny.cc", "lnkd.in"}
 RISKY_TLDS = {"zip", "mov", "top", "xyz", "click", "country", "gq", "tk", "ml", "cf", "ga", "work", "support", "rest", "icu", "monster", "buzz", "cam", "sbs", "cyou", "cfd"}
@@ -65,6 +78,17 @@ CLICKFIX_RE = re.compile(r"(?:irm|iwr|invoke-restmethod|invoke-webrequest|curl|w
 ENABLE_CONTENT = re.compile(r"habilit\w* (?:el )?(?:contenido|las macros|macros|la edici[oó]n)|activ\w* (?:el )?(?:contenido|las macros|macros)|enable (?:content|macros|editing)", re.I)
 CREDENTIALS = re.compile(r"verifica(?:r)? tu (?:cuenta|identidad|contraseña)|confirma(?:r)? tu (?:cuenta|identidad|contraseña)|cuenta (?:suspendida|bloqueada|será (?:suspendida|bloqueada|cerrada))|restablec|actualiza(?:r)? tus datos|inicia(?:r)? sesión|ingresa(?:r)? tu (?:clave|contraseña)|verify your (?:account|identity|password)|confirm your (?:account|password)|account (?:has been )?(?:suspended|locked)|sign in to (?:your|view)|password (?:will )?expire", re.I)
 URL_RE = re.compile(r"https?://[^\s<>\"'\)\]]+", re.I)
+# Estafa de adelanto de pago («419»): herencias, donaciones o fondos sin enlaces, que piden responder a un correo privado. Se exigen varios grupos distintos.
+ADVANCE_FEE = [re.compile(p, re.I) for p in (
+    r"dear (?:beloved|friend|one|sir|madam)|my beloved|beloved (?:one|friend)|querid[oa] (?:amad[oa]|amig[oa])|estimad[oa] (?:amig[oa]|beneficiari[oa])|querido amigo",
+    r"inherit|herencia|next of kin|beneficiar(?:y|ies)|beneficiári[oa]|beneficiari[oa]|unclaimed|consignment|late (?:husband|father|mother)|widow|viuda|fallecid[oa]|deceased",
+    r"\$\s?\d{1,3}(?:[,.]\d{3})+|\b\d+(?:[.,]\d+)?\s?(?:million|millones)|(?:usd|us\$|eur|€|£)\s?\d{1,3}(?:[,.]\d{3})+",
+    r"donat(?:e|ion)|charity|caridad|donaci[oó]n|relief fund|fundaci[oó]n",
+    r"reply (?:to|me)|responde(?:r)? (?:a )?mi|contact (?:me|my)|private (?:e-?mail|address)|correo privado|western union|moneygram|processing fee|clearance fee",
+    r"lawyer|attorney|abogad[oa]|barrister|bank manager|diplomat|dem[oó]cratic republic|burkina|ivory coast|c[oô]te d.ivoire")]
+# Reclamo o validación de criptoactivos (airdrops, migración de billetera): se necesita un objeto cripto y un verbo de acción.
+CRYPTO_OBJ = re.compile(r"airdrop|wallet|billetera|stETH|\bnft\b|\btokens?\b|seed phrase|recovery phrase|frase semilla|bitcoin|ethereum|crypto|\$[A-Z]{3,6}\b", re.I)
+CRYPTO_ACT = re.compile(r"claim|reclam|migrat|validate|valida[rd]|verify|verifica[rd]|connect your|conecta|restore|restaura|synchroni[sz]e|sincroniza|trophy|awaits|waiting for you|te esperan|tus tokens", re.I)
 HOP_FROM_RE = re.compile(r"from\s+(?P<from>\S+)", re.I)
 RECV_WITH_RE = re.compile(r"\bwith\s+(\S+)", re.I)
 BRACKET_IP_RE = re.compile(r"[\[(](?P<ip>(?:\d{1,3}\.){3}\d{1,3}|[0-9a-f:]{3,39})[\])]", re.I)
@@ -164,6 +188,16 @@ def _domain_of(addr: str) -> str:
 def _brand_in(text: str) -> str:
     t = re.sub(r"[^a-z0-9]", "", text.lower())
     return next((b for b in BRANDS if b in t), "")
+
+
+def _name_brand(name: str) -> tuple[str, set[str]] | None:
+    """Marca de NAME_BRANDS citada como palabra entera en el nombre visible (sin caracteres invisibles ni de formato)."""
+    t = " ".join("".join(c for c in unicodedata.normalize("NFKC", name) if not homograph.is_invisible(c)).lower().split())
+    for pat, doms in NAME_BRANDS.items():
+        m = re.search(r"(?<![a-z0-9])(?:" + pat + r")(?![a-z0-9])", t)
+        if m:
+            return m.group(0), doms
+    return None
 
 
 class _Sig:
@@ -445,6 +479,11 @@ def _attachment(part, sig: _Sig) -> dict:
         flag("Alto", 6, "Adjunto ejecutable o script", f"Los adjuntos «.{ext}» pueden ejecutar código y los filtros de correo normalmente los bloquean.", ["T1566.001", "T1204.002"])
     if ext in MACRO_EXT:
         flag("Medio", 4, "Documento con macros habilitadas", f"El formato «.{ext}» admite macros VBA, una vía habitual de ejecución.", ["T1566.001", "T1204.002"])
+    if ext in HTML_EXT or magic == "html":
+        scanned = htmlscan.scan(data[:htmlscan.MAX_HTML].decode("utf-8", errors="replace"), "adjunto")
+        info["decoded_urls"], info["decoded"] = scanned["urls"], scanned["decoded"]
+        for x in scanned["signals"]:
+            flag(x["severity"], x["points"], x["title"], x["detail"], x["mitre"])
     if ext in HTML_EXT:
         flag("Medio", 3, "Adjunto HTML/SVG", "Un archivo HTML adjunto puede mostrar un formulario falso de inicio de sesión sin pasar por filtros de URL.", ["T1566.001"])
     if ext in ARCHIVE_EXT or magic in ("zip", "rar", "7z") and ext not in OFFICE_EXT | MACRO_EXT:
@@ -482,15 +521,33 @@ def _attachment(part, sig: _Sig) -> dict:
 # ---------------------------------------------------------------- análisis principal
 
 def _check_url(url: str, text: str, sig: _Sig, from_domains: set[str], location: str) -> dict:
-    raw = url.strip()
-    info = {"url": raw[:300], "defanged": defang(raw[:300]), "host": "", "domain": "", "text": _clean(text, 120), "flags": [], "location": location}
-    scheme = urlparse(raw).scheme.lower() if ":" in raw else ""
+    shown_raw = url.strip()
+    norm = deobf.normalize_url(shown_raw)
+    raw = norm["clean"]                      # sin caracteres invisibles ni entidades: así lo interpreta el navegador
+    info = {"url": shown_raw[:300], "defanged": defang(shown_raw[:300]), "host": "", "domain": "", "text": _clean(text, 120), "flags": [], "location": location}
+    if norm["techniques"]:
+        if norm["url"] != shown_raw:
+            info["normalized"] = defang(norm["url"][:300])
+        info["flags"].append("URL ofuscada")
+        sig.add("URL", "Alto" if (norm["ip"] or any("host" in t for t in norm["techniques"])) else "Medio", 4 if norm["ip"] else 3,
+                "URL con ofuscación: " + _clean(norm["techniques"][0], 80),
+                "La dirección está escrita para no verse como lo que es (" + "; ".join(norm["techniques"][:3])
+                + f"). Interpretada por el navegador equivale a {_clean(defang(norm['url'][:200]), 200)}.",
+                ["T1027", "T1566.002"], key=shown_raw[:100])
+    if norm["redirect"]:
+        info["redirect_target"] = norm["redirect"][:500]
+    try:
+        scheme = urlparse(raw).scheme.lower() if ":" in raw else ""
+    except ValueError:                       # «http://[placeholder]/» u otros corchetes inválidos: no es una URL analizable, pero no debe romper el correo
+        info["flags"].append("URL mal formada")
+        sig.add("URL", "Bajo", 1, "Enlace con formato inválido", "La dirección tiene corchetes u otros caracteres que no forman una URL válida: suele ser una plantilla sin rellenar.", ["T1566.002"], key=shown_raw[:100])
+        return info
     if scheme in ("javascript", "data", "vbscript", "file"):
         info["flags"].append("Esquema peligroso")
         sig.add("URL", "Alto", 5, f"Enlace con esquema «{scheme}:»", "El enlace ejecuta código o abre datos en vez de ir a un sitio web.", ["T1566.002", "T1204.001"], key=scheme)
         return info
     try:
-        p = urlparse(raw)
+        p = urlparse(norm["url"])
         host = (p.hostname or "").lower().strip(".")
     except ValueError:
         return info
@@ -683,6 +740,15 @@ def _homograph_review(sig: _Sig, favorable: list[str], *, from_cs: str, from_nam
             "suspicious": any(e["suspicious"] for e in entries) or bool(comparisons) or bool(expected_out and expected_out["kind"] not in ("igual",))}
 
 
+def _html_scan(src: str, where: str, sig: _Sig, extra_urls: list[tuple[str, str]], decoded: list[str]) -> None:
+    """Pasa el HTML por htmlscan: añade las señales y deja las URL ocultas para analizarlas como cualquier otro enlace."""
+    res = htmlscan.scan(src, where)
+    for x in res["signals"]:
+        sig.add("Contenido", x["severity"], x["points"], x["title"], x["detail"], x["mitre"], key=x["key"])
+    extra_urls += [(u, "URL escondida en el HTML") for u in res["urls"]]
+    decoded += res["decoded"]
+
+
 def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", pasted: bool = False) -> dict:
     if len(data) > MAX_EML_BYTES:
         raise EmlError("El correo supera el límite de 5 MB.")
@@ -718,6 +784,8 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
     brand = _brand_in(from_name) or _brand_in(homograph.skeleton(from_name))
     if brand and from_dom and reg_domain(from_dom) not in BRANDS[brand]:
         sig.add("Encabezados", "Alto", 4, f"Se hace pasar por {brand}", f"El nombre visible menciona «{brand}» pero el dominio real es {from_dom}.", ["T1684.001", "T1566"])
+    elif from_dom and (nb := _name_brand(from_name)) and reg_domain(from_dom) not in nb[1]:
+        sig.add("Encabezados", "Alto", 4, f"Se hace pasar por {nb[0]}", f"El nombre visible menciona «{nb[0]}» pero el dominio real es {from_dom}.", ["T1684.001", "T1566"])
     elif from_dom in FREE_MAIL and re.search(r"soporte|support|seguridad|security|banco|bank|admin|servicio|cobranza|facturaci|rrhh|recursos humanos|helpdesk|it\b", from_name, re.I):
         sig.add("Encabezados", "Medio", 2, "Cuenta gratuita con nombre de área oficial", f"«{from_name}» escribe desde {from_dom}: una empresa real usaría su propio dominio.", ["T1684.001"])
     mid = headers["message_id"]
@@ -769,6 +837,8 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
     # ---- cuerpo, enlaces y adjuntos -------------------------------------------------
     urls: list[dict] = []
     seen_urls: set[str] = set()
+    extra_urls: list[tuple[str, str]] = []        # URL que el HTML esconde (meta refresh, scripts)
+    decoded_html: list[str] = []
     attachments: list[dict] = []
     body_text: list[str] = []
     html_forms: list[str] = []
@@ -788,8 +858,10 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
             continue
         if ctype == "text/html":
             lp = _LinkParser()
+            html_src = _decode(part)
+            _html_scan(html_src, "cuerpo", sig, extra_urls, decoded_html)
             try:
-                lp.feed(_decode(part))
+                lp.feed(html_src)
                 lp.close()
             except Exception:  # noqa: BLE001 - un HTML roto no debe tumbar el análisis: se sigue con lo que se alcanzó a leer
                 log.debug("html_parse_error")
@@ -808,6 +880,24 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
         if u not in seen_urls and u not in shown_text and len(urls) < MAX_URLS:
             seen_urls.add(u)
             urls.append(_check_url(u, "", sig, {from_dom}, "texto del cuerpo"))
+    for a_ in attachments:
+        extra_urls += [(u_, f"URL escondida en el adjunto {a_['filename']}") for u_ in a_.get("decoded_urls", [])]
+        decoded_html += a_.get("decoded", [])
+    # URL ocultas: meta refresh, scripts decodificados y destinos dentro de parámetros (redirecciones abiertas)
+    for u_, why in extra_urls:
+        if u_ not in seen_urls and len(urls) < MAX_URLS:
+            seen_urls.add(u_)
+            urls.append(_check_url(u_, "", sig, {from_dom}, why))
+    for info_ in list(urls):
+        tgt = info_.get("redirect_target")
+        if not tgt or tgt in seen_urls or len(urls) >= MAX_URLS:
+            continue
+        seen_urls.add(tgt)
+        sub_ = _check_url(tgt, "", sig, {from_dom}, "destino dentro de un parámetro")
+        urls.append(sub_)
+        if not deobf.is_wrapper(info_.get("host", "")) and sub_.get("domain") and sub_["domain"] != info_.get("domain"):
+            sig.add("URL", "Bajo", 1, "El enlace lleva otra dirección dentro", f"{info_.get('host', '')} redirige a {sub_['domain']} según un parámetro de la URL "
+                    "(redirección abierta). Es normal en enlaces de seguimiento, pero también sirve para ocultar el destino real.", ["T1566.002"], key=info_.get("host"))
     for f in html_forms[:5]:
         if f.lower().startswith(("http", "//")):
             sig.add("URL", "Alto", 3, "Formulario que envía datos a un sitio externo", f"El HTML incluye un formulario cuyo destino es {_clean(defang(f), 120)}: puede recolectar credenciales.", ["T1566.002", "T1598.003"], key=f)
@@ -815,6 +905,13 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
         sig.add("Contenido", "Bajo", 1, "Lenguaje de urgencia", "El mensaje presiona para actuar rápido, un recurso habitual de la ingeniería social.", ["T1566"])
     if CREDENTIALS.search(plain + " " + subject):
         sig.add("Contenido", "Medio", 2, "Pide verificar la cuenta o iniciar sesión", "El texto solicita credenciales o datos de la cuenta.", ["T1566.002", "T1598.003"])
+    scam_hits = sum(bool(rx_.search(plain + " " + subject)) for rx_ in ADVANCE_FEE)
+    if scam_hits >= 3 or (scam_hits >= 2 and from_dom in FREE_MAIL):
+        sig.add("Contenido", "Medio", 3, "Texto típico de estafa de adelanto de pago", "Menciona herencias, donaciones o fondos y pide responder a un correo privado, sin enlaces que revisar. "
+                "Es el patrón de la estafa «419»: el dinero prometido nunca llega y se piden «gastos» por adelantado.", ["T1566"])
+    if CRYPTO_OBJ.search(plain + " " + subject) and CRYPTO_ACT.search(plain + " " + subject) and (urls or attachments):
+        sig.add("Contenido", "Medio", 3, "Pide reclamar o validar criptoactivos", "El texto ofrece tokens o pide validar, migrar o conectar una billetera. Los «airdrops» y avisos de migración "
+                "son un cebo habitual para robar la frase semilla o la autorización de la billetera.", ["T1566.002", "T1598.003"])
     if ENABLE_CONTENT.search(plain + " " + subject):
         sig.add("Contenido", "Medio", 3, "Pide habilitar contenido o macros", "Habilitar el contenido de un documento recibido por correo es la forma de activar sus macros.", ["T1566.001", "T1204.002"])
     if attachments and re.search(r"adjunto|attached|attachment|factura|invoice|comprobante|pago|payment", plain + " " + subject, re.I) and any(a["risk"] != "Bajo" for a in attachments):
@@ -884,6 +981,8 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
             if _public_ip(ip_):
                 ioc("IP", ip_, "IP dentro del comando de PowerShell decodificado")
 
+    for u_, why in extra_urls:
+        ioc("URL/URI", u_, why)
     if severity == "Bajo":
         iocs = []
     verify: list[str] = []
@@ -919,7 +1018,7 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
         "auth_raw": auth["raw"], "hops": hops, "origin_ip": origin["ip"] if origin else "",
         "dkim_sigs": dkim_sigs, "spf_ip": _spf_client_ip(msg, auth), "mailfrom_domain": auth["spf_domain"] or rpath_dom or from_dom, "urls": urls, "attachments": attachments,
         "signals": sig.items, "favorable": favorable, "score": score, "severity": severity, "verdict": verdict, "mitre": mitre,
-        "ps_decoded": [{"texto": r_["decoded"], "interno": r_["inner"], "indicadores": r_["indicators"], "urls": r_["urls"]} for r_ in ps_cmds],
+        "html_decoded": decoded_html[:3], "ps_decoded": [{"texto": r_["decoded"], "interno": r_["inner"], "indicadores": r_["indicators"], "urls": r_["urls"]} for r_ in ps_cmds],
         "iocs": iocs, "verify": verify, "actions": actions, "homograph": hg, "route": route, "score_breakdown": breakdown,
         "source": "cabeceras pegadas" if pasted else "archivo .eml", "headers_only": headers_only,
         "truncated": n_parts > MAX_PARTS or len(urls) >= MAX_URLS,

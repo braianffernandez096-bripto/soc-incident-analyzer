@@ -4,6 +4,21 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+### Validación con datos reales (punto 3c)
+- **Phishing real:** `scripts/validar_correos.py` analiza los 12.864 correos de phishing_pot: Medio o más 92,2 %, Alto o más 69,6 %, 0,11 s de media. Comprobado con 11.364 correos no usados para ajustar (92,1 % / 69,5 %). Resultados y límites en `docs/VALIDACION.md` (sección 3b).
+- **Comandos ofuscados:** `scripts/validar_ofuscacion.py` mide el desofuscador con 1.360 comandos de Atomic Red Team.
+- **Corregido a partir de esos datos:** un correo con un enlace como `http://[placeholder_1]/` hacía fallar todo el análisis (ahora se marca como enlace inválido); los emoji con selector de variación y las plantillas `{{{ … }}}` ya no se toman por ofuscación; el desofuscador ya no daña los escapes `` `r`n `` de PowerShell y entiende el operador `-f` de Invoke-Obfuscation.
+- **Nuevas señales:** marcas muy suplantadas (criptoactivos, seguridad, bancos y mensajería) en el nombre visible, selectores de variación y marcas combinantes ocultas, estafas de adelanto de pago sin enlaces y cebos de reclamo o validación de criptoactivos.
+- Pendiente: medir falsos positivos con correo legítimo real (no hay un corpus accesible desde el entorno de desarrollo).
+
+### Añadido (punto 3b: ofuscación)
+- **URLs ofuscadas** (`backend/deobf.py`): se normalizan antes de analizarlas. IP escrita en decimal (`http://3232235777`), hexadecimal, octal o abreviada, e IPv4 dentro de IPv6; `%XX` en el host o en varias capas; caracteres invisibles y entidades HTML numéricas que esconden el esquema (`jav&#x09;ascript:`); barras invertidas. El correo muestra la dirección real que interpreta el navegador y suma una señal de ofuscación.
+- **Redirecciones abiertas y enlaces envueltos:** si la URL lleva otro destino dentro de un parámetro (`?url=…`), ese destino también se analiza. Los reescritores de enlaces corporativos (Safe Links, Proofpoint…) se siguen sin generar ruido.
+- **Comandos ofuscados en los logs** (regla `cmd_obfuscated_cmd`, T1027.010): se quitan `^`, acentos graves, comillas intercaladas, concatenaciones, `.Replace()`, `[char]`, `-join` y `FromBase64String`, y se vuelven a pasar las reglas. Solo cuenta si la ofuscación **escondía** un comando relevante; un `ipconfig` o una concatenación normal no alertan. Si lo oculto coincide con otra regla (por ejemplo una descarga), esa regla dispara con el comando limpio y sube un nivel.
+- **HTML ofuscado** (`backend/htmlscan.py`), en el cuerpo del correo y en adjuntos `.html`/`.svg`: HTML smuggling (Blob + descarga + datos incrustados, T1027.006, Crítico), JavaScript ofuscado (`eval`, `atob`, `unescape`, `fromCharCode`, `\x`, bloques Base64 largos), `meta refresh`, enlaces con entidades numéricas y texto oculto o caracteres de ancho cero en volumen. Se decodifican los literales (sin ejecutar nada) y las URL que esconden pasan a ser IOC.
+- ATT&CK: 56 técnicas en 31 reglas (T1027.006, T1027.010, T1059.007 y T1140 nuevas).
+- Límites documentados en `docs/VALIDACION.md` (sección 5): no se ejecuta código, así que lo que se arma en tiempo de ejecución no se ve. La validación con OTRF y Loghub no cambia (20/3/27/57 y 11/11).
+
 ### Añadido (punto 3: phishing)
 - **Decodificador de `-EncodedCommand`** (`backend/psdecode.py`): acepta todas las grafías de la opción (`-e`, `-ec`, `-enc`…), decodifica el Base64 UTF-16, revisa una capa más de compresión (con tope de tamaño contra bombas de descompresión) y marca lo que hace el comando (descarga, IEX, oculta la ventana, intenta desactivar AMSI…). En los hallazgos de logs se muestra el contenido, se extraen sus URL e IP como indicadores y, si descarga algo de una URL externa, sube un nivel la criticidad.
 - **Comandos en el cuerpo de un correo («ClickFix»)**: un `powershell -enc …` o un `irm … | iex` en el texto se marca como Crítico (T1059.001, T1204.004) y se muestra decodificado.

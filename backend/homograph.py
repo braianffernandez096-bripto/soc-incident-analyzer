@@ -64,7 +64,10 @@ def lookalike(ch: str) -> str:
 
 
 def is_invisible(ch: str) -> bool:
-    return ord(ch) in _INVISIBLE or (unicodedata.category(ch) in ("Cf", "Cc") and ch not in "\t\r\n")
+    o = ord(ch)
+    if 0xE0100 <= o <= 0xE01EF:        # selectores de variación ideográficos: no se ven. (FE0E/FE0F sí son legítimos: forman parte de los emoji)
+        return True
+    return o in _INVISIBLE or (unicodedata.category(ch) in ("Cf", "Cc") and ch not in "\t\r\n")
 
 
 def lc(s: str) -> str:
@@ -137,7 +140,10 @@ def inspect(text: str, kind: str = "address") -> dict:
             scripts.append(s)
     res["scripts"] = scripts
     for i, ch in enumerate(text):
-        if is_invisible(ch):
+        # una marca combinante de otro alfabeto pegada a una letra ASCII (a + U+073F) no se distingue a simple vista de la letra sola
+        stray_mark = i > 0 and ord(ch) > 0x36F and unicodedata.category(ch) == "Mn" and text[i - 1].isascii() or \
+            (i > 1 and ord(ch) > 0x36F and unicodedata.category(ch) == "Mn" and unicodedata.category(text[i - 1]) == "Mn" and text[i - 2].isascii())
+        if is_invisible(ch) or stray_mark:
             res["invisible"].append({"pos": i + 1, "code": f"U+{ord(ch):04X}", "name": unicodedata.name(ch, "(control)")})
             flagged[i] = "invisible"
     for start, word in _tokens(text):

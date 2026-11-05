@@ -453,10 +453,10 @@ def build_phishing_pdf(items: list[dict], meta: dict, intel: dict | None = None)
 
 def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: dict | None = None, phishing: list[dict] | None = None) -> bytes:
     meta = {"client": meta.get("client") or "Cliente", "analyst": meta.get("analyst") or "Analista SOC",
-            "filename": meta.get("filename") or "export_siem.xlsx"}
+            "filename": meta.get("filename") or "export_siem.xlsx", "footer": meta.get("footer"), "title_suffix": meta.get("title_suffix") or ""}
     buf = io.BytesIO()
     doc = BaseDocTemplate(buf, pagesize=A4, leftMargin=MARGIN, rightMargin=MARGIN, topMargin=18 * mm, bottomMargin=16 * mm,
-                          title="Informe técnico de investigación de incidente", author=meta["analyst"],
+                          title="Informe técnico de investigación de incidente" + meta["title_suffix"], author=meta["analyst"],
                           subject="Investigación de incidentes de seguridad a partir de logs de SIEM")
     frame = Frame(MARGIN, 16 * mm, CONTENT_W, H - 34 * mm, id="f", leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)
     doc.addPageTemplates([PageTemplate(id="p", frames=[frame], onPage=lambda c, d: _on_page(c, d, meta))])

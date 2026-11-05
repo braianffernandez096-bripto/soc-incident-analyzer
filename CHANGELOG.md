@@ -4,6 +4,14 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+### Pruebas de navegador, inyección de prompts y regeneración segura del informe (punto 4)
+- **Pruebas de navegador** (`tests/e2e/test_ui.py`, Playwright + Chromium): cargan un export, recorren panel, hallazgos y filtros, descargan el PDF, analizan correos de phishing (crítico y legítimo, y un enlace escrito con entidades HTML) y comprueban que un log con `<img onerror>` y `<script>` se muestra como texto y no se ejecuta. Fallan si aparece cualquier error de JavaScript o violación de la política CSP. Se saltan solas si no hay Chromium instalado.
+- **Inyección de prompts en la capa de IA** (`tests/integration/test_prompt_injection.py`): logs con instrucciones («ignora lo anterior», `</analisis>`, etiquetas falsas) no apagan la detección ni cierran el bloque de datos; un modelo que obedece la inyección (baja severidades, inventa IP y Log_ID, mete `<img src="file:///…">` o `javascript:`) no cambia la criticidad del motor, sus citas inventadas se descartan y el PDF no genera enlaces activos.
+- **Endurecimiento** (`backend/ai.py`): el JSON que se envía al modelo escapa `<` y `>` (`\u003c`, `\u003e`), así un valor de un log no puede cerrar el bloque `<analisis>` ni imitar una instrucción. El modelo lo lee igual.
+- **Regenerar el informe de ejemplo sin gastar de más** (`scripts/generar_informe_ejemplo.py`): simulacro sin red ni costo por defecto; con `--real` muestra cuántas llamadas hará y pide confirmación; cada respuesta del modelo se guarda en disco al llegar y, si algo falla, al repetir solo se llama por lo que falta; no escribe un PDF incompleto. La clave se lee de `ANTHROPIC_API_KEY`.
+- `build_pdf` acepta un pie y un sufijo de título opcionales (para el informe de ejemplo).
+- 913 pruebas, cobertura 95,6 %.
+
 ### Validación con datos reales (punto 3c)
 - **Phishing real:** `scripts/validar_correos.py` analiza los 12.864 correos de phishing_pot: Medio o más 87,7 %, Alto o más 64,9 %, 0,11 s de media. Comprobado con 11.364 correos no usados para ajustar (87,6 % / 64,8 %). Resultados y límites en `docs/VALIDACION.md` (sección 3b).
 - **Correo legítimo real:** con 20 correos reales (boletines, LinkedIn, GitHub, cursos) los falsos positivos pasaron de 14 de 20 a 0 de 20. Con DMARC en «pass» ya no suman las desalineaciones de SPF/DKIM, Message-ID y Return-Path; el rastreo de clics del propio remitente o de servicios de envío conocidos deja de contar como engaño (salvo si el enlace habla de pagos, cuentas o inicio de sesión); el relleno invisible de los boletines ya no se toma por ofuscación. A cambio, la detección sobre el corpus de phishing baja de 92,2 % a 87,7 % (spam comercial que solo se marcaba por señales débiles).

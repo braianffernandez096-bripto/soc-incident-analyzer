@@ -340,6 +340,12 @@ def _slim_row(r: dict) -> dict:
     return {k: v for k, v in d.items() if v != ""}
 
 
+def _as_data(payload: dict) -> str:
+    """JSON del bloque <analisis> con «<» y «>» escapados (\\u003c, \\u003e): un log que contenga «</analisis>» o etiquetas falsas
+    no puede cerrar el bloque ni imitar una instrucción del sistema. El JSON sigue siendo válido y el modelo lo lee igual."""
+    return json.dumps(payload, ensure_ascii=False, indent=1).replace("<", "\\u003c").replace(">", "\\u003e")
+
+
 def _group_payload(analysis: dict, df: pd.DataFrame, gid: str, findings: list[dict]) -> dict:
     inc = next((i for i in analysis["incidents"] if i["id"] == gid), None)
     return {
@@ -466,7 +472,7 @@ def generate(analysis: dict, df: pd.DataFrame, api_key: str | None, model: str |
     def run(gid: str):
         payload = _group_payload(analysis, df, gid, groups[gid])
         text = ("Analiza el siguiente grupo y entrega el resultado con la herramienta indicada.\n\n<analisis>\n"
-                + json.dumps(payload, ensure_ascii=False, indent=1) + "\n</analisis>")
+                + _as_data(payload) + "\n</analisis>")
         return gid, call(GROUP_TOOL, text, 8000)
 
     with ThreadPoolExecutor(max_workers=4) as ex:
@@ -502,7 +508,7 @@ def generate(analysis: dict, df: pd.DataFrame, api_key: str | None, model: str |
     summary = {k: base[k] for k in ("executive_summary", "cross_incident_assessment", "general_recommendations", "prioritized_actions")}
     try:
         raw = call(SUMMARY_TOOL, "Redacta el resumen ejecutivo y las conclusiones.\n\n<analisis>\n"
-                   + json.dumps(summary_payload, ensure_ascii=False, indent=1) + "\n</analisis>", 4000)
+                   + _as_data(summary_payload) + "\n</analisis>", 4000)
         allowed_all = set(df["Log_ID"])
         incident_ids = {i["id"] for i in analysis["incidents"]}
         summary["executive_summary"] = ver.text(raw.get("executive_summary", ""), allowed_all) or summary["executive_summary"]

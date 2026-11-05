@@ -72,3 +72,18 @@ jobs:
             -v trivy-cache:/root/.cache \
             aquasec/trivy:0.69.3 image --scanners vuln --severity CRITICAL \
             --ignore-unfixed --exit-code 1 soc-incident-analyzer:ci
+
+              e2e:
+    name: Pruebas de navegador (Playwright)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+      - run: pip install --require-hashes -r requirements-dev.lock
+      # Playwright solo se usa en este job y no está en los lock con hashes; versión fija
+      - run: pip install playwright==1.63.0 && python -m playwright install --with-deps chromium
+      - run: python -m pytest tests/e2e/test_ui.py

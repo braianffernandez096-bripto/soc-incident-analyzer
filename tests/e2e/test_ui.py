@@ -13,6 +13,8 @@ from pathlib import Path
 import pytest
 
 sync_api = pytest.importorskip("playwright.sync_api")
+expect = sync_api.expect
+WAIT = 20_000                                                          # ms: el servidor de CI es más lento que un equipo local
 ROOT = Path(__file__).resolve().parents[2]
 SAMPLE = ROOT / "sample_data" / "SOC_L2_Logs_Ampliados_Multiples_Incidentes.xlsx"
 MAILS = ROOT / "sample_data" / "correos"
@@ -61,6 +63,7 @@ def page(browser, server):
     pg.problems = []                                                  # errores de JS y violaciones de CSP: ninguno debe aparecer
     pg.on("pageerror", lambda e: pg.problems.append(str(e)))
     pg.on("console", lambda m: pg.problems.append(m.text) if m.type == "error" else None)
+    pg.set_default_timeout(WAIT)
     pg.goto(server)
     yield pg
     ctx.close()
@@ -74,13 +77,15 @@ def _upload_logs(pg, path: Path):
 
 def test_logs_flow_dashboard_and_findings(page):
     _upload_logs(page, SAMPLE)
-    main = page.locator("#main").inner_text()
-    assert "715 eventos" in main and "INC-001" in main and "INC-006" in main
-    assert page.get_by_text("Incidentes distintos").first.is_visible()
+    main = page.locator("#main")
+    expect(main).to_contain_text("715 eventos")
+    expect(main).to_contain_text("INC-001")
+    expect(main).to_contain_text("INC-006")
+    expect(page.get_by_text("Incidentes distintos").first).to_be_visible()
     page.get_by_role("link", name="Hallazgos").first.click()
-    assert page.get_by_text("25 de 25 hallazgos").is_visible()
+    expect(page.get_by_text("25 de 25 hallazgos")).to_be_visible()
     page.get_by_role("button", name="Crítico (10)").click()
-    assert page.get_by_text("10 de 25 hallazgos").is_visible()
+    expect(page.get_by_text("10 de 25 hallazgos")).to_be_visible()
     assert page.problems == []
 
 
@@ -106,7 +111,7 @@ def test_hostile_log_content_is_shown_as_text_and_never_executed(page, tmp_path)
     seen = ""
     for route in ("incidents", "findings", "logs", "iocs", "report"):
         page.evaluate(f"location.hash = '#/{route}'")
-        page.wait_for_timeout(400)
+        page.wait_for_timeout(600)
         seen += page.locator("#main").inner_text()
     assert page.evaluate("window.__pwned") is None
     assert page.locator("#main img[src='x'], #main script").count() == 0
@@ -117,9 +122,10 @@ def test_phishing_flow_critical_and_legit(page):
     page.get_by_role("link", name="Phishing").click()
     page.set_input_files("#pfile", [str(MAILS / "01_factura_adjunto_pdf_exe.eml"), str(MAILS / "05_legitimo_interno.eml")])
     page.get_by_role("button", name="Analizar correos").click()
-    page.get_by_text("Correos sospechosos").first.wait_for()
-    body = page.locator("#main").inner_text()
-    assert "Phishing / malware muy probable" in body and "Sin señales relevantes" in body
+    main = page.locator("#main")
+    expect(main).to_contain_text("Haz clic en una fila para ver su detalle")   # solo existe en la pantalla de resultados
+    expect(main).to_contain_text("Phishing / malware muy probable")
+    expect(main).to_contain_text("Sin señales relevantes")
     assert page.problems == []
 
 
@@ -133,6 +139,7 @@ def test_phishing_detects_obfuscated_link_in_html(page, tmp_path):
     page.get_by_role("link", name="Phishing").click()
     page.set_input_files("#pfile", str(f))
     page.get_by_role("button", name="Analizar correos").click()
-    page.get_by_text("Correos sospechosos").first.wait_for()
-    assert "entidades HTML numéricas" in page.locator("#main").inner_text()
+    main = page.locator("#main")
+    expect(main).to_contain_text("Haz clic en una fila para ver su detalle")
+    expect(main).to_contain_text("entidades HTML numéricas")
     assert page.problems == []

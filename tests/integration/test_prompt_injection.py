@@ -9,8 +9,6 @@ obedezca una instrucción escondida en un log:
 """
 import io
 import json
-import re
-import subprocess
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -105,17 +103,15 @@ def test_model_cannot_lower_severity_or_smuggle_invented_evidence(ctx):
     assert out["validation"]["ips_descartadas"] > 0 and out["validation"]["citas_descartadas"] > 0
 
 
-def test_hostile_model_text_cannot_inject_markup_into_the_pdf(ctx, tmp_path):
+def test_hostile_model_text_cannot_inject_markup_into_the_pdf(ctx):
+    from pypdf import PdfReader
     df, a = ctx
     out = ai.generate(a, df, api_key=None, call=_obedient_model)
     pdf = report.build_pdf(a, out, df, {"client": "Cliente", "analyst": "Analista", "filename": "x.csv"})
     assert pdf.startswith(b"%PDF") and len(pdf) > 5_000
-    f = tmp_path / "r.pdf"
-    f.write_bytes(pdf)
-    text = subprocess.run(["pdftotext", str(f), "-"], capture_output=True, text=True, check=False).stdout
-    if text:                                                                              # pdftotext puede no estar instalado: el PDF ya se construyó sin error
-        assert "root:x:" not in text                                                      # <img src="file:///etc/passwd"> no se resolvió
-        assert "javascript:alert" in text or "clic" in text                               # el texto aparece literal, como texto, no como enlace activo
+    text = "\n".join(pg.extract_text() or "" for pg in PdfReader(io.BytesIO(pdf)).pages)
+    assert "root:x:" not in text                                          # <img src="file:///etc/passwd"> no se resolvió
+    assert "javascript:alert" in text                                     # el texto hostil aparece literal, como texto, no como enlace activo
 
 
 def test_pdf_has_no_active_links_from_untrusted_text(ctx):

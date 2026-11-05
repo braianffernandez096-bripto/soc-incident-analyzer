@@ -5,6 +5,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Sin publicar]
 
 ### Añadido
+- **Cabeceras pegadas** como alternativa al `.eml`: se pega el origen del mensaje (se quita el resumen que antepone Gmail) y se analizan remitente, autenticación y recorrido; sin cuerpo no se evalúan enlaces ni adjuntos, y se avisa.
+- **Recorrido del correo** (`Received`): línea de tiempo del origen al destino con hora UTC, TLS y retraso entre saltos; señales de bajo peso por horas fuera de orden, retrasos largos, fecha que no coincide y recorridos inusualmente largos. Nuevo ejemplo `sample_data/correos/11_recorrido_anomalo.eml`.
+- **Puntaje con factores visibles**: desglose por categoría, tope y señal, con los umbrales de criticidad, en la interfaz y en el PDF.
+- **Evaluar dominio** (`backend/domaincheck.py`): SPF, DKIM y DMARC leídos por DNS sobre HTTPS (`backend/dnsdoh.py`, sin dependencias nuevas) con nota de A a F y descuentos visibles.
+- **Dominios parecidos** (`backend/lookalikes.py`): variantes de typosquatting con la tabla de confundibles de los homógrafos; comprobación opcional de registro (hasta 60) y descarga .txt/.csv.
+- Privacidad: las consultas DNS son opcionales, solo envían nombres de dominio, tienen límite de peticiones y captcha (si está activo) y se desactivan con `DNS_LOOKUPS=off`.
 - README: capturas nuevas del análisis de correos (carga, resultados, homógrafos, remitente esperado, informe PDF), de la ayuda y de los dos tipos de captcha; la captura de inicio ahora muestra las pestañas «Análisis de logs» y «Phishing».
 - **«¿Cómo funciona?» con dos secciones** (Análisis de logs y Phishing): se abre en la que corresponde a la pantalla actual. La guía para guardar un correo como `.eml` pasó de la pantalla de carga a la sección de Phishing, y el campo «Remitente esperado» ya no trae una dirección de ejemplo.
 - **Ataques homógrafos en el módulo de phishing** (`backend/homograph.py`): alfabetos mezclados en una misma palabra (a latina/cirílica, o griega), «I» mayúscula por «l» minúscula, cifras por letras, `rn`/`m`, caracteres invisibles y de dirección, dominios escritos solo con letras que imitan las latinas, dominios IDN y `xn--` decodificados. Se revisan el remitente, el Reply-To, el Return-Path, el nombre visible y los dominios de los enlaces. Desglose carácter por carácter (código Unicode, nombre y alfabeto) en la interfaz y en el PDF; el PDF muestra los caracteres fuera de Latin-1 como `[U+XXXX]` en vez de glifos faltantes.

@@ -1,0 +1,14 @@
+Received: from mail.proveedor-seguro.example (mail.proveedor-seguro.example [198.51.100.23]) by mx.corp.example with ESMTPS (version=TLS1_3); Mon, 02 Nov 2026 12:05:10 +0000
+Received: from relay-int.example (relay-int.example [203.0.113.77]) by mail.proveedor-seguro.example with ESMTP; Mon, 02 Nov 2026 11:58:00 +0000
+Received: from srv-envio.example (srv-envio.example [192.0.2.45]) by relay-int.example with SMTP; Sun, 01 Nov 2026 22:10:00 +0000
+From: "Soporte Corporativo" <soporte@proveedor-seguro.example>
+To: jrivas@corp.example
+Subject: Actualice su acceso al portal
+Date: Mon, 02 Nov 2026 12:04:00 +0000
+Message-ID: <r11@proveedor-seguro.example>
+Authentication-Results: mx.corp.example; spf=pass smtp.mailfrom=proveedor-seguro.example;
+ dkim=none; dmarc=none header.from=proveedor-seguro.example
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+
+Hola. Por mantenimiento debe actualizar su acceso. Revise las instrucciones con su equipo de soporte.

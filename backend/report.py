@@ -313,6 +313,50 @@ def _hg_pdf(i: dict) -> list:
     return out
 
 
+def _delay_txt(sec) -> str:
+    if sec is None:
+        return "—"
+    a = abs(int(sec))
+    t = f"{a // 3600} h {a % 3600 // 60} min" if a >= 3600 else f"{a // 60} min {a % 60} s" if a >= 60 else f"{a} s"
+    return ("-" if sec < 0 else "+") + t
+
+
+def _route_pdf(i: dict) -> list:
+    """Recorrido (Received) del origen al destino, con hora UTC y retraso entre saltos."""
+    hops = i.get("hops") or []
+    if not hops:
+        return []
+    r = i.get("route") or {}
+    labels = {"hora_anterior": "hora anterior", "retraso_largo": "retraso largo", "sin_fecha": "sin fecha"}
+    out: list = [P("Recorrido del correo (del origen al destino, horas en UTC)", "label"),
+                 P(f"{r.get('count', len(hops))} saltos" + (f" · {r['span_text']} de principio a fin" if r.get("span_text") else "") + f" · {r.get('with_tls', 0)} con TLS. "
+                   "Los Received que añade el servidor del atacante se pueden inventar; solo los de la propia infraestructura son fiables.", "small")]
+    rows = [[hcell("#"), hcell("Desde → hacia"), hcell("IP"), hcell("Hora (UTC)"), hcell("Retraso"), hcell("Aviso")]]
+    for h in hops[:30]:
+        rows.append([Paragraph(str(h["n"]), S["cell"]), Paragraph(escape(_u(D.trunc(f"{h['from'] or '?'} → {h['by'] or '?'}", 70))), S["cell"]),
+                     Paragraph(escape(h["ip"] or "—"), S["cell"]), Paragraph(escape(h["ts"] or "—"), S["cell"]), Paragraph(_delay_txt(h["delay_s"]), S["cell"]),
+                     Paragraph(escape(", ".join(labels.get(f, f) for f in h["flags"]) or "—"), S["cell"])])
+    out.append(table(rows, [8 * mm, CONTENT_W - 8 * mm - 28 * mm - 36 * mm - 20 * mm - 26 * mm, 28 * mm, 36 * mm, 20 * mm, 26 * mm]))
+    return out
+
+
+def _breakdown_pdf(i: dict) -> list:
+    """Qué sumó cada señal al puntaje, con los topes por categoría y los umbrales de criticidad."""
+    bd = i.get("score_breakdown")
+    if not bd or not bd["categories"]:
+        return []
+    out: list = [P(f"Cómo se calculó el puntaje: {bd['total']} puntos → {bd['severity']}", "label"), P(bd["why"], "small")]
+    rows = [[hcell("Categoría"), hcell("Señal"), hcell("Crit."), hcell("Puntos"), hcell("Contó")]]
+    for c in bd["categories"]:
+        for k, x in enumerate(c["signals"]):
+            cat = c["category"] + (f" (tope {c['cap']}" + (f", {c['raw']}→{c['applied']})" if c["capped"] else ")") if k == 0 else "")
+            rows.append([Paragraph(escape(cat), S["cell"]), Paragraph(escape(_u(D.trunc(x["title"], 90))), S["cell"]), Paragraph(x["severity"], S["cell"]),
+                         Paragraph(f"+{x['points']}", S["cell"]), Paragraph(str(x["applied"]), S["cell"])])
+    out.append(table(rows, [34 * mm, CONTENT_W - 34 * mm - 16 * mm - 16 * mm - 16 * mm, 16 * mm, 16 * mm, 16 * mm]))
+    out.append(P("Criticidad: " + " · ".join(f"{t['severity']}: {t['rule']}" for t in bd["thresholds"]) + ".", "small"))
+    return out
+
+
 def phishing_section(items: list[dict], number: str = "", intel: dict | None = None) -> list:
     """Sección con el análisis de correos sospechosos. Enlaces siempre «defangeados»; nada de lo que viene del correo se interpreta como marcado."""
     pre = f"{number}. " if number else ""
@@ -328,7 +372,9 @@ def phishing_section(items: list[dict], number: str = "", intel: dict | None = N
         h, a = i["headers"], i["auth"]
         out.append(CondPageBreak(70 * mm))
         out.append(heading_badge(_u(D.trunc(h["subject"] or i["filename"], 80)), i["severity"], "h2", i["id"]))
-        out.append(P(f"Veredicto: {i['verdict']} · puntaje {i['score']} · archivo {_u(i['filename'])}", "small"))
+        out.append(P(f"Veredicto: {i['verdict']} · puntaje {i['score']} · " + (f"origen {i['source']}" if i.get("source") else f"archivo {_u(i['filename'])}"), "small"))
+        if i.get("headers_only"):
+            out.append(P("Solo se analizaron las cabeceras: sin el cuerpo no se evaluaron enlaces ni adjuntos.", "small"))
         facts = [("De", _u(h["from"])), ("Reply-To", _u(h["reply_to"]) or "—"), ("Return-Path", _u(h["return_path"]) or "—"), ("Para", _u(h["to"]) or "—"), ("Fecha", h["date"] or "—"),
                  ("SPF / DKIM / DMARC", f"{a.get('spf') or 'sin dato'} / {a.get('dkim') or 'sin dato'} / {a.get('dmarc') or 'sin dato'}"),
                  ("Origen probable (IP)", i["origin_ip"] or "no determinado")]
@@ -339,6 +385,8 @@ def phishing_section(items: list[dict], number: str = "", intel: dict | None = N
             for x in i["signals"]:
                 sr.append([Paragraph(escape(x["category"]), S["cell"]), Paragraph(x["severity"], S["cell"]), Paragraph(escape(_u(D.trunc(x["title"], 90))), S["cellb"]), Paragraph(escape(_u(D.trunc(x["detail"], 220))), S["cell"])])
             out.append(table(sr, [24 * mm, 15 * mm, 55 * mm, CONTENT_W - 94 * mm]))
+        out += _route_pdf(i)
+        out += _breakdown_pdf(i)
         out += _hg_pdf(i)
         if i["favorable"]:
             out.append(P("A favor: " + _u(", ".join(i["favorable"])), "small"))

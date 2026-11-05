@@ -26,8 +26,11 @@ from . import ai as ai_mod
 from . import attack as attack_mod
 from . import captcha as captcha_mod
 from . import detection as D
+from . import dnsdoh
+from . import domaincheck
 from . import filecheck
 from . import intel as intel_mod
+from . import lookalikes as lookalikes_mod
 from . import phishing as phishing_mod
 from .analysis import analyze, rows_for
 from .parser import SUPPORTED_EXT, ParseError, load_events
@@ -134,7 +137,7 @@ async def security_headers(request: Request, call_next):
 
 
 # Límite de peticiones por IP (ventana deslizante en memoria). Protege los endpoints costosos.
-RATE_LIMITS = {"/api/upload": (20, 60), "/api/ai": (6, 60), "/api/intel": (6, 60), "/api/captcha": (30, 60)}      # (peticiones, segundos)
+RATE_LIMITS = {"/api/upload": (20, 60), "/api/ai": (6, 60), "/api/intel": (6, 60), "/api/captcha": (30, 60), "/api/dns": (6, 60)}      # (peticiones, segundos)
 _hits: dict[tuple[str, str], deque] = defaultdict(deque)
 _hits_lock = threading.Lock()
 
@@ -180,6 +183,7 @@ class PhishSession:
 
 PHISH: dict[str, PhishSession] = {}
 MAX_EML_FILES = 5
+PASTED_NAME = "cabeceras-pegadas"
 
 
 def _get(sid: str) -> Session:
@@ -477,13 +481,23 @@ def _get_phish(pid: str) -> PhishSession:
 
 
 @app.post("/api/phishing")
-async def phishing_upload(request: Request, files: list[UploadFile] = File(...), sid: str = Form(""), expected: str = Form("")):
-    """Analiza hasta 5 archivos .eml. Solo se leen como texto: no se abre ningún enlace ni se ejecuta ningún adjunto."""
+async def phishing_upload(request: Request, files: list[UploadFile] | None = File(default=None), sid: str = Form(""), expected: str = Form(""),
+                          headers_text: str = Form("")):
+    """Analiza hasta 5 correos: archivos .eml o cabeceras pegadas como texto. Solo se leen como texto: no se abre ningún enlace ni se ejecuta ningún adjunto."""
     _rate_limit(request, "/api/upload", *RATE_LIMITS["/api/upload"])
     _require_captcha(request)
-    if not files or len(files) > MAX_EML_FILES:
-        raise HTTPException(400, f"Sube de 1 a {MAX_EML_FILES} archivos .eml por análisis.")
+    files = files or []
+    pasted_text = headers_text.strip()
+    if len(files) + (1 if pasted_text else 0) < 1 or len(files) + (1 if pasted_text else 0) > MAX_EML_FILES:
+        raise HTTPException(400, f"Sube de 1 a {MAX_EML_FILES} archivos .eml o pega las cabeceras del correo.")
     batch: list[tuple[str, bytes]] = []
+    pasted_names: set[str] = set()
+    if pasted_text:
+        try:
+            batch.append((PASTED_NAME, phishing_mod.paste_to_eml(pasted_text)))
+        except phishing_mod.EmlError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        pasted_names.add(PASTED_NAME)
     for f in files:
         name = os.path.basename(f.filename or "correo.eml")[:120]
         if not name.lower().endswith(".eml"):
@@ -495,7 +509,7 @@ async def phishing_upload(request: Request, files: list[UploadFile] = File(...),
                 raise HTTPException(413, f"«{name}» supera el límite de 5 MB.")
             chunks.append(chunk)
         batch.append((name, b"".join(chunks)))
-    result = phishing_mod.analyze_many(batch, expected.strip()[:200])
+    result = phishing_mod.analyze_many(batch, expected.strip()[:200], frozenset(pasted_names))
     _enrich_mitre(result["items"])
     if not result["items"]:
         raise HTTPException(422, result["errors"][0]["error"] if result["errors"] else "No se pudo analizar ningún correo.")
@@ -507,6 +521,70 @@ async def phishing_upload(request: Request, files: list[UploadFile] = File(...),
         SESSIONS[sid].phish_id = pid
     log.info("phishing_done mails=%d errors=%d max_severity=%s", len(result["items"]), len(result["errors"]), result["items"][0]["severity"])
     return {"phishing_id": pid, "items": result["items"], "errors": result["errors"]}
+
+
+# ---- herramientas de dominio (DNS sobre HTTPS): solo se consultan cuando el analista lo pide ------------------------
+def _new_resolver() -> "dnsdoh.DohResolver":
+    """Resolvedor DNS (punto de inyección para las pruebas: nada sale a Internet en el CI)."""
+    return dnsdoh.DohResolver(http=_new_http())
+
+
+def _domain_arg(text: str) -> str:
+    try:
+        return dnsdoh.clean_domain(text)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+def _dns_errors(exc: Exception) -> HTTPException:
+    if isinstance(exc, dnsdoh.DnsDisabled):
+        return HTTPException(503, str(exc))
+    if isinstance(exc, domaincheck.DomainNotFound):
+        return HTTPException(404, str(exc))
+    return HTTPException(502, str(exc) if isinstance(exc, dnsdoh.DnsError) else "No se pudo consultar el DNS.")
+
+
+@app.post("/api/domain/grade")
+def domain_grade(request: Request, domain: str = Form(...)):
+    """Evalúa SPF, DKIM y DMARC de un dominio leyendo sus registros DNS públicos. Solo sale el nombre de dominio."""
+    _rate_limit(request, "/api/dns", *RATE_LIMITS["/api/dns"])
+    name = _domain_arg(domain)
+    _require_captcha(request)
+    resolver = _new_resolver()
+    try:
+        result = domaincheck.grade_domain(name, resolver)
+    except (dnsdoh.DnsError, domaincheck.DomainNotFound) as exc:
+        raise _dns_errors(exc) from exc
+    finally:
+        resolver.close()
+    log.info("domain_graded grade=%s score=%d queries=%d", result["grade"], result["score"], resolver.queries)
+    return result
+
+
+@app.post("/api/domain/lookalikes")
+def domain_lookalikes(request: Request, domain: str = Form(...), check: bool = Form(False)):
+    """Variantes de typosquatting de un dominio. Generarlas es local; con ``check`` se consulta el DNS (hasta 60) para ver cuáles están registradas."""
+    _rate_limit(request, "/api/dns", *RATE_LIMITS["/api/dns"])
+    name = _domain_arg(domain)
+    variants = lookalikes_mod.generate(name)
+    states: dict[str, str] = {}
+    if check:
+        _require_captcha(request)
+        resolver = _new_resolver()
+        try:
+            states = lookalikes_mod.check_registered([v["domain"] for v in variants], resolver)
+        except dnsdoh.DnsError as exc:
+            raise _dns_errors(exc) from exc
+        finally:
+            resolver.close()
+    for v in variants:
+        v["state"] = states.get(v["domain"], "")
+        v["state_label"] = lookalikes_mod.STATES.get(v["state"], "")
+    label, suffix = lookalikes_mod.split_domain(name)
+    return {"domain": f"{label}.{suffix}", "variants": variants, "total": len(variants), "checked": len(states), "check_limit": lookalikes_mod.MAX_CHECK,
+            "limitations": ["La lista es de variantes probables, no exhaustiva: un atacante puede elegir otras.",
+                            "«Sin DNS» no significa que esté libre ni que sea seguro: puede estar registrado sin DNS o reservado.",
+                            "Solo se comprueban los " + str(lookalikes_mod.MAX_CHECK) + " primeros (los más probables)."]}
 
 
 SAMPLE_EML_DIR = ROOT / "sample_data" / "correos"

@@ -65,6 +65,7 @@ ENABLE_CONTENT = re.compile(r"habilit\w* (?:el )?(?:contenido|las macros|macros|
 CREDENTIALS = re.compile(r"verifica(?:r)? tu (?:cuenta|identidad|contraseña)|confirma(?:r)? tu (?:cuenta|identidad|contraseña)|cuenta (?:suspendida|bloqueada|será (?:suspendida|bloqueada|cerrada))|restablec|actualiza(?:r)? tus datos|inicia(?:r)? sesión|ingresa(?:r)? tu (?:clave|contraseña)|verify your (?:account|identity|password)|confirm your (?:account|password)|account (?:has been )?(?:suspended|locked)|sign in to (?:your|view)|password (?:will )?expire", re.I)
 URL_RE = re.compile(r"https?://[^\s<>\"'\)\]]+", re.I)
 HOP_FROM_RE = re.compile(r"from\s+(?P<from>\S+)", re.I)
+RECV_WITH_RE = re.compile(r"\bwith\s+(\S+)", re.I)
 BRACKET_IP_RE = re.compile(r"[\[(](?P<ip>(?:\d{1,3}\.){3}\d{1,3}|[0-9a-f:]{3,39})[\])]", re.I)
 CTRL_RE = re.compile("[\\x00-\\x08\\x0b-\\x1f\\x7f\\u202a-\\u202e\\u2066-\\u2069]")    # control y marcas de dirección (RLO), como escapes: sin caracteres bidi en el código
 
@@ -263,17 +264,97 @@ def _auth(msg) -> dict:
     return res
 
 
+MAX_HOPS = 30
+HOP_BACKWARD_S = 300           # un salto con hora anterior a la del previo por más de 5 min no se explica con un reloj levemente desajustado
+HOP_LONG_DELAY_S = 6 * 3600    # más de 6 h entre dos servidores es raro (cola, greylisting extremo o cabecera inventada)
+DATE_VS_ROUTE_S = 2 * 86400    # Date y primer salto separados por más de 2 días
+MAX_HOPS_NORMAL = 12
+
+
+def _parse_when(text: str):
+    """Fecha de un Received (lo que sigue al último «;»), en UTC; None si no se puede leer."""
+    t = re.sub(r"\([^)]*\)", " ", text or "").strip()
+    if not t:
+        return None
+    try:
+        dt = parsedate_to_datetime(t)
+    except (TypeError, ValueError, IndexError):
+        return None
+    if dt is None:
+        return None
+    return (dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt).astimezone(timezone.utc)
+
+
 def _hops(msg) -> list[dict]:
-    """Cadena Received del más reciente al más antiguo; la última es el primer salto (origen)."""
+    """Recorrido del correo en orden cronológico: el primer elemento es el origen y el último, el servidor que lo entregó.
+
+    Los Received se escriben de arriba hacia abajo (el más reciente primero), así que se invierten. Para cada salto se
+    calcula el retraso respecto del anterior y se marcan las anomalías (hora anterior a la del salto previo, retraso largo
+    o salto sin fecha). Los servidores intermedios añaden su propio Received: solo el del propio servidor de destino es fiable.
+    """
+    raws = _hdr_all(msg, "Received")[:MAX_HOPS]
     hops = []
-    for raw in _hdr_all(msg, "Received")[:15]:
+    for raw in reversed(raws):
         m = HOP_FROM_RE.search(raw)
         by = re.search(r"\bby\s+(\S+)", raw, re.I)
         ips = [x.group("ip") for x in BRACKET_IP_RE.finditer(raw) if _is_ip(x.group("ip"))]
-        when = raw.rsplit(";", 1)[-1].strip() if ";" in raw else ""
-        hops.append({"from": _clean(m.group("from"), 120) if m else "", "by": _clean(by.group(1), 120) if by else "",
-                     "ip": ips[0] if ips else "", "public": bool(ips and _public_ip(ips[0])), "when": _clean(when, 60)})
+        when_raw = raw.rsplit(";", 1)[-1].strip() if ";" in raw else ""
+        proto = RECV_WITH_RE.search(raw)
+        ts = _parse_when(when_raw)
+        hops.append({"n": len(hops) + 1, "from": _clean(m.group("from"), 120) if m else "", "by": _clean(by.group(1), 120) if by else "",
+                     "ip": ips[0] if ips else "", "public": bool(ips and _public_ip(ips[0])), "when": _clean(when_raw, 60),
+                     "ts": ts.strftime("%Y-%m-%d %H:%M:%S") if ts else "", "protocol": _clean(proto.group(1), 20).rstrip(";") if proto else "",
+                     "tls": bool(re.search(r"esmtps|\btls", raw, re.I)), "delay_s": None, "flags": [], "_dt": ts})
+    prev = None
+    for h in hops:
+        dt = h["_dt"]
+        if dt is None:
+            h["flags"].append("sin_fecha")
+            continue
+        if prev is not None:
+            h["delay_s"] = int((dt - prev).total_seconds())
+            if h["delay_s"] < -HOP_BACKWARD_S:
+                h["flags"].append("hora_anterior")
+            elif h["delay_s"] >= HOP_LONG_DELAY_S:
+                h["flags"].append("retraso_largo")
+        prev = dt
     return hops
+
+
+def _fmt_delay(seconds: int) -> str:
+    s = abs(int(seconds))
+    txt = f"{s // 3600} h {s % 3600 // 60} min" if s >= 3600 else f"{s // 60} min {s % 60} s" if s >= 60 else f"{s} s"
+    return ("-" if seconds < 0 else "") + txt
+
+
+def _route_signals(sig: "_Sig", hops: list[dict], date_header: str) -> dict:
+    """Señales del recorrido y resumen para la interfaz. Todas son de bajo peso: ninguna prueba nada por sí sola."""
+    back = [h for h in hops if "hora_anterior" in h["flags"]]
+    slow = [h for h in hops if "retraso_largo" in h["flags"]]
+    if back:
+        h = back[0]
+        sig.add("Encabezados", "Bajo", 1, "Horas fuera de orden en el recorrido",
+                f"El salto {h['n']} ({h['by'] or '?'}) tiene una hora {_fmt_delay(h['delay_s'])[1:]} anterior a la del salto previo. Puede ser un reloj desajustado o un encabezado Received inventado.")
+    if slow:
+        h = slow[0]
+        sig.add("Encabezados", "Bajo", 1, "Retraso largo entre servidores",
+                f"Entre el salto {h['n'] - 1} y el {h['n']} pasaron {_fmt_delay(h['delay_s'])}. Puede ser una cola de entrega o un recorrido manipulado.")
+    stamped = [h for h in hops if h["_dt"] is not None]
+    when = None
+    try:
+        when = parsedate_to_datetime(date_header) if date_header else None
+        if when is not None and when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError, IndexError):
+        when = None
+    if when is not None and stamped and abs((stamped[0]["_dt"] - when).total_seconds()) > DATE_VS_ROUTE_S:
+        sig.add("Encabezados", "Bajo", 1, "La fecha del mensaje no coincide con el recorrido",
+                f"El encabezado Date ({when.strftime('%Y-%m-%d')}) y el primer salto ({stamped[0]['ts'][:10]}) están separados por más de 2 días.")
+    if len(hops) > MAX_HOPS_NORMAL:
+        sig.add("Encabezados", "Bajo", 1, "Recorrido inusualmente largo", f"El correo pasó por {len(hops)} servidores; lo normal son menos de {MAX_HOPS_NORMAL}.")
+    span = int((stamped[-1]["_dt"] - stamped[0]["_dt"]).total_seconds()) if len(stamped) >= 2 else None
+    return {"count": len(hops), "span_s": span, "span_text": _fmt_delay(span) if span is not None else "", "with_tls": sum(1 for h in hops if h["tls"]),
+            "backwards": len(back), "long_delays": len(slow), "undated": sum(1 for h in hops if "sin_fecha" in h["flags"])}
 
 
 # ---------------------------------------------------------------- adjuntos
@@ -571,7 +652,7 @@ def _homograph_review(sig: _Sig, favorable: list[str], *, from_cs: str, from_nam
             "suspicious": any(e["suspicious"] for e in entries) or bool(comparisons) or bool(expected_out and expected_out["kind"] not in ("igual",))}
 
 
-def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "") -> dict:
+def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", pasted: bool = False) -> dict:
     if len(data) > MAX_EML_BYTES:
         raise EmlError("El correo supera el límite de 5 MB.")
     head = data[:8192].decode("utf-8", errors="ignore")
@@ -648,7 +729,10 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "") -
 
     # ---- recorrido ----------------------------------------------------------------
     hops = _hops(msg)
-    origin = next((h for h in reversed(hops) if h["public"]), None)
+    origin = next((h for h in hops if h["public"]), None)          # cronológico: el primer salto público es el origen probable
+    route = _route_signals(sig, hops, headers["date"])
+    for h in hops:
+        h.pop("_dt", None)
 
     # ---- cuerpo, enlaces y adjuntos -------------------------------------------------
     urls: list[dict] = []
@@ -703,7 +787,8 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "") -
         sig.add("Contenido", "Medio", 3, "Pide habilitar contenido o macros", "Habilitar el contenido de un documento recibido por correo es la forma de activar sus macros.", ["T1566.001", "T1204.002"])
     if attachments and re.search(r"adjunto|attached|attachment|factura|invoice|comprobante|pago|payment", plain + " " + subject, re.I) and any(a["risk"] != "Bajo" for a in attachments):
         sig.add("Contenido", "Bajo", 1, "El texto empuja a abrir el adjunto", "Factura, pago o comprobante: pretextos frecuentes para que el usuario abra el archivo.", ["T1566.001"])
-    if not urls and not attachments and not plain.strip():
+    headers_only = pasted and not urls and not attachments and not plain.strip()
+    if not urls and not attachments and not plain.strip() and not headers_only:
         sig.add("Contenido", "Bajo", 0, "Correo sin cuerpo legible", "No se pudo extraer texto, enlaces ni adjuntos.")
 
     # ---- veredicto ----------------------------------------------------------------
@@ -712,10 +797,12 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "") -
     for s in sorted(sig.items, key=lambda x: -x["points"]):
         room = cat_cap.get(s["category"], 6) - per.get(s["category"], 0)
         add = max(0, min(s["points"], room))
+        s["applied"] = add                       # lo que de verdad sumó (puede ser menos que «points» si la categoría llegó a su tope)
         per[s["category"]] = per.get(s["category"], 0) + add
         score += add
     has_crit = any(s["severity"] == "Crítico" for s in sig.items)
     severity = "Crítico" if has_crit or score >= 12 else "Alto" if score >= 6 else "Medio" if score >= 3 else "Bajo"
+    breakdown = _score_breakdown(sig.items, cat_cap, score, severity, has_crit)
     verdict = {"Crítico": "Phishing / malware muy probable", "Alto": "Probable phishing", "Medio": "Sospechoso", "Bajo": "Sin señales relevantes"}[severity]
     sig.items.sort(key=lambda x: (SEV_ORDER.index(x["severity"]), -x["points"]))
 
@@ -781,21 +868,74 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "") -
         "filename": _clean(filename, 120), "size": len(data), "headers": headers, "auth": {k: v for k, v in auth.items() if k != "raw"},
         "auth_raw": auth["raw"], "hops": hops, "origin_ip": origin["ip"] if origin else "", "urls": urls, "attachments": attachments,
         "signals": sig.items, "favorable": favorable, "score": score, "severity": severity, "verdict": verdict, "mitre": mitre,
-        "iocs": iocs, "verify": verify, "actions": actions, "homograph": hg,
+        "iocs": iocs, "verify": verify, "actions": actions, "homograph": hg, "route": route, "score_breakdown": breakdown,
+        "source": "cabeceras pegadas" if pasted else "archivo .eml", "headers_only": headers_only,
         "truncated": n_parts > MAX_PARTS or len(urls) >= MAX_URLS,
         "limitations": ["Análisis estático: no se abrieron enlaces ni se ejecutaron adjuntos.",
                         "Los pesos de las señales son orientativos; el veredicto es una ayuda para el triage, no una prueba.",
                         "El mapeo a ATT&CK es orientativo."]
-        + (["Sin una dirección de referencia no se puede saber cuál es la legítima: el desglose carácter por carácter sirve para compararla con el contacto real."] if hg["suspicious"] else []),
+        + (["Sin una dirección de referencia no se puede saber cuál es la legítima: el desglose carácter por carácter sirve para compararla con el contacto real."] if hg["suspicious"] else [])
+        + (["Se analizaron solo las cabeceras pegadas: sin cuerpo no hay enlaces, adjuntos ni texto que evaluar. Para un análisis completo usa el .eml."] if headers_only else [])
+        + (["En el recorrido, solo el Received que añade tu propio servidor de correo es fiable: los anteriores los escribe quien envió el mensaje y pueden estar falsificados."] if len(hops) > 1 else []),
     }
 
 
-def analyze_many(files: list[tuple[str, bytes]], expected: str = "") -> dict:
+def _score_breakdown(items: list[dict], cat_cap: dict, score: int, severity: str, has_crit: bool) -> dict:
+    """Cómo se llegó al puntaje: puntos por señal, tope por categoría y regla que fijó la criticidad (para mostrarlo tal cual al analista)."""
+    cats: dict[str, dict] = {}
+    for s in items:
+        c = cats.setdefault(s["category"], {"category": s["category"], "cap": cat_cap.get(s["category"], 6), "raw": 0, "applied": 0, "signals": []})
+        c["raw"] += s["points"]
+        c["applied"] += s.get("applied", 0)
+        c["signals"].append({"title": s["title"], "severity": s["severity"], "points": s["points"], "applied": s.get("applied", 0)})
+    out = sorted(cats.values(), key=lambda c: (-c["applied"], c["category"]))
+    for c in out:
+        c["capped"] = c["raw"] > c["cap"]
+        c["signals"].sort(key=lambda x: -x["points"])
+    if has_crit:
+        why = "Hay al menos una señal de criticidad Crítico, que fija ese nivel sin importar el puntaje."
+    elif score >= 12:
+        why = f"El puntaje ({score}) llega a 12 o más."
+    elif score >= 6:
+        why = f"El puntaje ({score}) está entre 6 y 11."
+    elif score >= 3:
+        why = f"El puntaje ({score}) está entre 3 y 5."
+    else:
+        why = f"El puntaje ({score}) es menor que 3."
+    return {"categories": out, "total": score, "severity": severity, "why": why,
+            "thresholds": [{"severity": "Crítico", "rule": "puntaje de 12 o más, o alguna señal Crítico"}, {"severity": "Alto", "rule": "puntaje de 6 a 11"},
+                           {"severity": "Medio", "rule": "puntaje de 3 a 5"}, {"severity": "Bajo", "rule": "puntaje menor que 3"}]}
+
+
+MAX_PASTE_CHARS = 512_000
+_HDR_START = re.compile(r"^(?:Delivered-To|Received|Return-Path|X-Received|ARC-[\w-]+|Authentication-Results|Received-SPF|DKIM-Signature|From|Date|Message-ID|MIME-Version|Subject|To):", re.I | re.M)
+
+
+def paste_to_eml(text: str) -> bytes:
+    """Convierte cabeceras (o el «origen del mensaje») pegados como texto en bytes que analyze_eml pueda leer.
+
+    Quita lo que haya antes de la primera cabecera conocida (por ejemplo el resumen que Gmail muestra encima), normaliza
+    los saltos de línea y asegura la línea en blanco que separa cabeceras y cuerpo.
+    """
+    t = (text or "").replace("\r\n", "\n").replace("\r", "\n").replace("\x00", "")
+    if len(t) > MAX_PASTE_CHARS:
+        raise EmlError("El texto pegado es demasiado largo. Pega solo las cabeceras del correo (o guarda el .eml).")
+    m = _HDR_START.search(t)
+    if not m:
+        raise EmlError("El texto no parece contener cabeceras de correo (no se encontraron From, Received, Subject…). Pega el «origen del mensaje» completo.")
+    t = t[m.start():].rstrip()
+    if "\n\n" not in t:
+        t += "\n\n"
+    return t.encode("utf-8", errors="replace")
+
+
+def analyze_many(files: list[tuple[str, bytes]], expected: str = "", pasted: frozenset[str] = frozenset()) -> dict:
+    """``pasted``: nombres de las entradas que vienen de cabeceras pegadas (se analizan sin exigir cuerpo)."""
     items: list[dict] = []
     errors: list[dict] = []
     for name, data in files:
         try:
-            r = analyze_eml(data, name, expected)
+            r = analyze_eml(data, name, expected, pasted=name in pasted)
             r["id"] = f"MAIL-{len(items) + 1:02d}"
             items.append(r)
         except EmlError as exc:

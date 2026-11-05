@@ -20,6 +20,7 @@ Solo la rama `main`.
 | XSS | Todo dato del archivo se escapa antes de mostrarse y antes de entrar al PDF. La CSP restringe los scripts a `'self'`. |
 | Filtración de claves | Las claves viven en `.env` (fuera de Git) o se pegan en la interfaz; no se guardan, no se registran y no se devuelven al navegador. |
 | Acceso no deseado | La app escucha solo en `127.0.0.1`. Con `APP_ACCESS_TOKEN` toda la API exige una clave, con límite de intentos fallidos. |
+| Salida a Internet (DNS) | Las herramientas de dominio consultan DNS sobre HTTPS solo si el analista lo pide, a Cloudflare y Google (servidores fijos, sin redirecciones, respuesta limitada a 64 KB, 5 s de espera, 6 consultas por minuto por IP). Solo sale el nombre de dominio. `DNS_LOOKUPS=off` las desactiva. |
 | Uso automatizado | Opcional: con `CAPTCHA=on` las subidas exigen resolver un captcha local (imágenes o rompecabezas deslizante; sin terceros ni internet), con un solo intento por desafío, pase de un solo uso y límite de fallos por IP. Frena bots genéricos; no detiene a un atacante dirigido ni sustituye a `APP_ACCESS_TOKEN`. |
 | Cadena de suministro | Dependencias con versión exacta y hash (`requirements.lock`), Dependabot, y en cada cambio `bandit`, `pip-audit` y Trivy. |
 | Superficie expuesta | Documentación de la API desactivada por defecto, contenedor sin privilegios, de solo lectura y sin capacidades. |

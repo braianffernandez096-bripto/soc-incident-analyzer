@@ -9,7 +9,7 @@ const S = { needAuth: false, sid: null, filename: "", client: "", analyst: "", a
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`;
-const sevPill = (s) => `<span class="sev ${esc(s)}">${esc(s)}</span>`;
+const sevPill = (s, label) => `<span class="sev ${esc(s)}">${esc(label ?? s)}</span>`;
 const num = (n) => Number(n).toLocaleString("es-AR");
 const hhmm = (t) => (t || "").slice(11, 16);
 const hhmmss = (t) => (t || "").slice(11, 19);
@@ -190,12 +190,13 @@ function showLandingError(m) { const b = $("#lerr"); if (b) { b.textContent = m;
 
 /* ---------- navegación ---------- */
 const ROUTES = [["dashboard", "Panel"], ["incidents", "Incidentes"], ["findings", "Hallazgos"], ["attack", "ATT&CK"], ["logs", "Eventos"], ["iocs", "Indicadores (IoC)"], ["report", "Informe"]];
+const inPh = (r) => r === "phishing" || r.startsWith("phishing/");
 function route() { return (location.hash.replace(/^#\/?/, "") || "").split("?")[0]; }
 
 function renderRail() {
   const nav = $("#nav"), foot = $("#railFoot");
   if (!S.a) {   // sin análisis de logs abierto: dos entradas, logs y phishing (son análisis independientes)
-    nav.innerHTML = [["", "Análisis de logs"], ["phishing", "Phishing"]].map(([k, l]) => `<a href="#/${k}" ${route() === k ? 'aria-current="page"' : ""}><span>${l}</span></a>`).join("");
+    nav.innerHTML = [["", "Análisis de logs"], ["phishing", "Phishing"]].map(([k, l]) => `<a href="#/${k}" ${(k === "phishing" ? inPh(route()) : route() === k) ? 'aria-current="page"' : ""}><span>${l}</span></a>`).join("");
     foot.innerHTML = ""; return;
   }
   const cnt = { incidents: S.a.incidents.length, findings: S.a.findings.length, iocs: S.a.iocs.length, logs: S.a.profile.rows };
@@ -233,8 +234,12 @@ function render() {
   const main = $("#main");
   const r = route();
   if (S.needAuth) { $("#nav").innerHTML = ""; $("#railFoot").innerHTML = ""; main.innerHTML = `<div class="view">${accessView()}</div>`; bindAccess(); return; }
-  if (r === "phishing" && S.a) { location.replace("#/dashboard"); return; }   // con un análisis de logs abierto no hay pestaña Phishing
-  if (r === "phishing" && !S.a) { renderRail(); main.innerHTML = `<div class="view">${phishingView()}</div>`; bindPhishing(); if (!S.keepScroll) window.scrollTo(0, 0); S.keepScroll = false; return; }
+  if (inPh(r) && S.a) { location.replace("#/dashboard"); return; }   // con un análisis de logs abierto no hay pestaña Phishing
+  if (inPh(r)) {
+    renderRail();
+    const v = { "phishing/dominio": [domainView, bindDomain], "phishing/parecidos": [lookView, bindLook] }[r] || [phishingView, bindPhishing];
+    main.innerHTML = `<div class="view">${phTabs(r)}${v[0]()}</div>`; v[1](); if (!S.keepScroll) window.scrollTo(0, 0); S.keepScroll = false; return;
+  }
   if (!S.a) { renderRail(); main.innerHTML = `<div class="view">${landing()}</div>`; bindLanding(); bindHero(); return; }
   renderRail();
   const views = { dashboard, incidents, findings, attack, logs, iocs, report };
@@ -730,6 +735,9 @@ function phishingUpload() {
       <span>Hasta 5 archivos · 5 MB cada uno · se leen como texto: no se abre ningún enlace ni se ejecuta ningún adjunto</span>
       <input type="file" id="pfile" accept=".eml" multiple hidden>
     </div>
+    <details class="paste" id="pdet"><summary><b>¿No tienes el .eml? Pega las cabeceras</b></summary>
+      <p class="muted">Copia el origen del mensaje («Mostrar original» en Gmail, «Ver código fuente del mensaje» en Outlook o Thunderbird) y pégalo aquí. Con solo las cabeceras se analizan remitente, autenticación y recorrido; sin el cuerpo no se ven enlaces ni adjuntos.</p>
+      <textarea id="phdr" rows="7" maxlength="512000" spellcheck="false" autocomplete="off" aria-label="Cabeceras del correo" placeholder="Received: from …&#10;From: …&#10;Subject: …"></textarea></details>
     <label class="f" style="max-width:640px;margin:14px 0"><span><b>Remitente esperado</b> (opcional)</span>
       <input id="pexp" type="text" maxlength="200" autocomplete="off" spellcheck="false">
       <span style="font-weight:400">Si lo escribes, la app compara carácter por carácter la dirección del correo con la tuya y señala qué letra cambió (por ejemplo una «I» mayúscula por una «l»).</span></label>
@@ -738,8 +746,83 @@ function phishingUpload() {
       <button class="btn" id="psample" type="button">Probar con correos de ejemplo</button>
     </div>
     <div class="err" id="perr" role="alert" hidden></div>
-    <ul class="checks"><li>Remitente, Reply-To y suplantación</li><li>Homógrafos: letras que se ven iguales y no lo son</li><li>SPF, DKIM y DMARC</li><li>Enlaces engañosos y dominios parecidos</li><li>Adjuntos peligrosos, macros y hash</li></ul>
+    <ul class="checks"><li>Remitente, Reply-To y suplantación</li><li>Homógrafos: letras que se ven iguales y no lo son</li><li>SPF, DKIM y DMARC</li><li>Enlaces engañosos y dominios parecidos</li><li>Adjuntos peligrosos, macros y hash</li><li>Recorrido del correo y puntaje explicado</li></ul>
   </section>`;
+}
+
+/* ---------- herramientas de dominio (DNS público: solo se consulta lo que el analista pide) ---------- */
+function phTabs(cur) {
+  const t = [["phishing", "Correos"], ["phishing/dominio", "Evaluar dominio"], ["phishing/parecidos", "Dominios parecidos"]];
+  return `<nav class="ph-tabs" aria-label="Herramientas de phishing">${t.map(([k, l]) => `<a href="#/${k}" ${k === cur ? 'aria-current="page"' : ""}>${l}</a>`).join("")}</nav>`;
+}
+const senderDomain = (m) => { const a = (m.headers.from_addr || "").split("@"); return a.length > 1 ? a.pop().trim() : ""; };
+const CHK = { ok: ["Bajo", "Bien"], warn: ["Medio", "Atención"], fail: ["Alto", "Falla"], info: ["Bajo", "Dato"] };
+const GRADE_CLS = { A: "Bajo", B: "Bajo", C: "Medio", D: "Alto", F: "Crítico" };
+function domainView() {
+  const D = S.dom || (S.dom = { q: "", res: null, err: "" });
+  const r = D.res;
+  const out = !r ? "" : `<div class="panel"><div class="grade-row"><div class="grade ${GRADE_CLS[r.grade]}" aria-label="Nota ${esc(r.grade)}">${esc(r.grade)}</div>
+      <div><h3 style="margin:0">${esc(r.domain)} · ${esc(r.score)}/100</h3><p class="muted" style="margin:4px 0 0">Consultado ${esc(r.checked_at)} vía ${esc(r.provider)}. Escala: ${r.scale.map((x) => `${esc(x.grade)} ≥ ${esc(x.from)}`).join(" · ")}.</p></div></div>
+      <p style="margin-top:10px">${authChip("SPF", r.spf.all || (r.spf.record ? "sin all" : "ausente"))} ${authChip("DMARC", r.dmarc.policy || (r.dmarc.record ? "inválida" : "ausente"))} ${authChip("DKIM", r.dkim.found.length ? "clave encontrada" : "no encontrada")}</p></div>
+    <div class="panel"><h3>Comprobaciones (cada una resta puntos visibles)</h3><div class="tbl-wrap"><table><thead><tr><th>Estado</th><th>Comprobación</th><th>Resta</th><th>Detalle y cómo corregirlo</th></tr></thead><tbody>${r.checks.map((c) =>
+      `<tr><td>${sevPill(CHK[c.status][0], CHK[c.status][1])}</td><td><b>${esc(c.title)}</b></td><td class="mono">${c.points ? "−" + esc(c.points) : "0"}</td><td>${esc(c.detail)}${c.fix ? `<div class="muted" style="margin-top:4px"><b>Corrección:</b> ${esc(c.fix)}</div>` : ""}</td></tr>`).join("")}</tbody></table></div></div>
+    ${r.recommendations.length ? `<div class="panel"><h3>Recomendaciones (de mayor a menor impacto)</h3><ol>${r.recommendations.map((x) => `<li>${esc(x)}</li>`).join("")}</ol></div>` : ""}
+    <details class="panel"><summary><b>Registros leídos</b></summary><dl class="recs">
+      <dt>SPF</dt><dd class="mono">${esc(r.spf.record || "—")}</dd><dt>DMARC</dt><dd class="mono">${esc(r.dmarc.record || "—")}${r.dmarc.inherited_from ? ` (heredado de ${esc(r.dmarc.inherited_from)})` : ""}</dd>
+      <dt>MX</dt><dd class="mono">${r.mx.records.length ? r.mx.records.map(esc).join("<br>") : "—"}</dd>
+      <dt>DKIM</dt><dd>${r.dkim.found.length ? r.dkim.found.map((f) => `${esc(f.selector)}: ${f.revoked ? "revocada" : esc(f.algorithm) + (f.bits ? " ~" + esc(f.bits) + " bits" : "")}`).join("<br>") : `Sin claves en los selectores comunes (${esc(r.dkim.tried.join(", "))})`}</dd></dl></details>
+    <p class="muted">${r.limitations.map(esc).join(" ")}</p>`;
+  return `<section class="landing"><h1>Evaluar la protección de un dominio</h1>
+    <p class="lead">Lee los registros públicos SPF, DKIM y DMARC de un dominio y los califica de A a F, con lo que resta cada falla y cómo corregirla. Sirve para saber si un dominio se puede suplantar fácilmente.</p>
+    <form id="dform" class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end"><label class="f" style="flex:1;min-width:260px"><span><b>Dominio</b></span><input id="dq" type="text" maxlength="253" autocomplete="off" spellcheck="false" value="${esc(D.q)}"></label>
+      <button class="btn primary" id="dgo" type="submit">Evaluar</button></form>
+    <p class="muted">Privacidad: solo sale el nombre del dominio, mediante DNS sobre HTTPS a Cloudflare (o Google si falla). No se envía ningún correo ni contenido. El administrador puede desactivarlo con <span class="mono">DNS_LOOKUPS=off</span>.</p>
+    <div class="err" id="derr" role="alert" ${D.err ? "" : "hidden"}>${esc(D.err)}</div></section>${out}`;
+}
+function bindDomain() {
+  const D = S.dom;
+  $("#dform").onsubmit = async (e) => {
+    e.preventDefault(); D.q = $("#dq").value.trim(); if (!D.q) return;
+    busy(true, "Consultando el DNS…");
+    try { const fd = new FormData(); fd.append("domain", D.q); D.res = await api("/api/domain/grade", { method: "POST", body: fd }); D.err = ""; }
+    catch (err) { D.res = null; D.err = err.message; } finally { busy(false); }
+    S.keepScroll = true; render();
+  };
+}
+function lookView() {
+  const L = S.look || (S.look = { q: "", check: false, res: null, err: "" });
+  const r = L.res;
+  const stCls = { registrado: "Alto", libre: "Bajo", sin_datos: "Medio", error: "Medio" };
+  const out = !r ? "" : `<div class="panel"><h3>${esc(num(r.total))} variantes de ${esc(r.domain)}${r.checked ? ` · ${esc(num(r.checked))} comprobadas en el DNS` : ""}</h3>
+      <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="btn" id="ldltxt" type="button">Descargar lista (.txt)</button><button class="btn" id="ldlcsv" type="button">Descargar tabla (.csv)</button></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Tipo</th><th>Dominio</th><th>Qué cambia</th>${r.checked ? "<th>Estado</th>" : ""}</tr></thead><tbody>${r.variants.map((v) =>
+        `<tr><td>${esc(v.kind_label)}</td><td class="mono" style="word-break:break-all">${esc(v.domain)}${v.unicode ? `<div class="muted" style="font-size:12px">se ve como ${esc(v.unicode)}</div>` : ""}</td><td>${esc(v.note)}</td>${r.checked ? `<td>${v.state ? sevPill(stCls[v.state], v.state_label) : '<span class="muted">sin comprobar</span>'}</td>` : ""}</tr>`).join("")}</tbody></table></div></div>
+    <p class="muted">${r.limitations.map(esc).join(" ")}</p>`;
+  return `<section class="landing"><h1>Dominios parecidos a una marca</h1>
+    <p class="lead">Genera las variantes que un atacante podría registrar para imitar un dominio (letras parecidas, homógrafos, teclas vecinas, otras terminaciones…). Úsalas para vigilar o bloquear en el proxy y el DNS.</p>
+    <form id="lform" class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-end"><label class="f" style="flex:1;min-width:260px"><span><b>Dominio de la marca</b></span><input id="lq" type="text" maxlength="253" autocomplete="off" spellcheck="false" value="${esc(L.q)}"></label>
+      <button class="btn primary" type="submit">Generar variantes</button></form>
+    <label class="chk"><input type="checkbox" id="lchk" ${L.check ? "checked" : ""}> Comprobar cuáles están registradas (consulta el DNS público de los primeros ${esc(r ? r.check_limit : 60)})</label>
+    <p class="muted">Generar la lista es local y no abre ninguna conexión. Si marcas la comprobación, solo se envían los nombres de dominio de la lista, por DNS sobre HTTPS a Cloudflare (o Google). Puede desactivarse con <span class="mono">DNS_LOOKUPS=off</span>.</p>
+    <div class="err" id="lerr2" role="alert" ${L.err ? "" : "hidden"}>${esc(L.err)}</div></section>${out}`;
+}
+function download(name, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type })), a = document.createElement("a");
+  a.href = url; a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+function bindLook() {
+  const L = S.look;
+  $("#lform").onsubmit = async (e) => {
+    e.preventDefault(); L.q = $("#lq").value.trim(); L.check = $("#lchk").checked; if (!L.q) return;
+    busy(true, L.check ? "Consultando el DNS…" : "Generando variantes…");
+    try { const fd = new FormData(); fd.append("domain", L.q); fd.append("check", String(L.check)); L.res = await api("/api/domain/lookalikes", { method: "POST", body: fd }); L.err = ""; }
+    catch (err) { L.res = null; L.err = err.message; } finally { busy(false); }
+    S.keepScroll = true; render();
+  };
+  if (!L.res) return;
+  const csvCell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  $("#ldltxt").onclick = () => download(`parecidos_${L.res.domain}.txt`, L.res.variants.map((v) => v.domain).join("\n") + "\n", "text/plain");
+  $("#ldlcsv").onclick = () => download(`parecidos_${L.res.domain}.csv`, "dominio,se_ve_como,tipo,detalle,estado\n" + L.res.variants.map((v) => [v.domain, v.unicode, v.kind_label, v.note, v.state_label].map(csvCell).join(",")).join("\n") + "\n", "text/csv");
 }
 function mailRow(m, sel) {
   const h = m.headers;
@@ -783,13 +866,27 @@ function mailDetail(m) {
     `<tr><td class="mono" style="word-break:break-all">${esc(u.defanged)}${u.host_unicode || u.host_ascii ? `<div class="muted" style="font-size:12px">${u.host_unicode ? `Dominio (Unicode): ${esc(u.host_unicode)} ` : ""}${u.host_ascii ? `· forma técnica: ${esc(u.host_ascii)}` : ""}</div>` : ""}${u.host_chars ? `<details><summary class="muted">Desglose del dominio</summary>${hgTable(u.host_chars, false)}</details>` : ""}</td><td>${esc(u.location)}</td><td>${esc(u.text || "—")}</td><td>${u.flags.length ? u.flags.map((f) => `<span class="tag">${esc(f)}</span>`).join(" ") : `<span class="muted">—</span>`}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">El correo no contiene enlaces.</p>`;
   const att = m.attachments.length ? `<div class="tbl-wrap"><table><thead><tr><th>Archivo</th><th>Riesgo</th><th>Tamaño</th><th>SHA-256</th><th>Notas</th></tr></thead><tbody>${m.attachments.map((x) =>
     `<tr><td><b>${esc(x.filename)}</b><div class="muted" style="font-size:12px">${esc(x.content_type)}</div></td><td>${sevPill(x.risk)}</td><td class="mono">${num(x.size)} B</td><td class="mono" style="word-break:break-all;font-size:11px">${esc(x.sha256)}</td><td>${x.notes.length ? x.notes.map(esc).join("<br>") : `<span class="muted">—</span>`}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted">Sin adjuntos.</p>`;
-  const hops = m.hops.length ? `<details style="margin-top:10px"><summary class="muted">Recorrido del correo (${m.hops.length} saltos, del más reciente al más antiguo)</summary><ol>${m.hops.map((x) =>
-    `<li class="mono" style="font-size:12px">${esc(x.from || "?")} → ${esc(x.by || "?")} ${x.ip ? `[${esc(x.ip)}]` : ""} ${esc(x.when)}</li>`).join("")}</ol></details>` : "";
+  const dly = (x) => { if (x.delay_s === null || x.delay_s === undefined) return "—"; const a = Math.abs(x.delay_s); return (x.delay_s < 0 ? "−" : "+") + (a >= 3600 ? `${Math.floor(a / 3600)} h ${Math.floor(a % 3600 / 60)} min` : a >= 60 ? `${Math.floor(a / 60)} min ${a % 60} s` : `${a} s`); };
+  const FL = { hora_anterior: "hora anterior al salto previo", retraso_largo: "retraso largo", sin_fecha: "sin fecha" };
+  const rt = m.route || { count: 0 };
+  const hops = m.hops.length ? `<div class="panel"><h3>Recorrido del correo (del origen al destino)</h3>
+      <p class="muted">${esc(rt.count)} saltos${rt.span_text ? ` · ${esc(rt.span_text)} de principio a fin` : ""} · ${esc(rt.with_tls)} con TLS${rt.backwards ? ` · <b>${esc(rt.backwards)} con hora fuera de orden</b>` : ""}${rt.long_delays ? ` · <b>${esc(rt.long_delays)} con retraso largo</b>` : ""}${rt.undated ? ` · ${esc(rt.undated)} sin fecha` : ""}. Horas en UTC. Los Received que añadió el servidor del atacante se pueden inventar; solo los de tu propia infraestructura son fiables.</p>
+      <div class="tbl-wrap"><table><thead><tr><th>#</th><th>Desde</th><th>Hacia</th><th>IP</th><th>Protocolo</th><th>Hora (UTC)</th><th>Retraso</th><th>Aviso</th></tr></thead><tbody>${m.hops.map((x) =>
+      `<tr class="${x.flags.some((f) => f !== "sin_fecha") ? "sel" : ""}"><td>${esc(x.n)}</td><td class="mono" style="word-break:break-all">${esc(x.from || "?")}</td><td class="mono" style="word-break:break-all">${esc(x.by || "?")}</td><td class="mono">${x.ip ? esc(x.ip) + (x.public ? "" : " (interna)") : "—"}</td><td>${esc(x.protocol || "—")}${x.tls ? " · TLS" : ""}</td><td class="mono">${esc(x.ts || "—")}</td><td class="mono">${dly(x)}</td><td>${x.flags.length ? x.flags.map((f) => `<span class="tag">${esc(FL[f] || f)}</span>`).join(" ") : ""}</td></tr>`).join("")}</tbody></table></div></div>` : "";
+  const bd = m.score_breakdown;
+  const why = bd ? `<details class="panel" id="why"><summary><b>¿Cómo se calculó el puntaje?</b> ${esc(bd.total)} puntos → ${sevPill(bd.severity)}</summary>
+      <p>${esc(bd.why)}</p>
+      <div class="tbl-wrap"><table><thead><tr><th>Categoría</th><th>Señal</th><th>Criticidad</th><th>Puntos</th><th>Contó</th></tr></thead><tbody>${bd.categories.map((c) => c.signals.map((x, i) =>
+        `<tr>${i === 0 ? `<td rowspan="${c.signals.length}"><b>${esc(c.category)}</b><div class="muted" style="font-size:12px">tope ${esc(c.cap)}${c.capped ? ` · se aplicó el tope (${esc(c.raw)} → ${esc(c.applied)})` : ""}</div></td>` : ""}<td>${esc(x.title)}</td><td>${sevPill(x.severity)}</td><td class="mono">+${esc(x.points)}</td><td class="mono">${esc(x.applied)}</td></tr>`).join("")).join("") || `<tr><td colspan="5" class="muted">Ninguna señal sumó puntos.</td></tr>`}</tbody></table></div>
+      <p class="muted" style="margin-top:8px"><b>Cómo se decide la criticidad:</b> ${bd.thresholds.map((t) => `${esc(t.severity)}: ${esc(t.rule)}`).join(" · ")}.</p></details>` : "";
+  const dom = senderDomain(m);
+  const domBtns = dom ? `<p style="margin-top:10px"><button class="btn" data-dom="phishing/dominio" data-v="${esc(dom)}" type="button">Evaluar SPF/DKIM/DMARC de ${esc(dom)}</button> <button class="btn" data-dom="phishing/parecidos" data-v="${esc(dom)}" type="button">Dominios parecidos a ${esc(dom)}</button></p>` : "";
   return `<div class="panel"><h3>${esc(m.id)} · ${esc(h.subject || "(sin asunto)")} ${sevPill(m.severity)}</h3>
-      <p><b>${esc(m.verdict)}</b> · puntaje ${esc(m.score)} · archivo <span class="mono">${esc(m.filename)}</span></p>
+      <p><b>${esc(m.verdict)}</b> · puntaje ${esc(m.score)} · ${m.source ? `origen <b>${esc(m.source)}</b>` : `archivo <span class="mono">${esc(m.filename)}</span>`}</p>${m.headers_only ? `<div class="notice">Solo se analizaron las cabeceras: sin el cuerpo no se evaluaron enlaces ni adjuntos.</div>` : ""}
       <div class="tbl-wrap"><table><tbody>${facts.map(([k, v]) => `<tr><th style="width:190px;text-align:left">${esc(k)}</th><td class="mono" style="word-break:break-all">${esc(v)}</td></tr>`).join("")}</tbody></table></div>
-      <p style="margin-top:10px">${authChip("SPF", a.spf)} ${authChip("DKIM", a.dkim)} ${authChip("DMARC", a.dmarc)} ${m.favorable.length ? `<span class="muted">A favor: ${m.favorable.map(esc).join(", ")}</span>` : ""}</p>${hops}</div>
-    <div class="panel"><h3>Señales detectadas</h3>${sig}</div>
+      <p style="margin-top:10px">${authChip("SPF", a.spf)} ${authChip("DKIM", a.dkim)} ${authChip("DMARC", a.dmarc)} ${m.favorable.length ? `<span class="muted">A favor: ${m.favorable.map(esc).join(", ")}</span>` : ""}</p>${domBtns}</div>
+    ${hops}
+    <div class="panel"><h3>Señales detectadas</h3>${sig}</div>${why}
     ${hgPanel(m)}
     <div class="panel"><h3>Enlaces</h3>${urls}</div>
     <div class="panel"><h3>Adjuntos</h3>${att}<p class="muted" style="margin-top:8px">No se abrió ni ejecutó nada. Para saber si un hash es conocido, usa la reputación de abajo.</p></div>
@@ -828,7 +925,7 @@ async function sendEml(files, sample) {
   busy(true, "Analizando correos…");
   try {
     const fd = new FormData();
-    if (!sample) { files.forEach((f) => fd.append("files", f)); fd.append("expected", ($("#pexp") || {}).value || ""); }
+    if (!sample) { files.forEach((f) => fd.append("files", f)); fd.append("expected", ($("#pexp") || {}).value || ""); fd.append("headers_text", ($("#phdr") || {}).value || ""); }
     adoptPhishing(await api(sample ? "/api/phishing/sample" : "/api/phishing", { method: "POST", body: fd }));
     render();
   } catch (e) { const b = $("#perr"); if (b) { b.textContent = e.message; b.hidden = false; } else toast(e.message); }
@@ -838,7 +935,9 @@ function bindPhishing() {
   if (!S.ph) {
     let files = [];
     const drop = $("#pdrop"), inp = $("#pfile"), go = $("#pgo");
-    const pick = (list) => { files = [...list].slice(0, 5); if (!files.length) return; $("#pdropTitle").textContent = files.map((f) => f.name).join(", "); go.disabled = false; $("#perr").hidden = true; };
+    const sync = () => { go.disabled = !files.length && !$("#phdr").value.trim(); };
+    const pick = (list) => { files = [...list].slice(0, 5); if (!files.length) return; $("#pdropTitle").textContent = files.map((f) => f.name).join(", "); sync(); $("#perr").hidden = true; };
+    $("#phdr").oninput = sync;
     drop.onclick = () => inp.click();
     drop.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); inp.click(); } };
     inp.onchange = () => pick(inp.files);
@@ -850,6 +949,7 @@ function bindPhishing() {
     return;
   }
   const P = S.ph, base = `/api/phishing/${P.pid}`;
+  document.querySelectorAll("[data-dom]").forEach((b) => { b.onclick = () => { b.dataset.dom === "phishing/dominio" ? (S.dom = { q: b.dataset.v, res: null, err: "" }) : (S.look = { q: b.dataset.v, check: false, res: null, err: "" }); location.hash = "#/" + b.dataset.dom; }; });
   $("#pagain").onclick = () => { clearInterval(P.intelTimer); S.ph = null; render(); };
   document.querySelectorAll("[data-mail]").forEach((tr) => {
     const open = () => { P.sel = tr.dataset.mail; S.keepScroll = true; render(); };
@@ -900,7 +1000,7 @@ function applyMotion(m) {
   $("#motionBtn").textContent = "✦ Movimiento: " + (m === "reduced" ? "reducido" : "completo");
 }
 const showHow = () => {
-  const inPhishing = !!$("#pdrop");
+  const inPhishing = inPh(route());
   openDialog("¿Cómo funciona?", `<div class="how">
     <div class="row" role="tablist" style="margin-bottom:12px">
       <button class="btn" id="hwLogs" role="tab" type="button">Análisis de logs</button>
@@ -920,7 +1020,12 @@ const showHow = () => {
         <li><b>Cárgalo</b> (hasta 5 archivos de 5 MB). Se leen como texto: no se abre ningún enlace ni se ejecuta ningún adjunto.</li>
         <li><b>Remitente esperado</b> (opcional): si escribes la dirección legítima, la app la compara carácter por carácter con la del correo y señala qué letra cambió.</li>
         <li><b>Análisis</b>: remitente, Reply-To y suplantación, homógrafos, SPF/DKIM/DMARC, enlaces engañosos y dominios parecidos, adjuntos peligrosos y macros.</li>
+        <li><b>Sin el .eml</b>: abre «¿No tienes el .eml?» y pega las cabeceras o el origen del mensaje. Se analizan remitente, autenticación y recorrido (sin cuerpo no hay enlaces ni adjuntos).</li>
+        <li><b>Recorrido</b>: los saltos Received se ordenan del origen al destino, con hora UTC y retraso entre servidores; se marcan horas fuera de orden y retrasos largos. Son pistas de bajo peso: el atacante puede inventar los Received que añade.</li>
+        <li><b>Puntaje explicado</b>: «¿Cómo se calculó el puntaje?» muestra qué sumó cada señal, los topes por categoría y los umbrales de criticidad.</li>
         <li><b>Resultado</b>: un veredicto con las señales que lo respaldan, qué verificar y un informe PDF. El análisis de correos es independiente del de logs.</li></ol>
+      <h4>Herramientas de dominio</h4>
+      <p><b>Evaluar dominio</b> lee los registros SPF, DKIM y DMARC y da una nota de A a F con lo que resta cada falla. <b>Dominios parecidos</b> genera variantes de typosquatting para vigilar o bloquear; la comprobación de cuáles están registradas es opcional. Ambas consultan el DNS público solo cuando tú lo pides, y únicamente envían nombres de dominio.</p>
     </div></div>`);
   const tab = (w) => {
     $("#hwLogsP").hidden = w !== "logs"; $("#hwPhishP").hidden = w !== "phish";

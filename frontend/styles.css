@@ -335,3 +335,18 @@ tbody tr[data-mail].sel{background:var(--soft2);box-shadow:inset 3px 0 0 var(--a
 .hg-exp{border-radius:10px;padding:10px 14px;margin:10px 0}
 .hg-exp.bad{background:var(--crit-bg);color:var(--ink);border:1px solid var(--crit)}
 .hg-exp.ok{background:var(--bajo-bg);border:1px solid var(--bajo)}
+
+/* herramientas de phishing: pestañas, nota de dominio, cabeceras pegadas */
+.ph-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 18px}
+.ph-tabs a{padding:7px 14px;border:1px solid var(--line);border-radius:999px;text-decoration:none;color:var(--muted);font-size:14px;font-weight:500}
+.ph-tabs a:hover{border-color:var(--muted)}
+.ph-tabs a[aria-current=page]{color:var(--ink);background:var(--panel);box-shadow:var(--shadow);border-color:var(--ink)}
+.paste{margin:14px 0;max-width:640px}
+.paste summary{cursor:pointer}
+.paste textarea{width:100%;box-sizing:border-box;font:12.5px var(--mono);padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);resize:vertical}
+.grade-row{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.grade{width:76px;height:76px;border-radius:16px;display:grid;place-items:center;font:700 40px var(--mono);border:3px solid var(--none);color:var(--ink)}
+.grade.Bajo{border-color:#2e9e5b}.grade.Medio{border-color:#d19a00}.grade.Alto{border-color:#e0661a}.grade.Crítico{border-color:#d42a2a}
+.chk{display:flex;gap:8px;align-items:flex-start;margin:12px 0 4px;max-width:640px}
+.recs dt{font-weight:600;margin-top:8px}.recs dd{margin:2px 0 0;word-break:break-all}
+details.panel summary{cursor:pointer}

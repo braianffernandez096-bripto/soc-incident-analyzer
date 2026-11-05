@@ -9,7 +9,7 @@ Aplicación web para análisis de logs. Recibe el export de un SIEM (Excel, CSV/
 Un SIEM entrega miles de eventos y el analista tiene que decidir cuáles importan, cómo se relacionan y qué hacer primero.
 Esta herramienta toma el export de un SIEM (Excel, CSV o JSON) y lo convierte en incidentes ordenados por criticidad, cada uno con las evidencias que lo sustentan.
 Cada hallazgo se mapea a MITRE ATT&CK y trae un plan de acción (investigar, contener, remediar) y un informe técnico en PDF.
-Está pensada para analistas SOC y estudiantes que practican triage, y para quien quiera ver cómo se correlacionan los eventos sin montar un SIEM completo.
+Está pensada para analistas SOC de nivel 1 y estudiantes que practican triage, y para quien quiera ver cómo se correlacionan los eventos sin montar un SIEM completo.
 El análisis, los incidentes, MITRE ATT&CK y el informe en PDF funcionan sin Internet y sin costo, porque las reglas son deterministas y el informe usa plantillas. La redacción con IA es opcional: requiere tu propia clave de API de Anthropic (servicio de pago por uso) y solo mejora la redacción, nunca cambia la criticidad.
 
 ## Cómo se desarrolló
@@ -118,7 +118,7 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 
 ![Pantalla de carga de correos con el campo Remitente esperado](img/Phishing-inicio.png)
 
-**Resultados: los 10 correos de ejemplo ordenados por criticidad, con veredicto y puntaje**
+**Resultados: los correos de ejemplo ordenados por criticidad, con veredicto y puntaje**
 
 ![Tabla de correos analizados con criticidad, remitente, veredicto y puntaje](img/Phishing-resultados.png)
 
@@ -194,20 +194,18 @@ Abre http://127.0.0.1:8000. El puerto queda publicado solo en tu equipo (`127.0.
 
 ## Análisis de correos (phishing)
 
-En la pestaña **Phishing** (disponible desde el inicio, sin cargar logs) sube uno o varios `.eml`, o pulsa **Probar con correos de ejemplo** (`sample_data/correos/`: 8 maliciosos, entre ellos 4 con homógrafos, y 2 legítimos que no deben alertar). Para obtener un `.eml`: en Outlook, Thunderbird o Gmail guarda el correo como `.eml` o usa «Descargar mensaje». Los `.msg` no se admiten.
+En la pestaña **Phishing** (disponible desde el inicio, sin cargar logs) sube uno o varios `.eml`, o pulsa **Probar con correos de ejemplo** (`sample_data/correos/`: 8 maliciosos, entre ellos 4 con homógrafos, 1 con un recorrido anómalo y 2 legítimos que no deben alertar). Para obtener un `.eml`: en Outlook, Thunderbird o Gmail guarda el correo como `.eml` o usa «Descargar mensaje». Los `.msg` no se admiten. Si no puedes exportarlo, **pega las cabeceras** (el «origen del mensaje») en el cuadro de la pantalla de carga: se analizan remitente, autenticación y recorrido, pero sin cuerpo no hay enlaces ni adjuntos.
 
 - **Ataques homógrafos.** Detecta direcciones y dominios que se ven iguales a otros pero no lo son: la «a» cirílica (U+0430) en lugar de la «a» latina (U+0061), la «I» mayúscula en lugar de la «l» minúscula (`banco.universaI@…` contra `banco.universal@…`), cifras por letras (`0`/`o`, `1`/`l`), `rn` por `m` y caracteres invisibles. Para cada remitente muestra el **desglose carácter por carácter** (código Unicode, nombre y alfabeto, con el carácter sospechoso resaltado), también en el PDF. Si escribes el **remitente esperado** al subir el correo, compara carácter por carácter y dice exactamente qué letra cambió. También compara el remitente con el Reply-To, el Return-Path, la dirección escrita en el nombre visible y el dominio del destinatario, y revisa los dominios de los enlaces (también los escritos en `xn--`). Los nombres con tilde (`josé@empresa.com`) o escritos por completo en otro alfabeto no alertan.
-
+- **Recorrido del correo.** Los saltos `Received` se ordenan del origen al destino, con hora UTC, protocolo/TLS y retraso entre servidores. Se marcan horas fuera de orden, retrasos de 6 h o más, una fecha que no encaja con el recorrido y recorridos inusualmente largos. Son señales de **bajo peso** (1 punto): el atacante puede inventar los `Received` que añade su servidor, y solo los de tu propia infraestructura son fiables.
+- **Puntaje con factores visibles.** «¿Cómo se calculó el puntaje?» muestra qué sumó cada señal, los topes por categoría (por ejemplo, Adjunto máx. 14) y los umbrales de criticidad. También va en el PDF.
+- **Evaluar dominio (SPF/DKIM/DMARC).** Pestaña **Evaluar dominio**: lee los registros DNS públicos y da una nota de A a F con descuentos fijos y visibles (sin SPF −35, `+all` −35, DMARC ausente −40, `p=none` −25, más de 10 consultas DNS en SPF −25, claves DKIM de menos de 2048 bits…) y cómo corregir cada falla. DKIM solo se busca con los selectores más comunes: no encontrarlo no prueba que no exista.
+- **Dominios parecidos.** Pestaña **Dominios parecidos**: genera variantes de typosquatting de una marca (letras parecidas, homógrafos IDN con su forma `xn--`, letras intercambiadas u omitidas, teclas vecinas, otras terminaciones, palabras como `login`) y permite descargar la lista (.txt o .csv) para vigilar o bloquear. Generarla es local; la comprobación de cuáles están registradas es opcional (hasta 60 dominios) y consulta el DNS.
 - **Seguro por diseño.** El archivo se lee solo como texto: no se renderiza el HTML, no se abre ningún enlace y no se extrae ni se ejecuta ningún adjunto (de un ZIP solo se lee la lista de nombres). Las URL se muestran «defangeadas» (`hxxps://sitio[.]com`) para que no sean enlaces activos.
-
 - **Determinista.** Cada señal tiene un peso fijo y la criticidad sale de la suma; no interviene la IA. Los casos negativos (correo legítimo, enlaces oficiales, PDF real, SPF/DKIM/DMARC alineados) tienen pruebas propias.
-
 - **Qué verificar.** Cada correo trae los pasos de un analista L1 (confirmar con el remitente por otro canal, buscar clics en el proxy y el DNS, detonar el adjunto en una sandbox, buscar el mismo correo en otros buzones) y las acciones de contención.
-
 - **Reputación opcional.** Con tus claves de VirusTotal y AbuseIPDB y tu confirmación, se consultan dominios, IP y el **hash SHA-256** de los adjuntos. Nunca se envían el archivo, el correo, las direcciones de correo ni las URL completas.
-
 - **Informe.** Se descarga un PDF propio del análisis de correos. El análisis de correos y el de logs son independientes: al analizar un archivo de logs no aparece la pestaña Phishing, y al analizar correos no se mezclan con los logs. Para cambiar de uno a otro usa «Cargar otro».
-
 - **Límites.** Las cabeceras SPF/DKIM/DMARC las escribe el servidor que recibió el correo: si el `.eml` viene de otra fuente pueden estar ausentes o ser falsas. Los pesos son orientativos y el veredicto es una ayuda para el triage, no una prueba. Sin una dirección de referencia (la que escribes como «remitente esperado» u otra del mismo correo) la app no puede saber cuál es la legítima: el desglose está para que la compares tú con el contacto real. La tabla de caracteres confundibles es curada (los casos prácticos), no la base completa de Unicode.
 
 ## Reputación de IP y dominios (VirusTotal y AbuseIPDB)
@@ -244,7 +242,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 555 pruebas
+python -m pytest                                           # 663 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
@@ -258,11 +256,12 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 
 ## Privacidad: qué datos salen de tu equipo
 
-La app corre en tu equipo y no envía telemetría. Solo salen datos si tú activas una de estas dos funciones:
+La app corre en tu equipo y no envía telemetría. Solo salen datos si tú activas una de estas tres funciones:
 
 | Función | Qué se envía | A quién |
 |---|---|---|
 | **Redacción con IA** (botón en la pestaña Informe, requiere clave de Anthropic) | Por incidente y hallazgo: título, criticidad, métricas, explicación del motor y las **filas de evidencia** (`Log_ID`, fecha, equipo, usuario, IP de origen y destino, origen del log, descripción del evento y línea de comandos recortadas, resultado y severidad). También el resumen del conjunto (cantidad de eventos, ventana de tiempo, IP externas). **No** se envían el nombre del cliente ni del analista, ni el archivo completo. | Anthropic |
+| **Consulta DNS** (botones «Evaluar» en Evaluar dominio y «Comprobar registro» en Dominios parecidos) | Solo **nombres de dominio**, por DNS sobre HTTPS (nunca el correo, sus enlaces ni sus adjuntos). Se desactiva con `DNS_LOOKUPS=off`. | Cloudflare (si falla, Google) |
 | **Reputación** (botón en Indicadores (IoC) o en Phishing, requiere clave de VirusTotal o AbuseIPDB) | Solo las IP públicas, dominios y, en phishing, el hash SHA-256 de los adjuntos, que ves y confirmas en pantalla. Nunca IP internas, cuentas, equipos ni comandos. | VirusTotal y AbuseIPDB |
 
 Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones IP reales. Antes de activar la IA, asegúrate de tener permiso para compartir esos datos con un tercero; sin la clave de Anthropic, el informe se genera por reglas y no sale nada.

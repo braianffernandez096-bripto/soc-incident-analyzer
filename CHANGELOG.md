@@ -6,7 +6,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [1.5.0] - 2026-11-05
 
-### Pruebas de navegador, inyección de prompts y regeneración segura del informe (punto 4)
+### Añadido: pruebas de navegador, inyección de prompts y regeneración segura del informe
 - **Pruebas de navegador** (`tests/e2e/test_ui.py`, Playwright + Chromium): cargan un export, recorren panel, hallazgos y filtros, descargan el PDF, analizan correos de phishing (crítico y legítimo, y un enlace escrito con entidades HTML) y comprueban que un log con `<img onerror>` y `<script>` se muestra como texto y no se ejecuta. Fallan si aparece cualquier error de JavaScript o violación de la política CSP. Se saltan solas si no hay Chromium instalado.
 - **Inyección de prompts en la capa de IA** (`tests/integration/test_prompt_injection.py`): logs con instrucciones («ignora lo anterior», `</analisis>`, etiquetas falsas) no apagan la detección ni cierran el bloque de datos; un modelo que obedece la inyección (baja severidades, inventa IP y Log_ID, mete `<img src="file:///…">` o `javascript:`) no cambia la criticidad del motor, sus citas inventadas se descartan y el PDF no genera enlaces activos.
 - **Endurecimiento** (`backend/ai.py`): el JSON que se envía al modelo escapa `<` y `>` (`\u003c`, `\u003e`), así un valor de un log no puede cerrar el bloque `<analisis>` ni imitar una instrucción. El modelo lo lee igual.
@@ -14,7 +14,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - `build_pdf` acepta un pie y un sufijo de título opcionales (para el informe de ejemplo).
 - 913 pruebas, cobertura 95,6 %.
 
-### Validación con datos reales (punto 3c)
+### Validación con datos reales
 - **Phishing real:** `scripts/validar_correos.py` analiza los 12.864 correos de phishing_pot: Medio o más 87,7 %, Alto o más 64,9 %, 0,11 s de media. Comprobado con 11.364 correos no usados para ajustar (87,6 % / 64,8 %). Resultados y límites en `docs/VALIDACION.md` (sección 3b).
 - **Correo legítimo real:** con 20 correos reales (boletines, LinkedIn, GitHub, cursos) los falsos positivos pasaron de 14 de 20 a 0 de 20. Con DMARC en «pass» ya no suman las desalineaciones de SPF/DKIM, Message-ID y Return-Path; el rastreo de clics del propio remitente o de servicios de envío conocidos deja de contar como engaño (salvo si el enlace habla de pagos, cuentas o inicio de sesión); el relleno invisible de los boletines ya no se toma por ofuscación. A cambio, la detección sobre el corpus de phishing baja de 92,2 % a 87,7 % (spam comercial que solo se marcaba por señales débiles).
 - **Comandos ofuscados:** `scripts/validar_ofuscacion.py` mide el desofuscador con 1.360 comandos de Atomic Red Team.
@@ -22,7 +22,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - **Nuevas señales:** marcas muy suplantadas (criptoactivos, seguridad, bancos y mensajería) en el nombre visible, selectores de variación y marcas combinantes ocultas, estafas de adelanto de pago sin enlaces y cebos de reclamo o validación de criptoactivos.
 - Pendiente: ampliar la muestra de correo legítimo (corporativo, bancario, otros rubros); 20 correos de una sola bandeja son pocos.
 
-### Añadido (punto 3b: ofuscación)
+### Añadido: ofuscación
 - **URLs ofuscadas** (`backend/deobf.py`): se normalizan antes de analizarlas. IP escrita en decimal (`http://3232235777`), hexadecimal, octal o abreviada, e IPv4 dentro de IPv6; `%XX` en el host o en varias capas; caracteres invisibles y entidades HTML numéricas que esconden el esquema (`jav&#x09;ascript:`); barras invertidas. El correo muestra la dirección real que interpreta el navegador y suma una señal de ofuscación.
 - **Redirecciones abiertas y enlaces envueltos:** si la URL lleva otro destino dentro de un parámetro (`?url=…`), ese destino también se analiza. Los reescritores de enlaces corporativos (Safe Links, Proofpoint…) se siguen sin generar ruido.
 - **Comandos ofuscados en los logs** (regla `cmd_obfuscated_cmd`, T1027.010): se quitan `^`, acentos graves, comillas intercaladas, concatenaciones, `.Replace()`, `[char]`, `-join` y `FromBase64String`, y se vuelven a pasar las reglas. Solo cuenta si la ofuscación **escondía** un comando relevante; un `ipconfig` o una concatenación normal no alertan. Si lo oculto coincide con otra regla (por ejemplo una descarga), esa regla dispara con el comando limpio y sube un nivel.
@@ -30,23 +30,23 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - ATT&CK: 56 técnicas en 31 reglas (T1027.006, T1027.010, T1059.007 y T1140 nuevas).
 - Límites documentados en `docs/VALIDACION.md` (sección 5): no se ejecuta código, así que lo que se arma en tiempo de ejecución no se ve. La validación con OTRF y Loghub no cambia (20/3/27/57 y 11/11).
 
-### Añadido (punto 3: phishing)
+### Añadido: phishing
 - **Decodificador de `-EncodedCommand`** (`backend/psdecode.py`): acepta todas las grafías de la opción (`-e`, `-ec`, `-enc`…), decodifica el Base64 UTF-16, revisa una capa más de compresión (con tope de tamaño contra bombas de descompresión) y marca lo que hace el comando (descarga, IEX, oculta la ventana, intenta desactivar AMSI…). En los hallazgos de logs se muestra el contenido, se extraen sus URL e IP como indicadores y, si descarga algo de una URL externa, sube un nivel la criticidad.
 - **Comandos en el cuerpo de un correo («ClickFix»)**: un `powershell -enc …` o un `irm … | iex` en el texto se marca como Crítico (T1059.001, T1204.004) y se muestra decodificado.
 - **Verificar el remitente en DNS** (`backend/senderreview.py`, `backend/spfeval.py`): botón opcional en cada correo. Usa el selector DKIM de la propia firma y la IP que registró el servidor receptor; evalúa SPF de verdad contra el DNS actual (ip4, ip6, a, mx, include, redirect, límite de 10 consultas); comprueba que exista la clave de la firma y su tamaño; y compara todo con lo que dicen las cabeceras. Incluido en el PDF de phishing. Solo salen nombres de dominio.
 - «Evaluar dominio» ahora busca primero el selector DKIM del propio correo; el análisis de SPF entiende `mx/24` y `a/28`.
 
-### Añadido (punto 2: consultas y fuentes)
+### Añadido: consultas y fuentes
 - **Consultas para el SIEM** (`backend/siemqueries.py`): cada hallazgo de Windows con equivalente directo muestra la consulta de Splunk (SPL), la de Microsoft Sentinel/Defender (KQL) y la regla Sigma, con IP, cuenta, equipo y ventana (±30 min) ya rellenos y botón de copiar. Endpoint `GET /api/sessions/{id}/findings/{fid}/queries` y descarga de todas las reglas Sigma de la sesión (`/sigma.yml`, botón en Hallazgos). Los valores de los logs se escapan para que no puedan salirse de las comillas de la consulta.
 - **Lectura de `auth.log` / `secure` de Linux** (`backend/syslog.py`): se sube el archivo tal cual (fecha clásica o ISO; el año se infiere y nunca queda en el futuro). Se interpretan sshd (contraseña/clave aceptada o fallida) y sudo (fallos y comandos); el resto se ignora y se avisa cuántas líneas. Ejemplo en `sample_data/auth_log_ejemplo.txt`. La validación con SSH real ahora usa este mismo lector (sigue 11 de 11 IPs, 0 falsos positivos).
 - **Kerberoasting** (evento 4769, T1558.003): una cuenta que pide tickets RC4 (0x17) para 3 o más servicios de usuario en 10 minutos. Excluye cuentas de máquina y krbtgt. En OTRF dispara en 1 dataset (el de Kerberoasting) y en ninguno de los otros 106: misma técnica 19 → 20.
 - Pass-the-hash queda sin regla a propósito (ver docs/VALIDACION.md).
 
-### Cambiado (calibración, punto 1b)
+### Cambiado: calibración
 - **Menos ruido:** un `ipconfig`, `whoami` o `tasklist` suelto ya no genera «Comandos de reconocimiento» (se necesitan ≥3 en el mismo grupo o un origen externo; la enumeración de dominio como `net user` o `nltest` sigue alertando sola); la compresión de datos aislada (`7z a x.7z`) se descarta salvo origen externo, ruta temporal/ProgramData, contraseña, ≥3 comandos o conexión saliente posterior; las tareas de Windows creadas por SYSTEM (`\Microsoft\Windows\…`) ya no se reportan como persistencia.
 - Volcado de credenciales: ahora detecta `reg.exe" save HKLM\sam` entre comillas, `esentutl` sobre SAM/NTDS, `ntds.dit`, Dumpert, NanoDump, lsadump y secretsdump. La regla de compresión ya no confunde un `curl` a un archivo `.tar.gz` con un archivado.
 
-### Añadido (calibración, punto 1b)
+### Añadido: calibración
 - **Tres reglas nuevas para Windows/Sysmon:** acceso a la memoria de LSASS por procesos no habituales (Sysmon 10, T1003.001), DCSync (4662 con derechos de replicación de una cuenta que no es de máquina, T1003.006) y persistencia en claves Run/RunOnce (Sysmon 13, T1547.001), con guía de respuesta.
 - Resultado medido sobre los mismos 107 datasets de OTRF: misma técnica **13 → 19**, misma táctica 2 → 3, «otra técnica» 39 → 27 (por menos ruido). Los 5 falsos positivos conocidos pasan a pruebas normales; se agregan pruebas de que la calibración no apaga la detección real.
 

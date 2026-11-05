@@ -8,6 +8,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ### Añadido
 - README: capturas nuevas del recorrido, el puntaje explicado y los dominios parecidos; se actualizaron las de la carga, los resultados y la ayuda de phishing.
+- README: sección «Demostración» con GIF del análisis de logs, el análisis de phishing, la evaluación de dominios, los dominios parecidos y los informes PDF.
 - **Cabeceras pegadas** como alternativa al `.eml`: se pega el origen del mensaje (se quita el resumen que antepone Gmail) y se analizan remitente, autenticación y recorrido; sin cuerpo no se evalúan enlaces ni adjuntos, y se avisa.
 - **Recorrido del correo** (`Received`): línea de tiempo del origen al destino con hora UTC, TLS y retraso entre saltos; señales de bajo peso por horas fuera de orden, retrasos largos, fecha que no coincide y recorridos inusualmente largos. Nuevo ejemplo `sample_data/correos/11_recorrido_anomalo.eml`.
 - **Puntaje con factores visibles**: desglose por categoría, tope y señal, con los umbrales de criticidad, en la interfaz y en el PDF.

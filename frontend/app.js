@@ -164,9 +164,8 @@ function adopt(res) {
   S.a = res.analysis; S.ai = res.ai; if (res.ai_configured !== undefined) S.aiConfigured = res.ai_configured;
   S.logs = { page: 1, q: "", severity: "", flagged: "", host: "", user: "", event_id: "", finding: "" };
   S.findingFilter = "Todos"; S.findingCat = ""; S.findingQ = "";
-  S.intel = null; S.intelConfirm = false; S.intelReserved = false; clearInterval(S.intelTimer);   // S.ph (correos) se conserva: es independiente
+  S.intel = null; S.intelConfirm = false; S.intelReserved = false; clearInterval(S.intelTimer);   // S.ph (correos) es un análisis aparte: no se mezcla con el de logs
   store.set("sid", S.sid);
-  if (S.ph) api(`/api/sessions/${S.sid}/phishing`, { method: "POST", body: (() => { const f = new FormData(); f.append("pid", S.ph.pid); return f; })() }).catch(() => {});   // los correos ya analizados pasan al PDF
 }
 async function upload(file, client, analyst) {
   busy(true, "Analizando eventos…");
@@ -190,16 +189,16 @@ async function useSample(client, analyst) {
 function showLandingError(m) { const b = $("#lerr"); if (b) { b.textContent = m; b.hidden = false; } else toast(m); }
 
 /* ---------- navegación ---------- */
-const ROUTES = [["dashboard", "Panel"], ["incidents", "Incidentes"], ["findings", "Hallazgos"], ["attack", "ATT&CK"], ["logs", "Eventos"], ["iocs", "Indicadores (IoC)"], ["phishing", "Phishing"], ["report", "Informe"]];
+const ROUTES = [["dashboard", "Panel"], ["incidents", "Incidentes"], ["findings", "Hallazgos"], ["attack", "ATT&CK"], ["logs", "Eventos"], ["iocs", "Indicadores (IoC)"], ["report", "Informe"]];
 function route() { return (location.hash.replace(/^#\/?/, "") || "").split("?")[0]; }
 
 function renderRail() {
   const nav = $("#nav"), foot = $("#railFoot");
-  if (!S.a) {   // sin análisis de logs abierto: dos entradas, logs y phishing
+  if (!S.a) {   // sin análisis de logs abierto: dos entradas, logs y phishing (son análisis independientes)
     nav.innerHTML = [["", "Análisis de logs"], ["phishing", "Phishing"]].map(([k, l]) => `<a href="#/${k}" ${route() === k ? 'aria-current="page"' : ""}><span>${l}</span></a>`).join("");
     foot.innerHTML = ""; return;
   }
-  const cnt = { incidents: S.a.incidents.length, findings: S.a.findings.length, iocs: S.a.iocs.length, logs: S.a.profile.rows, phishing: S.ph ? S.ph.items.length : undefined };
+  const cnt = { incidents: S.a.incidents.length, findings: S.a.findings.length, iocs: S.a.iocs.length, logs: S.a.profile.rows };
   nav.innerHTML = ROUTES.map(([k, l], i) =>
     `<a href="#/${k}" ${route() === k ? 'aria-current="page"' : ""}><span class="n">${i + 1}</span><span>${l}</span>${cnt[k] !== undefined ? `<span class="count">${num(cnt[k])}</span>` : ""}</a>`).join("");
   const cur = nav.querySelector("[aria-current=page]"); if (cur) nav.scrollLeft = Math.max(0, cur.offsetLeft - 24);   // narrow screens: keep the open section visible
@@ -234,7 +233,8 @@ function render() {
   const main = $("#main");
   const r = route();
   if (S.needAuth) { $("#nav").innerHTML = ""; $("#railFoot").innerHTML = ""; main.innerHTML = `<div class="view">${accessView()}</div>`; bindAccess(); return; }
-  if (r === "phishing") { renderRail(); main.innerHTML = `<div class="view">${phishingView()}</div>`; bindPhishing(); if (!S.keepScroll) window.scrollTo(0, 0); S.keepScroll = false; return; }
+  if (r === "phishing" && S.a) { location.replace("#/dashboard"); return; }   // con un análisis de logs abierto no hay pestaña Phishing
+  if (r === "phishing" && !S.a) { renderRail(); main.innerHTML = `<div class="view">${phishingView()}</div>`; bindPhishing(); if (!S.keepScroll) window.scrollTo(0, 0); S.keepScroll = false; return; }
   if (!S.a) { renderRail(); main.innerHTML = `<div class="view">${landing()}</div>`; bindLanding(); bindHero(); return; }
   renderRail();
   const views = { dashboard, incidents, findings, attack, logs, iocs, report };
@@ -738,7 +738,6 @@ function phishingUpload() {
       <button class="btn primary" id="pgo" disabled>Analizar correos</button>
       <button class="btn" id="psample" type="button">Probar con correos de ejemplo</button>
     </div>
-    ${S.sid ? `<p class="muted">Los correos analizados se agregarán al informe PDF del análisis de logs que tienes abierto.</p>` : ""}
     <div class="err" id="perr" role="alert" hidden></div>
     <ul class="checks"><li>Remitente, Reply-To y suplantación</li><li>Homógrafos: letras que se ven iguales y no lo son</li><li>SPF, DKIM y DMARC</li><li>Enlaces engañosos y dominios parecidos</li><li>Adjuntos peligrosos, macros y hash</li></ul>
   </section>`;
@@ -819,7 +818,7 @@ function phishingResults() {
     <div class="panel" style="margin-top:16px"><h3>Informe en PDF</h3>
       <div class="fields"><label class="f">Cliente<input type="text" id="pClient" value="${esc(S.client)}"></label><label class="f">Analista<input type="text" id="pAnalyst" value="${esc(S.analyst)}"></label></div>
       <div class="row" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" id="ppdf">Descargar informe de phishing</button></div>
-      ${S.sid ? `<p class="muted" style="margin-top:8px">Estos correos también se incluyen como sección 9 en el informe del análisis de logs.</p>` : ""}</div>`;
+</div>`;
 }
 function phishingView() { return S.ph ? phishingResults() : phishingUpload(); }
 function adoptPhishing(res) {
@@ -829,7 +828,7 @@ function adoptPhishing(res) {
 async function sendEml(files, sample) {
   busy(true, "Analizando correos…");
   try {
-    const fd = new FormData(); if (S.sid) fd.append("sid", S.sid);
+    const fd = new FormData();
     if (!sample) { files.forEach((f) => fd.append("files", f)); fd.append("expected", ($("#pexp") || {}).value || ""); }
     adoptPhishing(await api(sample ? "/api/phishing/sample" : "/api/phishing", { method: "POST", body: fd }));
     render();

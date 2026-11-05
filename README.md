@@ -356,6 +356,8 @@ Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones
 
 - Las claves (Anthropic, VirusTotal, AbuseIPDB) viven en `.env` (excluido de Git) o se pegan en la interfaz; nunca se guardan, se registran ni se devuelven al navegador.
 
+- **Inyección de prompts (capa de IA):** los logs se envían al modelo como datos no confiables y se escapan `<` y `>` para que un valor no pueda cerrar el bloque de datos ni imitar una instrucción. Aunque un modelo obedeciera una instrucción escondida en un log, no puede cambiar la criticidad (la decide el motor de reglas), sus IP y `Log_ID` inventados se descartan y su texto se escapa en pantalla y en el PDF. Lo comprueban `tests/integration/test_prompt_injection.py` y las pruebas de navegador.
+
 - Todo dato del archivo se escapa antes de mostrarse y antes de entrar al PDF. La interfaz aplica una CSP estricta (`script-src 'self'`); los estilos en línea están permitidos porque la interfaz los usa, un riesgo aceptado que no permite ejecutar scripts.
 
 - Límites: 25 MB de subida (lectura acotada), 300 MB descomprimidos, 100.000 filas y límite de peticiones por IP.
@@ -372,7 +374,7 @@ Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones
 
 - Docker: imagen multi-stage con dependencias verificadas por hash, usuario sin privilegios, sistema de archivos de solo lectura, sin capacidades (`cap_drop: ALL`) y `no-new-privileges`.
 
-- Integración continua: pruebas con cobertura mínima, `bandit`, `pip-audit` y Trivy sobre la imagen.
+- Integración continua: pruebas con cobertura mínima, pruebas de navegador (Playwright), `bandit`, `pip-audit` y Trivy sobre la imagen.
 
 - Alcance, límites y cómo reportar una vulnerabilidad: [SECURITY.md](SECURITY.md).
 
@@ -390,7 +392,7 @@ Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones
 
 ```
 backend/      parser, reglas de detección, correlación, análisis de correos (.eml) y de homógrafos, captcha local, IA, reputación (VirusTotal/AbuseIPDB), MITRE ATT&CK, informe PDF y API (FastAPI)
-scripts/      build_attack_data.py regenera backend/data/ desde los datos oficiales de MITRE; build_captcha_assets.py regenera las figuras del captcha; validar_datasets.py mide las reglas con datasets públicos; validar_correos.py y validar_ofuscacion.py miden phishing y desofuscación con correos y comandos reales (uso de mantenimiento)
+scripts/      build_attack_data.py regenera backend/data/ desde los datos oficiales de MITRE; build_captcha_assets.py regenera las figuras del captcha; validar_datasets.py mide las reglas con datasets públicos; validar_correos.py y validar_ofuscacion.py miden phishing y desofuscación con correos y comandos reales; generar_informe_ejemplo.py regenera el PDF de ejemplo cuidando las llamadas de pago a la IA (simulacro por defecto, caché en disco y confirmación; uso de mantenimiento)
 docs/         VALIDACION.md: método y resultados de la validación de las reglas
 frontend/     interfaz web sin build (HTML, CSS y JS; fuentes IBM Plex locales)
 sample_data/  exports de ejemplo (Windows en Excel/CSV/NDJSON, multi-fuente en JSON, SIEM de 500 eventos y un auth.log de Linux) y correos .eml de ejemplo

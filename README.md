@@ -243,6 +243,7 @@ En la pestaña **Phishing** (disponible desde el inicio, sin cargar logs) sube u
 - **Ataques homógrafos.** Detecta direcciones y dominios que se ven iguales a otros pero no lo son: la «a» cirílica (U+0430) en lugar de la «a» latina (U+0061), la «I» mayúscula en lugar de la «l» minúscula (`banco.universaI@…` contra `banco.universal@…`), cifras por letras (`0`/`o`, `1`/`l`), `rn` por `m` y caracteres invisibles. Para cada remitente muestra el **desglose carácter por carácter** (código Unicode, nombre y alfabeto, con el carácter sospechoso resaltado), también en el PDF. Si escribes el **remitente esperado** al subir el correo, compara carácter por carácter y dice exactamente qué letra cambió. También compara el remitente con el Reply-To, el Return-Path, la dirección escrita en el nombre visible y el dominio del destinatario, y revisa los dominios de los enlaces (también los escritos en `xn--`). Los nombres con tilde (`josé@empresa.com`) o escritos por completo en otro alfabeto no alertan.
 
 - **Recorrido del correo.** Los saltos `Received` se ordenan del origen al destino, con hora UTC, protocolo/TLS y retraso entre servidores. Se marcan horas fuera de orden, retrasos de 6 h o más, una fecha que no encaja con el recorrido y recorridos inusualmente largos. Son señales de **bajo peso** (1 punto): el atacante puede inventar los `Received` que añade su servidor, y solo los de tu propia infraestructura son fiables.
+
 - **Puntaje con factores visibles.** «¿Cómo se calculó el puntaje?» muestra qué sumó cada señal, los topes por categoría (por ejemplo, Adjunto máx. 14) y los umbrales de criticidad. También va en el PDF.
 
 - **Evaluar dominio (SPF/DKIM/DMARC).** Pestaña **Evaluar dominio**: lee los registros DNS públicos y da una nota de A a F con descuentos fijos y visibles (sin SPF −35, `+all` −35, DMARC ausente −40, `p=none` −25, más de 10 consultas DNS en SPF −25, claves DKIM de menos de 2048 bits…) y cómo corregir cada falla. DKIM solo se busca con los selectores más comunes: no encontrarlo no prueba que no exista.
@@ -309,11 +310,17 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 - `tests/integration/test_prompt_injection.py`: logs con instrucciones inyectadas y un modelo simulado que las obedece; comprueba que la criticidad sigue siendo la del motor, que lo inventado se descarta y que el PDF no genera enlaces activos.
 
 - `tests/unit/test_negativos.py`: 35 casos de actividad normal (30 sin ruido y 5 falsos positivos medidos y ya calibrados) que no deben alertar, cerca de los umbrales de cada regla, más pruebas de que la calibración no apaga la detección real.
+
 - `tests/unit/test_evasion_defensas.py`: programas de confianza (mshta, cmstp, InstallUtil…), registro de eventos y auditoría, firewall, servicios y script de inicio de sesión, con comandos de ataque tomados de OTRF y el uso normal de esos mismos programas, que no debe alertar.
+
 - `tests/unit/test_reglas_credenciales.py`: acceso a LSASS (Sysmon 10), DCSync (4662), claves Run (Sysmon 13) y Kerberoasting (4769), con casos de ataque y de actividad normal.
+
 - `tests/unit/test_casos_reales.py`: casos tomados de correos y comandos públicos reales (el fallo de las plantillas sin rellenar, marcas cripto, caracteres invisibles, estafas sin enlaces, ofuscación con `-f`), con los casos normales que no deben alertar.
+
 - `tests/unit/test_ofuscacion.py`: ofuscación de URLs (IP numérica, `%XX`), comandos (`^`, acentos graves, `+`, `[char]`) y HTML (smuggling, `atob`, `meta refresh`, texto oculto), con sus casos normales que no deben alertar.
+
 - `tests/unit/test_psdecode.py`: decodificación de `-EncodedCommand` (todas las grafías de la opción, una capa de compresión, bomba de descompresión, correos con ClickFix). `tests/unit/test_spf_remitente.py`: evaluación de SPF (mecanismos, prefijos, límite de 10 consultas, bucles) y verificación del remitente con DNS simulado.
+
 - `tests/unit/test_siemqueries.py`: consultas Splunk/KQL y Sigma (YAML válido, entidades y ventana, y valores hostiles que no pueden escapar de las comillas). `tests/unit/test_syslog.py`: lectura de `auth.log` (fechas clásicas e ISO, año inferido, sudo, errores claros).
 
 ## Validación de las reglas
@@ -321,8 +328,11 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 Además de las pruebas con escenarios de ataque, las reglas se midieron con datos que no escribí yo. Resultados (detalle, método y límites en [docs/VALIDACION.md](docs/VALIDACION.md)):
 
 - **SSH real (Loghub):** subiendo el `auth.log` tal cual, de 11 IPs que atacaron con fuerza bruta la app detectó las 11, sin falsos positivos.
+
 - **107 ataques de Windows (OTRF Security-Datasets):** la técnica correcta en 41 (con 1.5.0: 20; antes de calibrar: 13), hallazgos de otra técnica en 26 y ninguno en 37. La cobertura es limitada y está documentada, con los huecos que quedan (movimiento lateral por red, credenciales en memoria, inyección de procesos) y por qué no se cubren.
+
 - **Phishing real (12.864 correos de phishing_pot):** 87,7 % con criticidad Medio o más y 64,9 % Alto o más; comprobado con 11.364 correos no usados para ajustar (87,6 % y 64,8 %). **Correo legítimo:** con 20 correos reales (boletines, LinkedIn, GitHub, cursos) los falsos positivos pasaron de 14 a 0 tras calibrar, a costa de detectar menos spam comercial; es una muestra pequeña y el detalle, con sus límites, está en `docs/VALIDACION.md`.
+
 - **Tráfico normal:** 35 casos de actividad corriente sin hallazgos; los 5 falsos positivos que se midieron primero (por ejemplo, un solo `ipconfig`) se calibraron y el antes y el después están documentados.
 
 Se pueden repetir con `scripts/validar_datasets.py`.

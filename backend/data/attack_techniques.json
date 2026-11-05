@@ -14,6 +14,10 @@
    "id": "TA0006",
    "name": "Credential Access"
   },
+  "defense-impairment": {
+   "id": "TA0112",
+   "name": "Defense Impairment"
+  },
   "discovery": {
    "id": "TA0007",
    "name": "Discovery"
@@ -161,6 +165,14 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1036/008/"
   },
+  "T1037.001": {
+   "name": "Logon Script (Windows)",
+   "tactics": [
+    "persistence",
+    "privilege-escalation"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1037/001/"
+  },
   "T1039": {
    "name": "Data from Network Shared Drive",
    "tactics": [
@@ -304,6 +316,14 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1110/003/"
   },
+  "T1112": {
+   "name": "Modify Registry",
+   "tactics": [
+    "defense-impairment",
+    "persistence"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1112/"
+  },
   "T1134": {
    "name": "Access Token Manipulation",
    "tactics": [
@@ -353,6 +373,55 @@
     "execution"
    ],
    "url": "https://attack.mitre.org/techniques/T1204/004/"
+  },
+  "T1218": {
+   "name": "System Binary Proxy Execution",
+   "tactics": [
+    "stealth"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1218/"
+  },
+  "T1218.001": {
+   "name": "Compiled HTML File",
+   "tactics": [
+    "stealth"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1218/001/"
+  },
+  "T1218.002": {
+   "name": "Control Panel",
+   "tactics": [
+    "stealth"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1218/002/"
+  },
+  "T1218.003": {
+   "name": "CMSTP",
+   "tactics": [
+    "stealth"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1218/003/"
+  },
+  "T1218.004": {
+   "name": "InstallUtil",
+   "tactics": [
+    "stealth"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1218/004/"
+  },
+  "T1218.005": {
+   "name": "Mshta",
+   "tactics": [
+    "stealth"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1218/005/"
+  },
+  "T1220": {
+   "name": "XSL Script Processing",
+   "tactics": [
+    "stealth"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1220/"
   },
   "T1486": {
    "name": "Data Encrypted for Impact",
@@ -460,6 +529,27 @@
     "stealth"
    ],
    "url": "https://attack.mitre.org/techniques/T1684/001/"
+  },
+  "T1685.001": {
+   "name": "Disable or Modify Windows Event Log",
+   "tactics": [
+    "defense-impairment"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1685/001/"
+  },
+  "T1685.005": {
+   "name": "Clear Windows Event Logs",
+   "tactics": [
+    "defense-impairment"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1685/005/"
+  },
+  "T1686": {
+   "name": "Disable or Modify System Firewall",
+   "tactics": [
+    "defense-impairment"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1686/"
   }
  }
 }

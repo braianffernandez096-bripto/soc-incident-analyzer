@@ -112,6 +112,51 @@ PLAYBOOK: dict[str, dict] = {
         "contain": ["Eliminar el valor de la clave Run y aislar {host} si el binario es malicioso."],
         "remediate": ["Restringir la escritura en las claves Run con AppLocker/WDAC y monitorizar Sysmon 13 sobre ellas."],
     },
+    "cmd_lolbin_proxy": {
+        "impact": "Alguien ejecutó código en {host} a través de un programa firmado de Windows (mshta, cmstp, rundll32, InstallUtil…) para evitar lanzar un ejecutable propio y esquivar las listas de aplicaciones permitidas.",
+        "investigate": [
+            "Revisar el archivo o la dirección que recibió el programa (.hta, .inf, .cpl, .dll, URL) y qué proceso hijo lanzó en {host}.",
+            "Buscar conexiones de red de ese proceso y otras ejecuciones del mismo programa por {user} u otras cuentas.",
+        ],
+        "contain": ["Aislar {host} si el archivo es desconocido o proviene de Internet.", "Bloquear la dirección remota en el proxy y deshabilitar temporalmente la cuenta {user}."],
+        "remediate": ["Bloquear mshta, cmstp y hh con WDAC/AppLocker en equipos que no los necesiten.", "Alertar la ejecución de estos programas con argumentos de ruta de usuario o URL."],
+    },
+    "cmd_log_tamper": {
+        "impact": "En {host} se apagó o alteró el registro de eventos o la auditoría: lo que ocurra después puede no quedar registrado y el atacante puede estar ocultando su actividad.",
+        "investigate": [
+            "Determinar qué cambió exactamente (servicio de registro, política de auditoría, ruta del log) y quién lo hizo con {user}.",
+            "Reconstruir lo que pasó en {host} antes del cambio y con otras fuentes (EDR, SIEM, red), porque después puede faltar evidencia.",
+        ],
+        "contain": ["Aislar {host} y deshabilitar la cuenta {user} mientras se confirma si el cambio fue autorizado.", "Restaurar la configuración de auditoría y reenviar los logs fuera del equipo."],
+        "remediate": ["Enviar los logs a un colector central en tiempo real para que borrarlos en el equipo no borre la evidencia.", "Alertar cambios de la política de auditoría (4719), borrado de logs (1102, 104) y el servicio EventLog detenido."],
+    },
+    "cmd_fw_change": {
+        "impact": "En {host} se abrió un puerto o se desactivó el firewall: pudo abrirse una vía de entrada para el control remoto o el movimiento lateral.",
+        "investigate": ["Confirmar con el responsable de {host} si la regla era esperada y qué programa o puerto permite.", "Revisar qué hizo {user} antes y después y si hubo conexiones entrantes a ese puerto."],
+        "contain": ["Eliminar la regla si no está justificada y limitar el acceso entrante a {host}."],
+        "remediate": ["Administrar las reglas del firewall por directiva de grupo y alertar los cambios locales fuera de ventana de mantenimiento."],
+    },
+    "cmd_service_binpath": {
+        "impact": "Se creó o cambió el programa que ejecuta un servicio en {host}: un servicio corre con privilegios altos en cada arranque, por lo que sirve para persistir o escalar privilegios.",
+        "investigate": ["Revisar el ejecutable configurado (ruta, hash, firma) y el nombre del servicio; comparar con el original.", "Verificar si {user} tiene motivo para administrar servicios en {host}."],
+        "contain": ["Detener el servicio y restaurar su ruta original si el cambio no está autorizado.", "Aislar {host} si el ejecutable es desconocido."],
+        "remediate": ["Restringir quién puede crear o modificar servicios y alertar 7045 y 4697 junto con sc config/create."],
+    },
+    "cmd_logon_script": {
+        "impact": "Se configuró un programa que se ejecutará en cada inicio de sesión del usuario en {host}: el atacante conserva acceso sin usar las ubicaciones de inicio habituales.",
+        "investigate": ["Revisar el programa o script referenciado y quién escribió el valor en la clave Environment del usuario {user}.", "Buscar la misma clave en otros equipos y perfiles."],
+        "contain": ["Eliminar el valor UserInitMprLogonScript y aislar {host} si el programa es malicioso."],
+        "remediate": ["Monitorizar escrituras en HKCU\\Environment (Sysmon 13) y restringir la ejecución desde rutas de usuario con AppLocker/WDAC."],
+    },
+    "defense_registry": {
+        "impact": "En {host} se deshabilitó el servicio de registro de eventos o el registro de la línea de comandos: desde ese momento hay menos rastro de lo que haga el atacante.",
+        "investigate": [
+            "Identificar el programa que escribió el valor y su origen (ruta, hash, proceso padre) en {host}.",
+            "Reconstruir la actividad anterior al cambio con otras fuentes, porque el equipo pudo dejar de registrar.",
+        ],
+        "contain": ["Aislar {host} y restaurar el servicio EventLog y la auditoría de línea de comandos.", "Revisar el origen del programa que hizo el cambio."],
+        "remediate": ["Enviar los logs a un colector central y alertar cambios en Services\\EventLog\\Start y en ProcessCreationIncludeCmdLine_Enabled (Sysmon 13)."],
+    },
     "cmd_download_cradle": {
         "impact": "Descarga de código externo para ejecutarlo en {host}.",
         "investigate": ["Identificar la URL/archivo descargado y su ejecución posterior."],
@@ -228,6 +273,8 @@ GENERAL_RECOMMENDATIONS = {
     "exfil_proxy": "Implementar DLP y filtrado de salida (egress) con alertas por volumen de subida y destinos nuevos.",
     "persistence": "Monitorear 4698/7045, restringir la creación de servicios/tareas y bloquear la ejecución desde ProgramData/Temp.",
     "web_attack": "Proteger las aplicaciones expuestas con WAF, impedir ejecución en directorios de subida y ejecutar los pools con mínimo privilegio.",
+    "cmd_log_tamper": "Enviar los registros a un colector central en tiempo real y alertar el borrado de logs, los cambios de auditoría y el servicio EventLog detenido.",
+    "cmd_lolbin_proxy": "Restringir con WDAC/AppLocker los programas de Windows que permiten ejecutar scripts o archivos remotos (mshta, cmstp, hh) donde no se necesiten.",
     "cmd_anti_recovery": "Mantener backups offline e inmutables, probar la restauración y alertar de inmediato cualquier uso de vssadmin/wbadmin delete.",
     "siem_underclass": "Revisar la severidad y las reglas de correlación del SIEM: varios eventos que sustentan incidentes quedaron como Informational.",
     "dq_host_alias": "Normalizar nombres de host y fuentes de log en el pipeline del SIEM para no fragmentar correlaciones.",

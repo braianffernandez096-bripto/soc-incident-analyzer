@@ -58,6 +58,11 @@ def read_metadata(root: Path) -> dict[str, dict]:
     return out
 
 
+# ATT&CK v20 reemplazó estas técnicas (relación «revoked-by» de los datos oficiales). Los metadatos de OTRF usan los IDs anteriores;
+# se traducen para compararlos con los IDs vigentes que cita la app.
+RENOMBRADAS = {"T1562.002": "T1685.001", "T1562.004": "T1686"}
+
+
 def parent(t: str) -> str:
     return t.split(".")[0]
 
@@ -66,7 +71,7 @@ def classify(expected: list[str], tactics: list[str], findings: list[dict]) -> s
     if not findings:
         return "ninguno"
     cited = {parent(t) for f in findings for t in f["mitre"]}
-    if any(parent(t) in cited for t in expected):
+    if any(parent(RENOMBRADAS.get(t, t)) in cited for t in expected):
         return "tecnica"
     names = {TACTICS.get(t, t) for t in tactics}
     if any(f["tactic"] in names for f in findings):

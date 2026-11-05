@@ -4,8 +4,8 @@ Este documento mide qué tan bien detectan las reglas y cuánto ruido generan, c
 reproducibles de este repositorio: `tests/unit/test_negativos.py` y `scripts/validar_datasets.py`.
 
 Resumen honesto: las reglas **funcionan bien contra los ataques para los que fueron diseñadas** (fuerza bruta, descarga de código, volcado de
-credenciales, acceso a LSASS, DCSync, tareas programadas y claves Run), **no cubren muchas técnicas** (sobre todo evasión de defensas y
-movimiento lateral) y mantienen unas pocas decisiones de diseño que generan alertas con actividad legítima (sección 3). La versión 1.5.0
+credenciales, acceso a LSASS, DCSync, tareas programadas, claves Run, binarios de confianza y apagado del registro de eventos), **no cubren muchas técnicas**
+(sobre todo movimiento lateral por red y credenciales en memoria) y mantienen unas pocas decisiones de diseño que generan alertas con actividad legítima (sección 3). La versión 1.5.0
 calibró los 5 falsos positivos que midió la primera versión de este documento y cubrió los huecos de credenciales; el antes y el después
 están en la sección 2.1.
 
@@ -16,8 +16,8 @@ separado** qué IPs hicieron 3 o más fallos con huecos de hasta 10 minutos, par
 
 | Medida | Resultado |
 |---|---|
-| Eventos de autenticación | 518 (517 fallos, 1 acceso) |
-| IPs distintas con fallos | 23 |
+| Eventos de autenticación | 522 (521 fallos, 1 acceso) |
+| IPs distintas con fallos | 24 |
 | IPs con ráfaga real (≥3 fallos) | 11 |
 | Detectadas por la app | **11 de 11** |
 | Falsos positivos / omitidas | **0 / 0** |
@@ -37,24 +37,24 @@ uno declara su técnica en un metadato. Se comparó con las técnicas que cita l
 
 | Resultado | Datasets | % |
 |---|---|---|
-| Misma técnica | 20 | 19 % |
+| Misma técnica | 41 | 38 % |
 | Misma táctica | 3 | 3 % |
-| Otra técnica | 27 | 25 % |
-| Sin hallazgos | 57 | 53 % |
+| Otra técnica | 26 | 24 % |
+| Sin hallazgos | 37 | 35 % |
 
-(Resultados con la versión 1.5.0. Antes de la calibración: 13 / 2 / 39 / 53; ver sección 2.1.)
+(Resultados con las reglas de evasión de defensas, posteriores a 1.5.0. Con 1.5.0: 20 / 3 / 27 / 57; antes de la calibración: 13 / 2 / 39 / 53; ver sección 2.1.)
 
 Por táctica del dataset:
 
 | Táctica | Datasets | Técnica | Táctica | Otros | Ninguno |
 |---|---|---|---|---|---|
-| Evasión de defensas | 37 | 0 | 0 | 11 | 26 |
-| Movimiento lateral | 26 | 1 | 2 | 10 | 13 |
+| Evasión de defensas | 37 | 19 | 0 | 9 | 9 |
+| Movimiento lateral | 26 | 2 | 2 | 10 | 12 |
 | Acceso a credenciales | 21 | 9 | 0 | 4 | 8 |
 | Descubrimiento | 9 | 4 | 0 | 0 | 5 |
-| Persistencia | 7 | 4 | 1 | 1 | 1 |
-| Ejecución | 4 | 1 | 0 | 0 | 3 |
-| Escalamiento de privilegios | 2 | 0 | 0 | 1 | 1 |
+| Persistencia | 7 | 5 | 1 | 1 | 0 |
+| Ejecución | 4 | 1 | 0 | 1 | 2 |
+| Escalamiento de privilegios | 2 | 1 | 0 | 1 | 0 |
 | Recolección | 1 | 0 | 0 | 0 | 1 |
 
 **Cómo leerlo.** Es una medida **estricta y de cobertura**, no de corrección: muchos datasets ejercitan técnicas que la app no pretende cubrir
@@ -69,9 +69,31 @@ genuina pero distinta (por ejemplo, un servicio nuevo detectado como persistenci
 | Pass-the-ticket / AS-REP roasting (4768) | Sin reglas |
 | Modificación de tareas programadas | Solo se detecta la creación (4698), no el cambio |
 | Suscripciones WMI persistentes | Se reporta como persistencia (misma táctica), pero no la técnica T1546.003 |
-| Evasión de defensas | 26 de 37 sin hallazgos |
+| Movimiento lateral por red | 12 de 26 sin hallazgos. Los datasets de DCERPC/SMB/WMI de Covenant solo dejan conexiones de red y claves del registro del sistema, sin comando visible: una regla ahí daría ruido y no detectaría el ataque |
+| Credenciales en memoria (Mimikatz, Rubeus, PowerDump) | 8 de 21 sin hallazgos. Los accesos a LSASS de esos datasets son solo de procesos legítimos (`svchost`, `vboxservice`) |
+| Inyección de procesos y otros binarios de confianza | Sin regla: en esos datasets (`purplesharp`, `mavinject`, `CreateRemoteThread`) no se encontró una línea de comandos ni un evento que los distinga del ruido normal |
 
-### 2.1 Antes y después de la calibración (1.5.0)
+### 2.1 Antes y después
+
+#### Reglas de evasión de defensas (posteriores a 1.5.0)
+
+Mismos 107 datasets, mismo script (con la traducción de identificadores renombrados en ATT&CK v20):
+
+| Resultado | Con 1.5.0 | Ahora |
+|---|---|---|
+| Misma técnica | 20 | **41** |
+| Misma táctica | 3 | 3 |
+| Otra técnica | 27 | 26 |
+| Sin hallazgos | 57 | 37 |
+
+Qué cambió y por qué:
+
+- **+21 técnicas correctas**, todas de comandos y registros presentes en los propios datasets: `mshta`, `cmstp`, `hh`, `control`/`rundll32` con `.cpl`, InstallUtil, Register-CimProvider y `wmic` con XSL remoto (T1218.x, T1220); `wevtutil`, `auditpol`, `sc config eventlog` y el apagado de la línea de comandos (T1685.001); `netsh advfirewall` (T1686); `sc config … binPath=` (T1543.003); `UserInitMprLogonScript` (T1037.001); y, por el registro (Sysmon 13), el servicio de registro de eventos deshabilitado y la auditoría de línea de comandos apagada.
+- **Falsos positivos nuevos: ninguno medido.** Los hallazgos nuevos aparecen solo en datasets de su propia técnica (más el caso que sigue) y no cambian el resultado de los logs de ejemplo. Un dataset de Python pasó de «sin hallazgos» a «otra técnica» porque abre una regla de firewall (`netsh … add rule … action=allow dir=in`): es una detección correcta, con criticidad Media.
+- **Qué se descartó a propósito**, con prueba negativa: `wevtutil sl` que solo cambia el tamaño, `auditpol /set … :enable`, `ProcessCreationIncludeCmdLine_Enabled = 1` (endurece), reglas de firewall de salida o de bloqueo, y `hh.exe` con ayuda de Windows.
+- **Límite:** `netsh advfirewall`, `sc config` y `auditpol` también los usa la administración legítima. Por eso el firewall y los servicios van en Medio (el servicio sube a Alto solo si apunta a un intérprete o a una ruta de usuario) y se pide validar quién y por qué.
+
+#### Calibración (1.5.0)
 
 Mismos 107 datasets, mismo script, mismo criterio:
 
@@ -174,17 +196,18 @@ Sigue sin resolverse todo lo que exige ejecutar código (ver sección 5).
 
 ## 4. Cobertura ATT&CK
 
-La app cita **56 técnicas** de ATT&CK en **31 reglas** (18 para exports de Windows y 13 para exports multi-fuente). No cubre la matriz
+La app cita **68 técnicas** de ATT&CK (versión 20.0) en **32 reglas** (19 para exports de Windows y 13 para exports multi-fuente). No cubre la matriz
 completa y no pretende hacerlo:
 
 | Táctica | Técnicas citadas | Cuáles |
 |---|---|---|
 | Reconocimiento | 1 | T1598.003 Spearphishing Link |
 | Acceso inicial | 6 | T1078 Valid Accounts; T1078.004 Cloud Accounts; T1190 Exploit Public-Facing Application; T1566 Phishing; T1566.001 Spearphishing Attachment; T1566.002 Spearphishing Link |
-| Ejecución | 6 | T1053.005 Scheduled Task; T1059 Command and Scripting Interpreter; T1059.001 PowerShell; T1059.007 JavaScript; T1204.001 Malicious Link; T1204.002 Malicious File |
-| Persistencia | 8 | T1053.005 Scheduled Task; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1098 Account Manipulation; T1098.004 SSH Authorized Keys; T1505.003 Web Shell; T1543.003 Windows Service; T1547.001 Registry Run Keys / Startup Folder |
-| Escalamiento de privilegios | 9 | T1053.005 Scheduled Task; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1098 Account Manipulation; T1098.004 SSH Authorized Keys; T1134 Access Token Manipulation; T1543.003 Windows Service; T1547.001 Registry Run Keys / Startup Folder; T1548.001 Setuid and Setgid |
-| Sigilo (evasión de defensas) | 13 | T1027 Obfuscated Files or Information; T1027.006 HTML Smuggling; T1027.010 Command Obfuscation; T1027.013 Encrypted/Encoded File; T1036 Masquerading; T1036.004 Masquerade Task or Service; T1036.007 Double File Extension; T1036.008 Masquerade File Type; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1134 Access Token Manipulation; T1140 Deobfuscate/Decode Files or Information; T1684.001 Impersonation |
+| Ejecución | 7 | T1053.005 Scheduled Task; T1059 Command and Scripting Interpreter; T1059.001 PowerShell; T1059.007 JavaScript; T1204.001 Malicious Link; T1204.002 Malicious File; T1204.004 Malicious Copy and Paste |
+| Persistencia | 10 | T1037.001 Logon Script (Windows); T1053.005 Scheduled Task; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1098 Account Manipulation; T1098.004 SSH Authorized Keys; T1112 Modify Registry; T1505.003 Web Shell; T1543.003 Windows Service; T1547.001 Registry Run Keys / Startup Folder |
+| Escalamiento de privilegios | 10 | T1037.001 Logon Script (Windows); T1053.005 Scheduled Task; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1098 Account Manipulation; T1098.004 SSH Authorized Keys; T1134 Access Token Manipulation; T1543.003 Windows Service; T1547.001 Registry Run Keys / Startup Folder; T1548.001 Setuid and Setgid |
+| Sigilo (evasión de defensas) | 20 | T1027 Obfuscated Files or Information; T1027.006 HTML Smuggling; T1027.010 Command Obfuscation; T1027.013 Encrypted/Encoded File; T1036 Masquerading; T1036.004 Masquerade Task or Service; T1036.007 Double File Extension; T1036.008 Masquerade File Type; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1134 Access Token Manipulation; T1140 Deobfuscate/Decode Files or Information; T1218 System Binary Proxy Execution; T1218.001 Compiled HTML File; T1218.002 Control Panel; T1218.003 CMSTP; T1218.004 InstallUtil; T1218.005 Mshta; T1220 XSL Script Processing; T1684.001 Impersonation |
+| Deterioro de defensas | 4 | T1112 Modify Registry; T1685.001 Disable or Modify Windows Event Log; T1685.005 Clear Windows Event Logs; T1686 Disable or Modify System Firewall |
 | Acceso a credenciales | 8 | T1003 OS Credential Dumping; T1003.001 LSASS Memory; T1003.006 DCSync; T1003.008 /etc/passwd and /etc/shadow; T1110 Brute Force; T1110.001 Password Guessing; T1110.003 Password Spraying; T1558.003 Kerberoasting |
 | Descubrimiento | 3 | T1069 Permission Groups Discovery; T1087 Account Discovery; T1135 Network Share Discovery |
 | Movimiento lateral | 2 | T1021.001 Remote Desktop Protocol; T1021.002 SMB/Windows Admin Shares |
@@ -193,8 +216,12 @@ completa y no pretende hacerlo:
 | Exfiltración | 1 | T1041 Exfiltration Over C2 Channel |
 | Impacto | 4 | T1486 Data Encrypted for Impact; T1490 Inhibit System Recovery; T1496 Resource Hijacking; T1496.001 Compute Hijacking |
 
-Sin cobertura (lista parcial): desarrollo de recursos, deterioro de defensas (T1562), gran parte de evasión de defensas (T1218 binarios de
-confianza, T1055 inyección de procesos) y de movimiento lateral (T1021 sobre WMI/DCOM/WinRM, T1550 pass-the-hash).
+Sin cobertura (lista parcial): desarrollo de recursos, inyección de procesos (T1055), otros binarios de confianza (T1218 más allá de mshta, cmstp, hh,
+rundll32 con `.cpl`, InstallUtil y Register-CimProvider) y gran parte del movimiento lateral (T1021 sobre WMI/DCOM/WinRM, T1550 pass-the-hash).
+
+**Nota sobre los identificadores.** ATT&CK v20 reorganizó la evasión de defensas y reemplazó varias técnicas: T1562.002 por T1685.001, T1562.004 por
+T1686 y T1070.001 por T1685.005. La app cita los identificadores vigentes; los datasets de OTRF usan los anteriores, y `scripts/validar_datasets.py`
+los traduce antes de comparar (tabla `RENOMBRADAS`).
 
 ## 5. Limitaciones de este método
 

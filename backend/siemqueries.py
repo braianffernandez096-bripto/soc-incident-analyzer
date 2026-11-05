@@ -89,7 +89,8 @@ LSASS_BENIGN = sorted(D.LSASS_BENIGN_SOURCES)
 RUN_RE = r"\\Microsoft\\Windows\\CurrentVersion\\Run(Once)?\\"
 CMD_KEYS = {"cmd_encoded_ps": "encoded_ps", "cmd_discovery": "discovery", "cmd_archive_staging": "archive_staging",
             "cmd_anti_recovery": "anti_recovery", "cmd_cred_dump": "cred_dump", "cmd_download_cradle": "download_cradle",
-            "cmd_web_service_shell": "web_service_shell"}
+            "cmd_web_service_shell": "web_service_shell", "cmd_lolbin_proxy": "lolbin_proxy", "cmd_log_tamper": "log_tamper",
+            "cmd_fw_change": "fw_change", "cmd_service_binpath": "service_binpath", "cmd_logon_script": "logon_script"}
 
 
 # --------------------------------------------------------------------------
@@ -248,6 +249,11 @@ def _sigma_specs() -> dict[str, dict]:
         "cmd_anti_recovery": ("Eliminación de copias de sombra", "critical", ["T1490"]),
         "cmd_cred_dump": ("Volcado de credenciales por línea de comandos", "critical", ["T1003"]),
         "cmd_download_cradle": ("Descarga y ejecución de código remoto", "high", ["T1105", "T1059.001"]),
+        "cmd_lolbin_proxy": ("Ejecución mediante un programa de confianza (mshta, cmstp, InstallUtil…)", "high", ["T1218", "T1220"]),
+        "cmd_log_tamper": ("Auditoría o registro de eventos desactivado o alterado", "high", ["T1685.001", "T1685.005"]),
+        "cmd_fw_change": ("Regla de firewall que abre el tráfico entrante o lo desactiva", "medium", ["T1686"]),
+        "cmd_service_binpath": ("Servicio creado o modificado desde la línea de comandos", "medium", ["T1543.003"]),
+        "cmd_logon_script": ("Script de inicio de sesión (UserInitMprLogonScript)", "high", ["T1037.001"]),
     }
     for rule, (title, level, mitre) in titles.items():
         pat = _cmd_regex(CMD_KEYS[rule])

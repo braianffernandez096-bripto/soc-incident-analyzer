@@ -4,6 +4,18 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+### Añadido: evasión de defensas y persistencia por línea de comandos
+- **Programas de confianza (LOLBins)** (`cmd_lolbin_proxy`, T1218.x y T1220): `mshta` con JavaScript, VBScript, URL o `.hta`; `cmstp /s … .inf`; `hh.exe` con un `.chm` de una ruta de usuario; `control.exe` o `rundll32` con un `.cpl` de ProgramData, Temp o del usuario; InstallUtil sobre un `.dll` o `.exe` de esas rutas; `Register-CimProvider -Path`; y `wmic … /format:` con una hoja XSL remota. El hallazgo cita la técnica concreta de cada uno.
+- **Auditoría o registro de eventos alterado** (`cmd_log_tamper`, T1685.001 y T1685.005): `wevtutil cl` o `set-log` que cambia la ruta o lo desactiva, `auditpol` que desactiva o borra, `sc config eventlog`, `Stop-Service EventLog`, `Clear-EventLog` y el apagado de la línea de comandos de los procesos (`ProcessCreationIncludeCmdLine_Enabled = 0`). El uso normal (`wevtutil sl … /ms:`, `auditpol /set … :enable`, activar la línea de comandos) no alerta.
+- **Registro de eventos desactivado en el registro de Windows** (`defense_registry`, Sysmon 13): `EventLog\Start = 4` y la línea de comandos apagada. Sube a Crítico si lo escribió un programa de una ruta de usuario.
+- **Firewall abierto o desactivado** (`cmd_fw_change`, T1686, Medio), **servicio creado o modificado** (`cmd_service_binpath`, T1543.003, Medio; sube a Alto si apunta a un intérprete o a una ruta de usuario) y **script de inicio de sesión** (`cmd_logon_script`, T1037.001, Alto). Todas con playbook, consulta Splunk/KQL y regla Sigma.
+- **Medido con datos externos:** de los 107 ataques de OTRF, «misma técnica» pasa de 20 a 41 y «sin hallazgos» de 57 a 37. Sin falsos positivos nuevos medidos: los logs de ejemplo dan lo mismo y las pruebas negativas con el uso normal de esos programas siguen en verde. Detalle y límites en `docs/VALIDACION.md`.
+
+### Cambiado
+- **ATT&CK v20:** 68 técnicas en 32 reglas. MITRE reemplazó T1562.002, T1562.004 y T1070.001 por T1685.001, T1686 y T1685.005; la app cita los vigentes y `scripts/validar_datasets.py` traduce los identificadores anteriores de OTRF antes de comparar.
+- Los títulos de comandos ya no muestran paréntesis vacíos cuando el log no trae usuario.
+- `docs/VALIDACION.md`: corregidas dos cifras desactualizadas (Loghub: 522 eventos y 24 IP; la tabla de ATT&CK ya no omite T1204.004) y documentado qué huecos se descartan a propósito (movimiento lateral por red, credenciales en memoria, inyección de procesos).
+
 ## [1.5.0] - 2026-11-05
 
 ### Añadido: pruebas de navegador, inyección de prompts y regeneración segura del informe

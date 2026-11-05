@@ -19,7 +19,7 @@ Proyecto personal de Braian Fernandez, hecho para practicar el análisis de inci
 
 ## Cómo funciona
 
-1. **Motor de reglas determinista** (`backend/detection.py`): fuerza bruta y password spraying, inicios de sesión externos, escalamiento de privilegios, comandos y procesos sospechosos, movimiento lateral, acceso masivo a archivos, exfiltración, persistencia, acceso a LSASS, DCSync, Kerberoasting, claves Run, ataques web y problemas de calidad de datos. Cada hallazgo cita los `Log_ID` que lo sustentan y explica por qué tiene esa criticidad. Además de los eventos de Windows (por Event ID), `backend/detection_generic.py` cubre exports de otras fuentes que traen una acción y un mensaje en lugar de Event IDs numéricos: fuerza bruta y password spraying por SSH/RDP/Kerberos, ataques web (inyección SQL, rutas, XSS), exfiltración, phishing con adjuntos de doble extensión, comando y control, persistencia, ransomware, minería de criptomonedas, escalamiento SUID en Linux, túneles DNS y abuso de identidades cloud (IAM).
+1. **Motor de reglas determinista** (`backend/detection.py`): fuerza bruta y password spraying, inicios de sesión externos, escalamiento de privilegios, comandos y procesos sospechosos, movimiento lateral, acceso masivo a archivos, exfiltración, persistencia, acceso a LSASS, DCSync, Kerberoasting, claves Run, programas de confianza del sistema usados para ejecutar código (mshta, cmstp, InstallUtil…), apagado del registro de eventos y del firewall, ataques web y problemas de calidad de datos. Cada hallazgo cita los `Log_ID` que lo sustentan y explica por qué tiene esa criticidad. Además de los eventos de Windows (por Event ID), `backend/detection_generic.py` cubre exports de otras fuentes que traen una acción y un mensaje en lugar de Event IDs numéricos: fuerza bruta y password spraying por SSH/RDP/Kerberos, ataques web (inyección SQL, rutas, XSS), exfiltración, phishing con adjuntos de doble extensión, comando y control, persistencia, ransomware, minería de criptomonedas, escalamiento SUID en Linux, túneles DNS y abuso de identidades cloud (IAM).
 
 2. **Correlación**: los hallazgos se agrupan en incidentes cuando comparten IP externa o cuenta de actor. Compartir host o recurso no fusiona incidentes; queda como hipótesis de confianza baja.
 
@@ -295,7 +295,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 913 pruebas
+python -m pytest                                           # 963 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
@@ -309,6 +309,7 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 - `tests/integration/test_prompt_injection.py`: logs con instrucciones inyectadas y un modelo simulado que las obedece; comprueba que la criticidad sigue siendo la del motor, que lo inventado se descarta y que el PDF no genera enlaces activos.
 
 - `tests/unit/test_negativos.py`: 35 casos de actividad normal (30 sin ruido y 5 falsos positivos medidos y ya calibrados) que no deben alertar, cerca de los umbrales de cada regla, más pruebas de que la calibración no apaga la detección real.
+- `tests/unit/test_evasion_defensas.py`: programas de confianza (mshta, cmstp, InstallUtil…), registro de eventos y auditoría, firewall, servicios y script de inicio de sesión, con comandos de ataque tomados de OTRF y el uso normal de esos mismos programas, que no debe alertar.
 - `tests/unit/test_reglas_credenciales.py`: acceso a LSASS (Sysmon 10), DCSync (4662), claves Run (Sysmon 13) y Kerberoasting (4769), con casos de ataque y de actividad normal.
 - `tests/unit/test_casos_reales.py`: casos tomados de correos y comandos públicos reales (el fallo de las plantillas sin rellenar, marcas cripto, caracteres invisibles, estafas sin enlaces, ofuscación con `-f`), con los casos normales que no deben alertar.
 - `tests/unit/test_ofuscacion.py`: ofuscación de URLs (IP numérica, `%XX`), comandos (`^`, acentos graves, `+`, `[char]`) y HTML (smuggling, `atob`, `meta refresh`, texto oculto), con sus casos normales que no deben alertar.
@@ -320,7 +321,7 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 Además de las pruebas con escenarios de ataque, las reglas se midieron con datos que no escribí yo. Resultados (detalle, método y límites en [docs/VALIDACION.md](docs/VALIDACION.md)):
 
 - **SSH real (Loghub):** subiendo el `auth.log` tal cual, de 11 IPs que atacaron con fuerza bruta la app detectó las 11, sin falsos positivos.
-- **107 ataques de Windows (OTRF Security-Datasets):** la técnica correcta en 20 (antes de calibrar: 13), hallazgos de otra técnica en 27 y ninguno en 57. La cobertura es limitada y está documentada, con los huecos priorizados (evasión de defensas, movimiento lateral).
+- **107 ataques de Windows (OTRF Security-Datasets):** la técnica correcta en 41 (con 1.5.0: 20; antes de calibrar: 13), hallazgos de otra técnica en 26 y ninguno en 37. La cobertura es limitada y está documentada, con los huecos que quedan (movimiento lateral por red, credenciales en memoria, inyección de procesos) y por qué no se cubren.
 - **Phishing real (12.864 correos de phishing_pot):** 87,7 % con criticidad Medio o más y 64,9 % Alto o más; comprobado con 11.364 correos no usados para ajustar (87,6 % y 64,8 %). **Correo legítimo:** con 20 correos reales (boletines, LinkedIn, GitHub, cursos) los falsos positivos pasaron de 14 a 0 tras calibrar, a costa de detectar menos spam comercial; es una muestra pequeña y el detalle, con sus límites, está en `docs/VALIDACION.md`.
 - **Tráfico normal:** 35 casos de actividad corriente sin hallazgos; los 5 falsos positivos que se midieron primero (por ejemplo, un solo `ipconfig`) se calibraron y el antes y el después están documentados.
 

@@ -409,6 +409,45 @@ CMD_PATTERNS = [
          label="Descarga/ejecución remota de código",
          rx=re.compile(r"downloadstring|downloadfile|invoke-webrequest|\biwr\b|invoke-expression|\biex\b|certutil.*-urlcache|bitsadmin.*/transfer", re.I),
          why="Descargar y ejecutar contenido remoto es un patrón de entrega de malware."),
+    dict(key="lolbin_proxy", tactic="Evasión de defensas", base="Alto", mitre=["T1218"],
+         label="Ejecución mediante un programa de confianza del sistema (LOLBin)",
+         rx=re.compile(r"\bmshta(\.exe)?\"?\s+[^\n]*(javascript:|vbscript:|https?://|\.hta\b)"
+                       r"|\bcmstp(\.exe)?\"?\s+[^\n]*(/s|/au)\b[^\n]*\.inf"
+                       r"|\bhh(\.exe)?\"?\s+(ms-its:|https?://|[^\n]*(programdata|\\temp\\|\\users\\|\\appdata\\)[^\n]*\.chm\b)"
+                       r"|(control|rundll32)(\.exe)?\"?\s+[^\n]*(programdata|\\temp\\|\\users\\|\\appdata\\)[^\n]*\.cpl\b"
+                       r"|register-cimprovider(\.exe)?\"?\s+-path"
+                       r"|installutil(\.exe)?\"?\s+[^\n]*(programdata|\\temp\\|\\users\\|\\appdata\\|\\public\\)[^\n]*\.(dll|exe)\b"
+                       r"|wmic(\.exe)?\"?\s+[^\n]*/format:\"?(https?://|\\\\)", re.I),
+         sub=[(re.compile(r"\bmshta\b", re.I), "T1218.005", "mshta"), (re.compile(r"\bcmstp\b", re.I), "T1218.003", "cmstp"),
+              (re.compile(r"\bhh(\.exe)?\"?\s", re.I), "T1218.001", "hh.exe con un .chm"),
+              (re.compile(r"\.cpl\b", re.I), "T1218.002", "archivo del Panel de control (.cpl)"),
+              (re.compile(r"\binstallutil\b", re.I), "T1218.004", "InstallUtil"), (re.compile(r"\bwmic\b", re.I), "T1220", "wmic con una hoja de estilo XSL remota")],
+         why="Mshta, cmstp, hh, rundll32, InstallUtil o wmic son programas firmados de Windows; usarlos con scripts, archivos de usuario o direcciones remotas sirve para "
+             "ejecutar código sin lanzar un ejecutable propio y esquivar listas de aplicaciones permitidas."),
+    dict(key="log_tamper", tactic="Evasión de defensas", base="Alto", mitre=["T1685.001"],
+         label="Auditoría o registro de eventos desactivado o alterado",
+         rx=re.compile(r"wevtutil(\.exe)?\"?\s+(cl|clear-log)\b|wevtutil(\.exe)?\"?\s+(sl|set-log)\s+[^\n]*(/e:false|/enabled:false|/logfilename|/lfn:)"
+                       r"|auditpol(\.exe)?\"?\s+(/clear|/remove|/set\b[^\n]*:disable)"
+                       r"|\bsc(\.exe)?\s+(config|stop)\s+\"?(eventlog|windows event log)"
+                       r"|(stop|set)-service[^\n]*eventlog|\bclear-eventlog\b|\bremove-eventlog\b"
+                       r"|ProcessCreationIncludeCmdLine_Enabled[^\n]*/d\s+0\b|/d\s+0\b[^\n]*ProcessCreationIncludeCmdLine_Enabled", re.I),
+         sub=[(re.compile(r"wevtutil(\.exe)?\"?\s+(cl|clear-log)\b|clear-eventlog", re.I), "T1685.005", "borrado de un registro de eventos")],
+         why="Apagar el registro de eventos, quitar auditorías o dejar de guardar la línea de comandos deja al equipo sin evidencia: es lo primero que hace quien no quiere ser visto."),
+    dict(key="fw_change", tactic="Evasión de defensas", base="Medio", mitre=["T1686"],
+         label="Firewall de Windows abierto o desactivado",
+         rx=re.compile(r"netsh(\.exe)?\"?\s+(adv)?firewall\s+(firewall\s+)?add\s+rule\b(?=[^\n]*action=allow)(?=[^\n]*dir=in)"
+                       r"|netsh(\.exe)?\"?\s+advfirewall\s+set\s+\w+\s+state\s+off|set-netfirewallprofile[^\n]*-enabled\s+false", re.I),
+         why="Permitir tráfico entrante o apagar el firewall abre puertos para el control remoto o el movimiento lateral. Lo hace también la administración legítima: valida quién y por qué."),
+    dict(key="service_binpath", tactic="Persistencia", base="Medio", mitre=["T1543.003"],
+         label="Servicio creado o modificado desde la línea de comandos",
+         rx=re.compile(r"\bsc(\.exe)?\"?\s+(\\\\\S+\s+)?(config|create)\s+\S+\s+[^\n]*binpath=", re.I),
+         risky=re.compile(r"powershell|pwsh|cmd(\.exe)?\s+/c|wscript|cscript|mshta|rundll32|programdata|\\temp\\|\\users\\|\\appdata\\", re.I),
+         risky_why="El ejecutable del servicio es un intérprete de comandos o está en una ruta escribible por el usuario: se sube un nivel la criticidad.",
+         why="Cambiar o crear el programa que ejecuta un servicio permite correr código con privilegios elevados en cada arranque."),
+    dict(key="logon_script", tactic="Persistencia", base="Alto", mitre=["T1037.001"],
+         label="Script de inicio de sesión configurado (UserInitMprLogonScript)",
+         rx=re.compile(r"UserInitMprLogonScript", re.I),
+         why="Esa clave del registro ejecuta un programa en cada inicio de sesión del usuario sin pasar por las ubicaciones de inicio habituales."),
     dict(key="archive_staging", tactic="Recolección", base="Alto", mitre=["T1560.001", "T1074.001"],
          label="Compresión de datos (staging)",
          rx=re.compile(r"(?:^|[\s\\/\"'])(tar|7z|7za|rar|winrar|zip)(\.exe)?[\"']?\s+[^\n]*?\.(zip|7z|rar|tar|gz)\b|compress-archive", re.I),
@@ -478,6 +517,13 @@ def rule_commands(st: State) -> None:
             sev = bump(p["base"], 1) if (ext and p["base"] != "Crítico") else p["base"]
             cmds = [trunc(x, 140) for x in c["Process_CommandLine"] if x] or [trunc(x, 140) for x in c["Event_Description"]]
             reasons = [f"Coincide con el patrón «{p['label']}»: {p['why']}"]
+            cmd_text = list(c["Process_CommandLine"]) + list(c["Event_Description"])
+            subs = [(tid, nm) for rx_, tid, nm in p.get("sub", ()) if any(rx_.search(x) for x in cmd_text)]
+            if subs:
+                reasons.append("Técnica concreta: " + "; ".join(f"{nm} ({tid})" for tid, nm in subs) + ".")
+            if p.get("risky") and sev != "Crítico" and any(p["risky"].search(x) for x in cmd_text):
+                sev = bump(sev, 1)
+                reasons.append(p["risky_why"])
             if ext:
                 reasons.append(f"La actividad se origina en la IP externa {c[c['Source_IP'].map(is_external)].iloc[0].Source_IP}.")
             parent = c["Event_Description"].str.extract(r"parent=([\w.\\-]+)")[0].dropna()
@@ -520,7 +566,7 @@ def rule_commands(st: State) -> None:
                 if sev not in ("Crítico",) and key != "obfuscated_cmd":
                     sev = bump(sev, 1)
                     reasons.append("Quien ofusca un comando de este tipo busca evadir la detección: se sube un nivel la criticidad.")
-            title = f"{p['label']} en {host} ({short_user(user)})"
+            title = f"{p['label']} en {host}" + (f" ({short_user(user)})" if short_user(user) else "")
             cat = "Comandos y procesos"
             metrics = {"comandos": len(c), "host": host, "usuario": user, "ejemplos": cmds[:5]}
             if obf:
@@ -532,7 +578,7 @@ def rule_commands(st: State) -> None:
                 odd_place = bool(re.search(r"\\(ProgramData|Temp|Users\\Public)\\|/tmp/|\s-p\S", blob_c, re.I))
                 if not (ext or odd_place or len(c) >= CONFIG["staging_min_commands"]):
                     metrics["_sin_corroborar"] = True   # se descarta al final si ninguna otra regla lo respalda (p. ej. salida a Internet)
-            mitre_ = list(dict.fromkeys(p["mitre"] + (["T1027.010"] if obf else [])))
+            mitre_ = list(dict.fromkeys(p["mitre"] + [tid for tid, _ in subs] + (["T1027.010"] if obf else [])))
             _mk(st, f"cmd_{key}", title, cat, p["tactic"], mitre_, sev, reasons, expl, c,
                 actor_ips=ext_ips[:1], actor_users=[user], metrics=metrics, iocs=iocs)
 
@@ -911,6 +957,52 @@ def rule_persist_run(st: State) -> None:
                 iocs=[_ioc("Ruta/archivo", trunc(x[3], 200), "Valor de la clave Run") for x in det[:6] if x[3]])
 
 
+EVTLOG_REG_RE = re.compile(r"\\Services\\EventLog\\Start$|\\ProcessCreationIncludeCmdLine_Enabled$", re.I)
+DWORD_VALUE_RE = re.compile(r"DWORD \(0x0*([0-9a-f]+)\)", re.I)
+
+
+def rule_defense_registry(st: State) -> None:
+    """Sysmon 13: se deshabilita el servicio «Registro de eventos de Windows» (Start = 4) o se apaga el registro de la línea de comandos de los procesos."""
+    d = st.df
+    s = d[d["Event_ID"] == "13"]
+    rows = []
+    for r in s.itertuples():
+        t = r.Event_Description
+        target = _field(t, "TargetObject")
+        if not EVTLOG_REG_RE.search(target):
+            continue
+        m = DWORD_VALUE_RE.search(_field(t, "Details"))
+        val = int(m.group(1), 16) if m else None
+        is_service = target.lower().endswith("\\start")
+        if (is_service and val != 4) or (not is_service and val != 0):    # Start=4 es «deshabilitado»; la línea de comandos solo importa si se apaga (0)
+            continue
+        rows.append((r.Log_ID, target, _field(t, "Image"), is_service))
+    if not rows:
+        return
+    info = {x[0]: x for x in rows}
+    sub = s[s["Log_ID"].isin(info)].copy()
+    for (host,), g in _groups(sub, ["Hostname"]):
+        for c in clusters(g, 1800):
+            det = [info[i] for i in c["Log_ID"]]
+            what = []
+            if any(x[3] for x in det):
+                what.append("deshabilitó el servicio «Registro de eventos de Windows» (EventLog\\Start = 4)")
+            if any(not x[3] for x in det):
+                what.append("apagó el registro de la línea de comandos de los procesos (ProcessCreationIncludeCmdLine_Enabled = 0)")
+            writer = det[0][2] or "un proceso"
+            risky = any(re.search(r"\\(Temp|Users|ProgramData|AppData|Downloads)\\", x[2], re.I) for x in det)
+            sev = "Crítico" if risky else "Alto"
+            reasons = [f"{writer} " + " y ".join(what) + " en el registro (Sysmon 13).",
+                       "Sin ese registro el equipo deja de guardar evidencia de lo que ocurre a partir de ese momento."]
+            if risky:
+                reasons.append("Lo escribió un programa que reside en una ruta escribible por el usuario: se sube un nivel la criticidad.")
+            expl = (f"En {host}, {writer} " + " y ".join(what) + f" ({pl(len(c), 'cambio', 'cambios')} de registro, Sysmon 13). Desactivar el registro de eventos es una "
+                    "técnica de evasión de defensas (T1685.001): a partir de ahí lo que haga el atacante deja menos rastro.")
+            _mk(st, "defense_registry", f"Registro de eventos desactivado en {host}", "Comandos y procesos", "Evasión de defensas", ["T1685.001", "T1112"], sev, reasons, expl, c,
+                hosts=[host], metrics={"host": host, "cambios": [x[1] for x in det][:4], "imagenes": sorted({x[2] for x in det if x[2]})[:4]},
+                iocs=[_ioc("Ruta/archivo", x[2], "Programa que modificó el registro de eventos") for x in det[:3] if x[2]])
+
+
 def rule_kerberoast(st: State) -> None:
     """Kerberoasting (T1558.003): una cuenta pide tickets de servicio con cifrado RC4 (0x17) para varios servicios de usuario."""
     d = st.df
@@ -1070,6 +1162,7 @@ RULES: list[tuple[str, str, Callable[[State], None]]] = [
     ("cred_lsass", "Acceso a la memoria de LSASS (Sysmon 10) por procesos no habituales", rule_cred_lsass),
     ("cred_dcsync", "DCSync: derechos de replicación de directorio (4662) usados por una cuenta de usuario", rule_cred_dcsync),
     ("persist_run", "Persistencia en claves Run/RunOnce (Sysmon 13)", rule_persist_run),
+    ("defense_registry", "Registro de eventos desactivado por el registro (Sysmon 13)", rule_defense_registry),
     ("kerberoast", "Kerberoasting: ráfaga de tickets de servicio RC4 (4769) de una misma cuenta", rule_kerberoast),
     ("lateral", "Movimiento lateral: autenticación en un host con origen en otro host (source=…)", rule_lateral),
     ("mass_access", "Acceso masivo/secuencial a archivos (4663)", rule_mass_access),

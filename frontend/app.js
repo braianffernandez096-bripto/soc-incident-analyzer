@@ -730,9 +730,8 @@ function phishingUpload() {
       <span>Hasta 5 archivos · 5 MB cada uno · se leen como texto: no se abre ningún enlace ni se ejecuta ningún adjunto</span>
       <input type="file" id="pfile" accept=".eml" multiple hidden>
     </div>
-    <p class="muted" style="max-width:640px">En Outlook, Thunderbird o Gmail, abre el correo y guárdalo como .eml («Guardar como», «Descargar mensaje» u «Origen del mensaje»). Los archivos .msg no se admiten.</p>
     <label class="f" style="max-width:640px;margin:14px 0"><span><b>Remitente esperado</b> (opcional)</span>
-      <input id="pexp" type="text" maxlength="200" autocomplete="off" spellcheck="false" placeholder="banco.universal@bancouniversal.gob">
+      <input id="pexp" type="text" maxlength="200" autocomplete="off" spellcheck="false">
       <span style="font-weight:400">Si lo escribes, la app compara carácter por carácter la dirección del correo con la tuya y señala qué letra cambió (por ejemplo una «I» mayúscula por una «l»).</span></label>
     <div class="row">
       <button class="btn primary" id="pgo" disabled>Analizar correos</button>
@@ -900,14 +899,37 @@ function applyMotion(m) {
   if (m === "reduced") root.setAttribute("data-motion", "reduced"); else root.removeAttribute("data-motion");
   $("#motionBtn").textContent = "✦ Movimiento: " + (m === "reduced" ? "reducido" : "completo");
 }
-const showHow = () => openDialog("¿Cómo funciona?", `<div class="how"><ol>
+const showHow = () => {
+  const inPhishing = !!$("#pdrop");
+  openDialog("¿Cómo funciona?", `<div class="how">
+    <div class="row" role="tablist" style="margin-bottom:12px">
+      <button class="btn" id="hwLogs" role="tab" type="button">Análisis de logs</button>
+      <button class="btn" id="hwPhish" role="tab" type="button">Phishing (.eml)</button>
+    </div>
+    <div id="hwLogsP"><ol>
     <li><b>Carga</b> el export del SIEM en Excel (.xlsx), CSV/TSV o JSON/NDJSON, de hasta 25 MB. Se detectan el formato y las columnas aunque cambien de nombre (ver «Columnas esperadas» más abajo).</li>
     <li><b>Reglas deterministas</b> buscan fuerza bruta, inicios de sesión externos, escalamiento, comandos sospechosos, movimiento lateral, exfiltración, persistencia y ataques web. Cada hallazgo cita los Log_ID que lo prueban.</li>
     <li><b>Correlación</b>: los hallazgos se agrupan en incidentes solo si comparten IP externa o cuenta. Compartir un host o recurso queda como hipótesis de confianza baja.</li>
     <li><b>IA</b> redacta explicaciones, impacto y plan de acción. No cambia la criticidad y se descarta cualquier Log_ID o IP que no esté en el archivo.</li>
     <li><b>Informe PDF</b> con resumen ejecutivo, hallazgos, evidencia, criticidad, impacto, plan de acción y recomendaciones.</li></ol>
     <h4>Columnas esperadas</h4><p>Solo son indispensables <span class="mono">Timestamp</span> y <span class="mono">Event_ID</span>. Se aprovechan también <span class="mono">Log_ID</span>, <span class="mono">Hostname</span>, <span class="mono">User</span>, <span class="mono">Source_IP</span>, <span class="mono">Destination</span>, <span class="mono">Process_CommandLine</span> y similares, con otros idiomas o mayúsculas, y los campos de Elastic ECS (<span class="mono">@timestamp</span>, <span class="mono">host.name</span>, <span class="mono">source.ip</span>…). Lo que falte queda vacío y se informa.</p>
-    <p class="muted">Cada conclusión cita los Log_ID que la respaldan. Atajos: Ctrl+K o / para buscar.</p></div>`);
+    <p class="muted">Cada conclusión cita los Log_ID que la respaldan. Atajos: Ctrl+K o / para buscar.</p></div>
+    <div id="hwPhishP" hidden>
+      <ol>
+        <li><b>Obtén el correo como .eml.</b> En Outlook, Thunderbird o Gmail, abre el correo y guárdalo como .eml («Guardar como», «Descargar mensaje» u «Origen del mensaje»). Los archivos .msg no se admiten.</li>
+        <li><b>Cárgalo</b> (hasta 5 archivos de 5 MB). Se leen como texto: no se abre ningún enlace ni se ejecuta ningún adjunto.</li>
+        <li><b>Remitente esperado</b> (opcional): si escribes la dirección legítima, la app la compara carácter por carácter con la del correo y señala qué letra cambió.</li>
+        <li><b>Análisis</b>: remitente, Reply-To y suplantación, homógrafos, SPF/DKIM/DMARC, enlaces engañosos y dominios parecidos, adjuntos peligrosos y macros.</li>
+        <li><b>Resultado</b>: un veredicto con las señales que lo respaldan, qué verificar y un informe PDF. El análisis de correos es independiente del de logs.</li></ol>
+    </div></div>`);
+  const tab = (w) => {
+    $("#hwLogsP").hidden = w !== "logs"; $("#hwPhishP").hidden = w !== "phish";
+    $("#hwLogs").setAttribute("aria-selected", String(w === "logs")); $("#hwPhish").setAttribute("aria-selected", String(w === "phish"));
+    $("#hwLogs").classList.toggle("primary", w === "logs"); $("#hwPhish").classList.toggle("primary", w === "phish");
+  };
+  $("#hwLogs").onclick = () => tab("logs"); $("#hwPhish").onclick = () => tab("phish");
+  tab(inPhishing ? "phish" : "logs");
+};
 function initChrome() {
   let theme = pref.get("theme") || "auto", motion = pref.get("motion") || "full";
   applyTheme(theme); applyMotion(motion);

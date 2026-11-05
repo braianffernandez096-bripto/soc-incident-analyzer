@@ -22,7 +22,7 @@ def _f(fid, severity, mitre):
 
 
 def test_every_technique_cited_by_the_code_exists_in_the_official_data():
-    cited = {t for p in ("detection.py", "detection_generic.py", "phishing.py", "playbook.py", "ai.py") for t in ID_RE.findall((ROOT / "backend" / p).read_text(encoding="utf-8"))}
+    cited = {t for p in ("detection.py", "detection_generic.py", "phishing.py", "playbook.py", "ai.py", "htmlscan.py") for t in ID_RE.findall((ROOT / "backend" / p).read_text(encoding="utf-8"))}
     assert len(cited) >= 25                                       # guard: the scan really found the techniques
     assert cited == set(attack.data()["techniques"]), "backend/data is out of sync: run scripts/build_attack_data.py"
 

@@ -30,7 +30,7 @@ Proyecto personal de Braian Fernandez, hecho para practicar el análisis de inci
 
 6. **MITRE ATT&CK** (`backend/attack.py`): cada técnica sugerida por un hallazgo se muestra con su nombre oficial y un enlace a attack.mitre.org. La pestaña **ATT&CK** agrupa las técnicas por táctica en una matriz y permite descargar una capa `.json` para [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/). Los datos son los oficiales de MITRE (v20.0), incluidos en `backend/data/` y validados contra las reglas por las pruebas. No se consulta Internet.
 
-7. **Phishing** (`backend/phishing.py`): la pestaña **Phishing** analiza correos `.eml` (hasta 5, 5 MB cada uno). Revisa remitente, Reply-To y suplantación de marcas; SPF, DKIM y DMARC; enlaces engañosos (IP en vez de dominio, acortadores, punycode, dominios casi idénticos a una marca, texto distinto del destino); y adjuntos (doble extensión, ejecutables disfrazados, macros, comprimidos con contraseña, hash SHA-256). Da un veredicto con puntaje, las señales que lo sustentan, **qué verificar** y acciones sugeridas. Es análisis estático: no se abre ningún enlace ni se ejecuta ningún adjunto.
+7. **Phishing** (`backend/phishing.py`): la pestaña **Phishing** analiza correos `.eml` (hasta 5, 5 MB cada uno). Revisa remitente, Reply-To y suplantación de marcas; SPF, DKIM y DMARC; enlaces engañosos (IP en vez de dominio, acortadores, punycode, dominios casi idénticos a una marca, texto distinto del destino); **ataques homógrafos** (letras de otro alfabeto o «I» por «l» que se ven iguales, con desglose carácter por carácter); y adjuntos (doble extensión, ejecutables disfrazados, macros, comprimidos con contraseña, hash SHA-256). Da un veredicto con puntaje, las señales que lo sustentan, **qué verificar** y acciones sugeridas. Es análisis estático: no se abre ningún enlace ni se ejecuta ningún adjunto.
 
 ## Formatos de entrada
 
@@ -201,14 +201,14 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
 python -m pytest                                           # 555 pruebas
-python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (94 %)
+python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
 Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov`, `make lint`, `make audit` (bandit + pip-audit), `make start`, `make stop`, `make logs`. Con `make help` ves la lista completa.
 
-- `tests/unit/`: motor de detección contra el Excel de ejemplo, límites del parser, formatos de entrada (CSV, TSV, JSON, NDJSON, codificaciones y zonas horarias), verificación de archivos (tipo real por contenido, macros, inyección de fórmulas) y datos de MITRE ATT&CK (todas las técnicas que citan las reglas existen y siguen vigentes, matriz y capa de Navigator).
+- `tests/unit/`: motor de detección contra el Excel de ejemplo, límites del parser, formatos de entrada (CSV, TSV, JSON, NDJSON, codificaciones y zonas horarias), verificación de archivos (tipo real por contenido, macros, inyección de fórmulas) datos de MITRE ATT&CK (todas las técnicas que citan las reglas existen y siguen vigentes, matriz y capa de Navigator), análisis de correos (señales positivas y negativas, límites y casos hostiles), homógrafos (alfabetos mezclados, I/l, casos legítimos con tildes que no deben alertar) y captcha (respuesta solo en el servidor, un intento, caducidad, pase de un solo uso).
 
-- `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras), clave de acceso (401 en todas las rutas protegidas, fuerza bruta), capa de IA y consultas de reputación con servidores simulados (las pruebas no usan red ni claves) y el botón de datos de ejemplo.
+- `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras), clave de acceso (401 en todas las rutas protegidas, fuerza bruta), capa de IA y consultas de reputación con servidores simulados (las pruebas no usan red ni claves) el botón de datos de ejemplo, el módulo de phishing (PDF, reputación y remitente esperado) y el captcha de imágenes y de rompecabezas.
 
 - `tests/e2e/`: arranca el servidor real y recorre carga, análisis y PDF.
 
@@ -257,8 +257,8 @@ Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones
 ## Estructura
 
 ```
-backend/      parser, reglas de detección, correlación, análisis de correos (.eml), IA, reputación (VirusTotal/AbuseIPDB), MITRE ATT&CK, informe PDF y API (FastAPI)
-scripts/      build_attack_data.py: regenera backend/data/ desde los datos oficiales de MITRE (uso de mantenimiento)
+backend/      parser, reglas de detección, correlación, análisis de correos (.eml) y de homógrafos, captcha local, IA, reputación (VirusTotal/AbuseIPDB), MITRE ATT&CK, informe PDF y API (FastAPI)
+scripts/      build_attack_data.py regenera backend/data/ desde los datos oficiales de MITRE; build_captcha_assets.py regenera las figuras del captcha (uso de mantenimiento)
 frontend/     interfaz web sin build (HTML, CSS y JS; fuentes IBM Plex locales)
 sample_data/  exports de ejemplo (Windows en Excel/CSV/NDJSON, multi-fuente en JSON y SIEM de 500 eventos) y correos .eml de ejemplo
 tests/        unit, integration y e2e

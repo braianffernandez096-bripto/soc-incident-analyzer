@@ -26,7 +26,8 @@ def test_normal_hosts_are_left_alone(host):
 def test_percent_encoded_host_and_double_encoding():
     r = deobf.normalize_url("https://%65%78%61%6d%70%6c%65.com/x")
     assert r["url"] == "https://example.com/x" and any("host" in t for t in r["techniques"])
-    assert any("repetida" in t for t in deobf.normalize_url("https://a.com/%2570ath")["techniques"])
+    assert deobf.normalize_url("https://a.com/%2570ath")["techniques"] == []        # doble codificación en la ruta: la usan los enlaces de rastreo legítimos
+    assert any("host" in t for t in deobf.normalize_url("https://%2565xample.com/")["techniques"])
 
 
 @pytest.mark.parametrize("u", ["https://example.com/a%20b", "https://example.com/?q=a%2Fb&x=1", "https://example.com/%C3%A9", "https://www.google.com/search?q=hola"])

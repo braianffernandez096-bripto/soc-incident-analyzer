@@ -122,34 +122,48 @@ Otros casos que se observaron y **no** se marcaron como errores porque son decis
 - Una administradora que crea su propia clave de acceso en la nube genera Crítico.
 - Un instalador legítimo que agrega una clave Run genera Medio (`persist_run` solo sube a Alto si el binario está en una ruta escribible o lo escribió un intérprete); sigue apareciendo para que el analista lo descarte.
 
-## 3b. Correos de phishing reales y comandos ofuscados
+## 3b. Correos reales (phishing y legítimos) y comandos ofuscados
 
-**Correos.** Se analizaron los **12.864 correos** del corpus público [phishing_pot](https://github.com/rf-peixoto/phishing_pot) (phishing y spam recibidos de verdad)
-con `scripts/validar_correos.py`, de forma estática. Los números salen del análisis completo, no de una muestra:
+**Phishing.** Se analizaron los **12.864 correos** del corpus público [phishing_pot](https://github.com/rf-peixoto/phishing_pot) (phishing y spam recibidos de verdad)
+con `scripts/validar_correos.py`, de forma estática y con la versión final de las reglas:
 
 | Resultado | Correos | % |
 |---|---|---|
-| Crítico | 1.468 | 11,4 |
-| Alto | 7.482 | 58,2 |
-| Medio | 2.912 | 22,6 |
-| Bajo (sin señales relevantes) | 1.000 | 7,8 |
+| Crítico | 1.213 | 9,4 |
+| Alto | 7.140 | 55,5 |
+| Medio | 2.934 | 22,8 |
+| Bajo (sin señales relevantes) | 1.575 | 12,2 |
 | Rechazados por el propio análisis (no es un .eml / supera 5 MB) | 2 | 0,0 |
 
-Detectados como **Medio o más: 92,2 %**; **Alto o más: 69,6 %**. Tiempo medio 0,11 s por correo y máximo 1,3 s.
+Detectados como **Medio o más: 87,7 %**; **Alto o más: 64,9 %**. Tiempo medio 0,11 s por correo y máximo 1,6 s.
 
-Cómo se mejoró sin engañarse: se ajustó mirando una muestra aleatoria de 1.500 correos (semilla 1) y se comprobó después con los **11.364 restantes**, que no se habían usado
-para ajustar: 92,1 % Medio o más y 69,5 % Alto o más, prácticamente igual, así que no hay sobreajuste visible. En la muestra, Medio o más pasó de 90,0 % a 93,1 % y los correos sin señales de 149 a 105.
+**Correo legítimo (falsos positivos).** Se probaron **20 correos reales y legítimos** (boletines, LinkedIn, GitHub, cursos, alertas de empleo; todos con SPF, DKIM y DMARC en «pass»),
+aportados por el autor. Con las reglas de la primera versión, **14 de 20 (70 %) salían como Medio o más**. Las causas y su corrección:
+- Los envíos masivos pasan por plataformas de envío, así que «SPF/DKIM no se alinea», «Message-ID de otro dominio» o «Return-Path de otro dominio» son normales. Con **DMARC en «pass»** una de las dos ya
+  está alineada y esas señales dejan de sumar; sin DMARC en «pass» siguen contando. El Reply-To hacia otro dominio baja de Alto a Medio solo con DMARC en «pass» y sin correo gratuito.
+- El rastreo de clics (el texto del enlace muestra un sitio y el enlace pasa por un subdominio del propio remitente o de un servicio de envío conocido) ya no se trata como engaño.
+  **Excepción importante:** si el texto del enlace habla de pagos, cuentas, facturas o inicio de sesión, sigue siendo señal de alto riesgo. Un primer arreglo sin esa excepción dejaba pasar
+  un phishing real de «billing.spotify.com» enviado desde una plataforma legítima con DMARC en «pass».
+- Mis propias señales nuevas hacían ruido: el relleno invisible de los boletines (`preheader`), el texto oculto, los dobles codificados `%25xx` en enlaces de rastreo y las cifras en las
+  direcciones de rebote (VERP). Ahora el invisible solo cuenta si **parte palabras**, el texto oculto no suma puntos, la doble codificación solo importa si afecta al servidor y los rebotes no se evalúan como suplantación.
 
-Lo que el corpus real enseñó (y quedó corregido, con pruebas en `tests/unit/test_casos_reales.py`):
+Resultado tras corregir: **0 de 20** (los 20 en Bajo). El precio: sobre el corpus de phishing la detección Medio o más bajó de 92,2 % a 87,7 %. Los correos que se dejaron de marcar son sobre todo
+spam comercial (casinos, clínicas, ofertas) que antes salía «detectado» solo por señales débiles de desalineación, no por señales de phishing.
+
+**Cómo se evitó engañarse.** Se ajustó mirando una muestra aleatoria de 1.500 correos y se comprobó con los **11.364 restantes**, que no se habían usado para ajustar: 87,6 % Medio o más y 64,8 % Alto o más,
+prácticamente igual a la tasa global. Los 20 legítimos se usaron para ajustar y después para medir, así que **su 0 % no es una medición independiente**: es una prueba de que los falsos positivos
+que se vieron están corregidos.
+
+Lo que el corpus real enseñó (con pruebas en `tests/unit/test_casos_reales.py`):
 - **Un fallo real:** una plantilla sin rellenar (`http://[placeholder_1]/`) hacía fallar el análisis de todo el correo. Ahora se marca como enlace inválido.
 - **Falsos positivos propios:** los emoji (`❤️`, `⚠️`) usan un selector de variación legítimo y se marcaban como caracteres invisibles; y los espacios dentro de una plantilla (`{{{ pm:unsubscribe }}}`) se tomaban por ofuscación.
-- **Huecos:** marcas muy suplantadas que no estaban (Ledger, MetaMask, Trust Wallet, Kraken, Bradesco, Correios…); nombres con selectores de variación o marcas combinantes (`Tr󠄹u󠄹st Wallet`, `Ap͏ple`); estafas de adelanto de pago sin ningún enlace; y cebos de «reclamar tokens» o validar la billetera.
-- **Ofuscación de URL en el mundo real:** aparecieron IP en octal y decimal (`http://0137.0323.0053.0062/` = 95.211.43.50), HTML smuggling y JavaScript ofuscado en adjuntos. El desofuscador de URL ya las resolvía.
+- **Huecos:** marcas muy suplantadas que no estaban (Ledger, MetaMask, Trust Wallet, Kraken, Bradesco, Correios…); nombres con selectores de variación o marcas combinantes; estafas de adelanto de pago sin ningún enlace;
+  cebos de «reclamar tokens» o validar la billetera.
+- **Ofuscación de URL en el mundo real:** aparecieron IP en octal y decimal (`http://0137.0323.0053.0062/` = 95.211.43.50), HTML smuggling y JavaScript ofuscado en adjuntos.
 
-Lo que **no** se pudo medir: los falsos positivos en correo legítimo. No hay un corpus de correo legítimo accesible desde este entorno; el único que se probó (los correos de prueba de
-SpamAssassin, 101 archivos) son casos de prueba artificiales (adjuntos `.js` a propósito, cabeceras SPF rotas), no correo real: dio 48,5 % de Medio o más y **no es una tasa de falsos positivos**.
-Sigue pendiente medirlo con correo corporativo y boletines reales. Además, el corpus mezcla phishing con spam comercial (casinos, ofertas): los 1.000 correos sin señales son sobre todo
-spam sin enlaces peligrosos ni suplantación, que la herramienta no pretende filtrar como tal.
+Límites: 20 correos son una muestra muy pequeña (el margen de error es grande: con 0 falsos positivos en 20, el límite superior razonable ronda el 15 %) y todos vienen de una sola bandeja de entrada
+(boletines en español e inglés de ciberseguridad y empleo). Falta probar correo corporativo, bancario y de otros rubros. El corpus de phishing mezcla phishing con spam comercial: los 1.575 correos
+sin señales son sobre todo spam sin enlaces peligrosos ni suplantación, que la herramienta no pretende filtrar como tal.
 
 **Comandos ofuscados.** `scripts/validar_ofuscacion.py` pasa por el desofuscador los **1.360 comandos de cmd y PowerShell** de las pruebas públicas de
 [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team) (299 técnicas): 11 contienen alguna ofuscación que se resuelve, en 2 la ofuscación escondía un programa relevante

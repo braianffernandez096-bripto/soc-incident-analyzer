@@ -294,7 +294,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 890 pruebas
+python -m pytest                                           # 897 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
@@ -319,7 +319,7 @@ Además de las pruebas con escenarios de ataque, las reglas se midieron con dato
 
 - **SSH real (Loghub):** subiendo el `auth.log` tal cual, de 11 IPs que atacaron con fuerza bruta la app detectó las 11, sin falsos positivos.
 - **107 ataques de Windows (OTRF Security-Datasets):** la técnica correcta en 20 (antes de calibrar: 13), hallazgos de otra técnica en 27 y ninguno en 57. La cobertura es limitada y está documentada, con los huecos priorizados (evasión de defensas, movimiento lateral).
-- **Phishing real (12.864 correos de phishing_pot):** 92,2 % con criticidad Medio o más y 69,6 % Alto o más; comprobado con 11.364 correos no usados para ajustar (92,1 % y 69,5 %). Los falsos positivos en correo legítimo todavía no se pudieron medir; está explicado en `docs/VALIDACION.md`.
+- **Phishing real (12.864 correos de phishing_pot):** 87,7 % con criticidad Medio o más y 64,9 % Alto o más; comprobado con 11.364 correos no usados para ajustar (87,6 % y 64,8 %). **Correo legítimo:** con 20 correos reales (boletines, LinkedIn, GitHub, cursos) los falsos positivos pasaron de 14 a 0 tras calibrar, a costa de detectar menos spam comercial; es una muestra pequeña y el detalle, con sus límites, está en `docs/VALIDACION.md`.
 - **Tráfico normal:** 35 casos de actividad corriente sin hallazgos; los 5 falsos positivos que se midieron primero (por ejemplo, un solo `ipconfig`) se calibraron y el antes y el después están documentados.
 
 Se pueden repetir con `scripts/validar_datasets.py`.

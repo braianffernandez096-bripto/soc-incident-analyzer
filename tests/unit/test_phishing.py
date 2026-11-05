@@ -97,9 +97,13 @@ def test_auth_results_fail_softfail_and_pass():
     assert not any(s["category"] == "Autenticación" for s in good["signals"]) and good["severity"] == "Bajo"
 
 
-def test_pass_that_is_not_aligned_is_flagged():
-    r = run(headers={"Authentication-Results": "mx; spf=pass smtp.mailfrom=bulk.example; dkim=pass header.d=corp.example; dmarc=pass header.from=corp.example"})
+def test_pass_that_is_not_aligned_is_flagged_unless_dmarc_passes():
+    # sin DMARC en «pass», un SPF válido de otro dominio no prueba nada
+    r = run(headers={"Authentication-Results": "mx; spf=pass smtp.mailfrom=bulk.example; dkim=none; dmarc=none header.from=corp.example"})
     assert has(r, "SPF pasa pero no se alinea")
+    # con DMARC en «pass» una de las dos ya está alineada: la otra es ruido de envíos masivos (medido con correo legítimo real)
+    r = run(headers={"Authentication-Results": "mx; spf=pass smtp.mailfrom=bulk.example; dkim=pass header.d=corp.example; dmarc=pass header.from=corp.example"})
+    assert not has(r, "SPF pasa pero no se alinea")
 
 
 def test_missing_auth_headers_is_low_severity_only():

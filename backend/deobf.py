@@ -119,8 +119,6 @@ def normalize_url(raw: str) -> dict:
         if nxt == cur:
             break
         cur, rounds = nxt, rounds + 1
-    if rounds >= 2:
-        tech.append(f"codificación porcentual repetida ({rounds} capas)")
     auth_end = re.search(r"[/?#]", clean.split("//", 1)[-1])
     authority = clean.split("//", 1)[-1][:auth_end.start()] if auth_end else clean.split("//", 1)[-1]
     if "//" in clean and _PCT_RE.search(authority):

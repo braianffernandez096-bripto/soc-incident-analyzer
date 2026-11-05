@@ -5,11 +5,12 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ## [Sin publicar]
 
 ### Validación con datos reales (punto 3c)
-- **Phishing real:** `scripts/validar_correos.py` analiza los 12.864 correos de phishing_pot: Medio o más 92,2 %, Alto o más 69,6 %, 0,11 s de media. Comprobado con 11.364 correos no usados para ajustar (92,1 % / 69,5 %). Resultados y límites en `docs/VALIDACION.md` (sección 3b).
+- **Phishing real:** `scripts/validar_correos.py` analiza los 12.864 correos de phishing_pot: Medio o más 87,7 %, Alto o más 64,9 %, 0,11 s de media. Comprobado con 11.364 correos no usados para ajustar (87,6 % / 64,8 %). Resultados y límites en `docs/VALIDACION.md` (sección 3b).
+- **Correo legítimo real:** con 20 correos reales (boletines, LinkedIn, GitHub, cursos) los falsos positivos pasaron de 14 de 20 a 0 de 20. Con DMARC en «pass» ya no suman las desalineaciones de SPF/DKIM, Message-ID y Return-Path; el rastreo de clics del propio remitente o de servicios de envío conocidos deja de contar como engaño (salvo si el enlace habla de pagos, cuentas o inicio de sesión); el relleno invisible de los boletines ya no se toma por ofuscación. A cambio, la detección sobre el corpus de phishing baja de 92,2 % a 87,7 % (spam comercial que solo se marcaba por señales débiles).
 - **Comandos ofuscados:** `scripts/validar_ofuscacion.py` mide el desofuscador con 1.360 comandos de Atomic Red Team.
 - **Corregido a partir de esos datos:** un correo con un enlace como `http://[placeholder_1]/` hacía fallar todo el análisis (ahora se marca como enlace inválido); los emoji con selector de variación y las plantillas `{{{ … }}}` ya no se toman por ofuscación; el desofuscador ya no daña los escapes `` `r`n `` de PowerShell y entiende el operador `-f` de Invoke-Obfuscation.
 - **Nuevas señales:** marcas muy suplantadas (criptoactivos, seguridad, bancos y mensajería) en el nombre visible, selectores de variación y marcas combinantes ocultas, estafas de adelanto de pago sin enlaces y cebos de reclamo o validación de criptoactivos.
-- Pendiente: medir falsos positivos con correo legítimo real (no hay un corpus accesible desde el entorno de desarrollo).
+- Pendiente: ampliar la muestra de correo legítimo (corporativo, bancario, otros rubros); 20 correos de una sola bandeja son pocos.
 
 ### Añadido (punto 3b: ofuscación)
 - **URLs ofuscadas** (`backend/deobf.py`): se normalizan antes de analizarlas. IP escrita en decimal (`http://3232235777`), hexadecimal, octal o abreviada, e IPv4 dentro de IPv6; `%XX` en el host o en varias capas; caracteres invisibles y entidades HTML numéricas que esconden el esquema (`jav&#x09;ascript:`); barras invertidas. El correo muestra la dirección real que interpreta el navegador y suma una señal de ofuscación.

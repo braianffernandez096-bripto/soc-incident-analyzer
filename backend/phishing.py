@@ -64,6 +64,11 @@ NAME_BRANDS = {
 FREE_MAIL = {"gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "yahoo.com.ar", "live.com", "icloud.com", "proton.me", "protonmail.com", "gmx.com", "aol.com"}
 SHORTENERS = {"bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd", "buff.ly", "rebrand.ly", "cutt.ly", "shorturl.at", "t.ly", "rb.gy", "tiny.cc", "lnkd.in"}
 RISKY_TLDS = {"zip", "mov", "top", "xyz", "click", "country", "gq", "tk", "ml", "cf", "ga", "work", "support", "rest", "icu", "monster", "buzz", "cam", "sbs", "cyou", "cfd"}
+# Servicios de envío masivo cuyos enlaces de rastreo reescriben las direcciones (el texto muestra una y el enlace pasa por ellos).
+ESP_TRACKERS = {"sendgrid.net", "list-manage.com", "mandrillapp.com", "mailgun.org", "sparkpostmail.com", "hubspotlinks.com", "hubspotemail.net", "exacttarget.com",
+                "klaviyomail.com", "customeriomail.com", "convertkit-mail.com", "convertkit-mail2.com", "beehiiv.com", "substack.com", "mailchimp.com", "sendinblue.com",
+                "brevo.com", "sendibm1.com", "sendibm2.com", "sendibm3.com", "sendibt1.com", "sendibt2.com", "sendibt3.com", "rs6.net", "constantcontact.com", "campaign-archive.com", "elasticemail.com", "mcsv.net", "createsend.com", "cmail19.com", "cmail20.com"}
+SENSITIVE_LINK_TEXT = re.compile(r"billing|payment|invoice|account|login|log-in|signin|sign-in|verif|password|passwd|secure|suspend|confirm|wallet|credential|update", re.I)
 SECOND_LEVEL = {"com", "net", "org", "gov", "edu", "co", "gob", "ac"}          # com.ar, co.uk, gob.mx, org.br…
 EXEC_EXT = {"exe", "scr", "com", "pif", "msi", "dll", "cpl", "jar", "bat", "cmd", "ps1", "psm1", "vbs", "vbe", "js", "jse", "wsf", "wsh", "hta", "lnk", "reg", "chm", "iso", "img", "vhd", "application", "gadget"}
 MACRO_EXT = {"docm", "xlsm", "pptm", "dotm", "xltm", "xlam", "ppam", "xlsb"}
@@ -615,7 +620,15 @@ def _check_url(url: str, text: str, sig: _Sig, from_domains: set[str], location:
             info["flags"].append("Muchos subdominios")
             sig.add("URL", "Bajo", 1, "Subdominios en exceso", f"{host} tiene muchos niveles, útil para disimular el dominio real.", mitre, key=dom)
     shown = re.search(r"(?:https?://)?((?:[a-z0-9-]+\.)+[a-z]{2,})", text.lower()) if text else None
-    if shown and not _is_ip(host) and reg_domain(shown.group(1)) != dom:
+    own = dom in {reg_domain(d) for d in from_domains if d}
+    # Un enlace que habla de pagos, cuentas o inicio de sesión pero pasa por otro sitio nunca se da por «rastreo normal» (así se abusan las plataformas de envío)
+    sensitive = bool(SENSITIVE_LINK_TEXT.search(text or ""))
+    if shown and not _is_ip(host) and reg_domain(shown.group(1)) != dom and own and not sensitive:
+        info["flags"].append("Seguimiento del remitente")        # el enlace pasa por un subdominio del propio remitente (rastreo de clics): normal en boletines
+    elif shown and not _is_ip(host) and reg_domain(shown.group(1)) != dom and dom in ESP_TRACKERS and not sensitive:
+        info["flags"].append("Seguimiento de un servicio de envío")
+        sig.add("URL", "Bajo", 1, "Enlace de seguimiento de un servicio de envío", f"Dice «{shown.group(1)}» pero pasa por {dom}, un servicio de envío masivo: es el rastreo habitual de boletines. Compruébalo si el remitente no lo usa.", mitre, key=(shown.group(1), host))
+    elif shown and not _is_ip(host) and reg_domain(shown.group(1)) != dom:
         info["flags"].append("Texto engañoso")
         sig.add("URL", "Alto", 5, "El texto del enlace muestra otro dominio", f"Dice «{shown.group(1)}» pero apunta a {host}.", mitre, key=(shown.group(1), host))
     return info
@@ -665,7 +678,7 @@ def _hg_signals(sig: _Sig, label: str, value: str, res: dict) -> None:
     if res["odd_case"]:
         o = res["odd_case"][0]
         sig.add("Encabezados", "Medio", 3, f"Mayúscula inusual en {label}", f"La «{o['ch']}» mayúscula en la posición {o['pos']} de «{o['word']}» se confunde con «{o['looks_like']}». Las direcciones no distinguen mayúsculas: escribirla así busca engañar a simple vista.", _HG_MITRE, key)
-    if res["digit_swap"]:
+    if res["digit_swap"] and label != "el Return-Path":          # los rebotes (VERP) llevan cifras aleatorias: no es una suplantación
         d = res["digit_swap"][0]
         sig.add("Encabezados", "Bajo", 1, f"Cifra que imita una letra en {label}", f"La cifra «{d['ch']}» entre letras (posición {d['pos']} de «{d['word']}») se parece a «{d['looks_like']}».", _HG_MITRE, key)
     if res["invisible"]:
@@ -774,9 +787,12 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
     # ---- remitente y suplantación -------------------------------------------------
     if not from_addr:
         sig.add("Encabezados", "Medio", 3, "Sin remitente válido", "El encabezado From no tiene una dirección legible.")
-    if reply_dom and from_dom and reg_domain(reply_dom) != reg_domain(from_dom):
+    dmarc_pass = _auth(msg)["dmarc"] == "pass"           # con DMARC en «pass» el dominio visible está autenticado: las desalineaciones de abajo son ruido de envíos masivos
+    if reply_dom and from_dom and reg_domain(reply_dom) != reg_domain(from_dom) and dmarc_pass and reply_dom not in FREE_MAIL:
+        sig.add("Encabezados", "Medio", 2, "Reply-To de otro dominio", f"Las respuestas van a {reply_addr}, no a {from_dom}. Con DMARC en «pass» suele ser una agencia o plataforma de envíos, pero confirma que sea legítimo.", ["T1566"])
+    elif reply_dom and from_dom and reg_domain(reply_dom) != reg_domain(from_dom):
         sig.add("Encabezados", "Alto", 3, "Reply-To de otro dominio", f"Las respuestas van a {reply_addr}, no a {from_dom}: típico para desviar la conversación.", ["T1566"])
-    if rpath_dom and from_dom and reg_domain(rpath_dom) != reg_domain(from_dom):
+    if rpath_dom and from_dom and reg_domain(rpath_dom) != reg_domain(from_dom) and not dmarc_pass:
         sig.add("Encabezados", "Bajo", 1, "Return-Path de otro dominio", f"El remitente del sobre ({rpath_addr}) no coincide con el visible ({from_addr}); es normal en envíos masivos legítimos.")
     shown_email = re.search(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", from_name)
     if shown_email and shown_email.group(0).lower() != from_addr:
@@ -789,7 +805,7 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
     elif from_dom in FREE_MAIL and re.search(r"soporte|support|seguridad|security|banco|bank|admin|servicio|cobranza|facturaci|rrhh|recursos humanos|helpdesk|it\b", from_name, re.I):
         sig.add("Encabezados", "Medio", 2, "Cuenta gratuita con nombre de área oficial", f"«{from_name}» escribe desde {from_dom}: una empresa real usaría su propio dominio.", ["T1684.001"])
     mid = headers["message_id"]
-    if mid and from_dom and "@" in mid and reg_domain(re.sub(r"[<>]", "", mid).rsplit("@", 1)[-1].lower()) != reg_domain(from_dom) and from_dom not in FREE_MAIL:
+    if mid and from_dom and "@" in mid and reg_domain(re.sub(r"[<>]", "", mid).rsplit("@", 1)[-1].lower()) != reg_domain(from_dom) and from_dom not in FREE_MAIL and not dmarc_pass:
         sig.add("Encabezados", "Bajo", 1, "Message-ID de otro dominio", "El identificador del mensaje no fue generado por el dominio del remitente (puede ser un servicio de envío).")
     try:
         when = parsedate_to_datetime(headers["date"]) if headers["date"] else None
@@ -816,9 +832,9 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
             sig.add("Autenticación", "Bajo", 1, f"DMARC sin política efectiva ({v})", "El dominio visible no protege con DMARC.")
         elif v == "pass":
             favorable.append(f"{label} = pass")
-    if auth["spf"] == "pass" and auth["spf_domain"] and from_dom and reg_domain(auth["spf_domain"]) != reg_domain(from_dom):
+    if auth["spf"] == "pass" and auth["spf_domain"] and from_dom and reg_domain(auth["spf_domain"]) != reg_domain(from_dom) and auth["dmarc"] != "pass":
         sig.add("Autenticación", "Medio", 2, "SPF pasa pero no se alinea", f"SPF validó el dominio {auth['spf_domain']}, distinto del visible ({from_dom}): el «pass» no prueba que sea quien dice.", ["T1566"])
-    if auth["dkim"] == "pass" and auth["dkim_domain"] and from_dom and reg_domain(auth["dkim_domain"]) != reg_domain(from_dom):
+    if auth["dkim"] == "pass" and auth["dkim_domain"] and from_dom and reg_domain(auth["dkim_domain"]) != reg_domain(from_dom) and auth["dmarc"] != "pass":
         sig.add("Autenticación", "Medio", 2, "DKIM pasa pero no se alinea", f"La firma es de {auth['dkim_domain']}, no de {from_dom}.", ["T1566"])
 
     # ---- homógrafos: direcciones que se ven iguales y no lo son ---------------------------

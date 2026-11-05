@@ -112,3 +112,52 @@ def test_powershell_escapes_and_format_strings_are_not_corrupted():
     r = deobf.command(cmd)
     assert "`r`n" in r["text"] and not deobf.reveals(cmd, r)
     assert deobf.command("Write-Host -f'nv'")["text"] == "Write-Host -f'nv'"
+
+
+# ---- falsos positivos medidos con 20 correos legítimos reales (boletines, LinkedIn, GitHub, cursos…): 14 de 20 salían como Medio o más
+ESP_AUTH = "mx.corp.example; spf=pass smtp.mailfrom=bounce.sendgrid.net; dkim=pass header.d=corp.example; dmarc=pass header.from=corp.example"
+
+
+def test_bulk_mail_with_dmarc_pass_is_not_penalized_for_misalignment():
+    m = EmailMessage()
+    m["From"], m["To"], m["Subject"], m["Date"], m["Message-ID"] = "Cursos <info@corp.example>", "u@corp.example", "Novedades", "Mon, 02 Nov 2026 09:00:00 +0000", "<abc@mail.esp-bulk.example>"
+    m["Authentication-Results"] = ESP_AUTH
+    m["Return-Path"] = "<bounce+8812@bounce.sendgrid.net>"
+    m.set_content("Hola, estas son las novedades del mes.")
+    r = P.analyze_eml(bytes(m), "t.eml")
+    assert r["severity"] == "Bajo" and not has(r, "no se alinea") and not has(r, "Message-ID de otro") and not has(r, "Return-Path de otro")
+
+
+def test_misalignment_still_counts_when_dmarc_does_not_pass():
+    assert has(mail(auth="mx; spf=pass smtp.mailfrom=bulk.example; dkim=none; dmarc=fail header.from=corp.example"), "SPF pasa pero no se alinea")
+
+
+def test_own_click_tracking_is_not_a_deceptive_link():
+    r = mail(html='<a href="https://track.corp.example/c/abc">youtu.be/g6SECS3RLho</a>')
+    assert not has(r, "El texto del enlace muestra otro dominio")
+
+
+def test_own_domain_tracking_is_not_trusted_when_the_link_talks_about_billing():
+    # así se abusó una plataforma de envío real: el texto promete billing.spotify.com y el enlace pasa por el dominio del remitente
+    r = mail(html='<a href="https://email.corp.example/c/abc">https://billing.spotify.com/account/payment/update</a>')
+    assert has(r, "El texto del enlace muestra otro dominio")
+
+
+def test_known_bulk_sender_tracker_is_low_signal_unless_sensitive():
+    assert has(mail(html='<a href="https://u123.ct.sendgrid.net/ls/click?x=1">www.corp.example/blog</a>'), "Enlace de seguimiento de un servicio de envío")
+    assert has(mail(html='<a href="https://u123.ct.sendgrid.net/ls/click?x=1">https://login.microsoft.com/verify</a>'), "El texto del enlace muestra otro dominio")
+
+
+def test_newsletter_preheader_padding_is_not_obfuscation_but_split_words_are():
+    pad = "<div style='display:none'>Resumen " + "‌­͏ " * 40 + "</div><p>Hola</p>"
+    assert not has(mail(html=pad), "invisibles")
+    split = "<p>" + " ".join("pa​ypal" for _ in range(6)) + "</p>"
+    assert has(mail(html=split), "invisibles dentro de palabras")
+
+
+def test_bounce_addresses_with_digits_are_not_lookalikes():
+    m = EmailMessage()
+    m["From"], m["To"], m["Subject"], m["Date"], m["Message-ID"] = "LinkedIn <jobs@corp.example>", "u@corp.example", "Alertas", "Mon, 02 Nov 2026 09:00:00 +0000", "<1@corp.example>"
+    m["Return-Path"] = "<bounces-0l1o@corp.example>"
+    m.set_content("Hola")
+    assert not has(P.analyze_eml(bytes(m), "t.eml"), "Cifra que imita una letra en el Return-Path")

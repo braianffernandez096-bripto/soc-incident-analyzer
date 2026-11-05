@@ -51,7 +51,8 @@ class _Hidden(HTMLParser):
             self.stack.pop()
 
     def handle_data(self, data):
-        self.invisible += sum(data.count(c) for c in INVISIBLE)
+        # solo cuenta el invisible que PARTE palabras (pa\u200bypal); el relleno en cadena de los boletines (preheader) no
+        self.invisible += len(re.findall("(?<=[A-Za-z])[" + INVISIBLE + "]+(?=[A-Za-z])", data))
         if self.stack and self.stack[-1]:
             t = "".join(ch for ch in data if ch.isalnum())
             self.hidden_chars += len(t)
@@ -124,10 +125,10 @@ def scan(html_text: str, where: str = "cuerpo") -> dict:
     except Exception:  # noqa: BLE001 - un HTML roto no debe tumbar el análisis
         log.debug("html_parse_error")
     if hp.hidden_chars >= 150:
-        add("Bajo", 1, "Texto oculto en el HTML", f"Hay unos {hp.hidden_chars} caracteres de texto invisibles (por ejemplo «{hp.samples[0] if hp.samples else ''}»). "
+        add("Bajo", 0, "Texto oculto en el HTML", f"Hay unos {hp.hidden_chars} caracteres de texto invisibles (por ejemplo «{hp.samples[0] if hp.samples else ''}»). "
             "Algunos correos legítimos ocultan un resumen, pero también se usa para meter palabras que despistan a los filtros.", ["T1027"], "hidden")
-    if hp.invisible >= 20:
-        add("Bajo", 1, "Muchos caracteres invisibles en el texto", f"Hay {hp.invisible} caracteres de ancho cero. Rompen las palabras para evadir filtros por texto.", ["T1027"], "zerowidth")
+    if hp.invisible >= 5:
+        add("Bajo", 1, "Caracteres invisibles dentro de palabras", f"Hay {hp.invisible} palabras partidas con caracteres de ancho cero. Se usan para evadir filtros por texto.", ["T1027"], "zerowidth")
 
     scripts = SCRIPT_RE.findall(h)
     blob = "\n".join(scripts)[:MAX_HTML] if scripts else ""

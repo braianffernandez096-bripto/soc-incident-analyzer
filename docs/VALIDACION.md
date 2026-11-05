@@ -151,13 +151,13 @@ con `scripts/validar_correos.py`, de forma estática y con la versión final de 
 
 | Resultado | Correos | % |
 |---|---|---|
-| Crítico | 1.213 | 9,4 |
-| Alto | 7.140 | 55,5 |
-| Medio | 2.934 | 22,8 |
-| Bajo (sin señales relevantes) | 1.575 | 12,2 |
+| Crítico | 1.091 | 8,5 |
+| Alto | 6.948 | 54,0 |
+| Medio | 3.074 | 23,9 |
+| Bajo (sin señales relevantes) | 1.749 | 13,6 |
 | Rechazados por el propio análisis (no es un .eml / supera 5 MB) | 2 | 0,0 |
 
-Detectados como **Medio o más: 87,7 %**; **Alto o más: 64,9 %**. Tiempo medio 0,11 s por correo y máximo 1,6 s.
+Detectados como **Medio o más: 86,4 %**; **Alto o más: 62,5 %**. Tiempo medio 0,11 s por correo y máximo 1,6 s.
 
 **Correo legítimo (falsos positivos).** Se probaron **20 correos reales y legítimos** (boletines, LinkedIn, GitHub, cursos, alertas de empleo; todos con SPF, DKIM y DMARC en «pass»),
 aportados por el autor. Con las reglas de la primera versión, **14 de 20 (70 %) salían como Medio o más**. Las causas y su corrección:
@@ -169,10 +169,10 @@ aportados por el autor. Con las reglas de la primera versión, **14 de 20 (70 %)
 - Mis propias señales nuevas hacían ruido: el relleno invisible de los boletines (`preheader`), el texto oculto, los dobles codificados `%25xx` en enlaces de rastreo y las cifras en las
   direcciones de rebote (VERP). Ahora el invisible solo cuenta si **parte palabras**, el texto oculto no suma puntos, la doble codificación solo importa si afecta al servidor y los rebotes no se evalúan como suplantación.
 
-Resultado tras corregir: **0 de 20** (los 20 en Bajo). El precio: sobre el corpus de phishing la detección Medio o más bajó de 92,2 % a 87,7 %. Los correos que se dejaron de marcar son sobre todo
+Resultado tras corregir: **0 de 20** (los 20 en Bajo). El precio: sobre el corpus de phishing la detección Medio o más bajó de 92,2 % a 87,7 % (y a 86,4 % tras las calibraciones posteriores, más abajo). Los correos que se dejaron de marcar son sobre todo
 spam comercial (casinos, clínicas, ofertas) que antes salía «detectado» solo por señales débiles de desalineación, no por señales de phishing.
 
-**Cómo se evitó engañarse.** Se ajustó mirando una muestra aleatoria de 1.500 correos y se comprobó con los **11.364 restantes**, que no se habían usado para ajustar: 87,6 % Medio o más y 64,8 % Alto o más,
+**Cómo se evitó engañarse.** Se ajustó mirando una muestra aleatoria de 1.500 correos y se comprobó con los **11.362 restantes**, que no se habían usado para ajustar: 86,3 % Medio o más y 62,4 % Alto o más,
 prácticamente igual a la tasa global. Los 20 legítimos se usaron para ajustar y después para medir, así que **su 0 % no es una medición independiente**: es una prueba de que los falsos positivos
 que se vieron están corregidos.
 
@@ -184,8 +184,32 @@ Lo que el corpus real enseñó (con pruebas en `tests/unit/test_casos_reales.py`
 - **Ofuscación de URL en el mundo real:** aparecieron IP en octal y decimal (`http://0137.0323.0053.0062/` = 95.211.43.50), HTML smuggling y JavaScript ofuscado en adjuntos.
 
 Límites: 20 correos son una muestra muy pequeña (el margen de error es grande: con 0 falsos positivos en 20, el límite superior razonable ronda el 15 %) y todos vienen de una sola bandeja de entrada
-(boletines en español e inglés de ciberseguridad y empleo). Falta probar correo corporativo, bancario y de otros rubros. El corpus de phishing mezcla phishing con spam comercial: los 1.575 correos
+(boletines en español e inglés de ciberseguridad y empleo). Falta probar correo corporativo, bancario y de otros rubros. El corpus de phishing mezcla phishing con spam comercial: los 1.749 correos
 sin señales son sobre todo spam sin enlaces peligrosos ni suplantación, que la herramienta no pretende filtrar como tal.
+
+**Calibración con el corpus público de SpamAssassin.** Como conseguir correo legítimo reciente de bancos y empresas es difícil, se usó el corpus público de SpamAssassin (correos legítimos «ham»
+fáciles y difíciles) solo para buscar fallos de lógica, no para medir una tasa. Sus correos son de 2002–2003: casi ninguno tiene SPF, DKIM, HTTPS ni JavaScript, así que el porcentaje
+de señalados ahí **no es representativo** de correo actual y no se publica como tasa. Aun así aparecieron dos falsos positivos reales, ya corregidos y con pruebas
+(`tests/unit/test_calibracion_corpus_publico.py`):
+- **Suplantación de marca por subdominio:** un dominio legítimo con la marca como subdominio o prefijo («applecore…») se tomaba por «imita a Apple». Ahora la marca debe ir sola o acompañada
+  solo de palabras típicas de suplantación (`login`, `secure`, `verify`, `support`…, y cifras) para contar; los ataques de ese estilo (`paypal-login`, `secure-apple-id`) se siguen detectando.
+- **Enlaces `mailto:` con entidades HTML:** codificar la dirección con entidades (`&#109;…`) es habitual en boletines y se marcaba como enlace ofuscado. Ahora solo cuenta si lo que se oculta es
+  un enlace web; `&#38;` dentro de una URL tampoco alerta.
+
+Efecto en phishing_pot: baja la detección (87,7 % → 86,4 % Medio o más; 64,9 % → 62,5 % Alto o más, sumando las calibraciones siguientes) porque ya no se etiqueta como «imita a Google/Microsoft» el phishing alojado en sitios legítimos
+de esas empresas (`storage.googleapis.com`, `onmicrosoft.com`): es un phishing real, pero la razón anterior era incorrecta. Los 20 correos reales siguen en 0 de 20.
+
+**Segunda muestra de correo legítimo (bancos, billeteras y empresas de Argentina).** El autor aportó 19 correos más (Banco Galicia y su servicio de cobranzas, Naranja X, Personal Pay, el Gobierno Nacional,
+telemedicina, boletines de seguridad y de Medium). La primera medición dio **6 de 19 (31,6 %) en Medio o más** (1 Alto, 5 Medio): son falsos positivos reales de correo bancario, justo lo que faltaba probar.
+Tres causas, corregidas (pruebas en `tests/unit/test_calibracion_correo_legitimo_ar.py`, con correos sintéticos; los reales no se publican):
+- **Dominios propios del banco que no figuraban:** `galicia.ar` y el dominio de su servicio de cobranzas se tomaban por imitación de Galicia. Se agregaron a los dominios conocidos de la marca; un `galicia.…` bajo cualquier otro dominio sigue marcándose.
+- **Plataforma de envío no reconocida:** los enlaces de rastreo de emBlue (`embluemail.com`) hacían saltar «el texto del enlace muestra otro dominio» en un aviso del Gobierno. Se sumó a los servicios de envío conocidos.
+- **«Billetera» y «tokens» como palabras corrientes:** una billetera virtual (fintech) y un artículo sobre tokens de IA disparaban «Pide reclamar o validar criptoactivos». Ahora esas tres palabras solo cuentan cuando el verbo de acción (reclamar, validar, migrar, conectar…) está pegado al objeto; con palabras claramente cripto (airdrop, seed phrase, bitcoin…) sigue como antes.
+
+Resultado: **0 de 19**, y los 20 anteriores siguen en 0. Sigue siendo una muestra pequeña y de pocas empresas, y esta segunda muestra se usó para ajustar, así que su 0 % tampoco es una medición independiente.
+
+**Un phishing real dentro de la bandeja.** Entre los correos recibidos había uno que era un ataque: enviado desde un servicio legítimo de encuestas (SPF, DKIM y DMARC en «pass»), con un texto que mezclaba letras cirílicas dentro de palabras en inglés («Nеw ассount…») para que los filtros no lo reconocieran. Salía Alto por otras razones, pero no se detectaba el truco principal. Se agregó la señal
+«Texto con letras de otro alfabeto mezcladas dentro de las palabras» (3 o más palabras; Alto) y ahora sale Crítico. No dio falsos positivos en los 39 correos legítimos ni en pruebas con texto en ruso, español y acentos.
 
 **Comandos ofuscados.** `scripts/validar_ofuscacion.py` pasa por el desofuscador los **1.360 comandos de cmd y PowerShell** de las pruebas públicas de
 [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team) (299 técnicas): 11 contienen alguna ofuscación que se resuelve, en 2 la ofuscación escondía un programa relevante

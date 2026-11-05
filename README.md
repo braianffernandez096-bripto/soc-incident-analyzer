@@ -299,7 +299,7 @@ Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputació
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 963 pruebas
+python -m pytest                                           # 997 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
@@ -334,7 +334,7 @@ Además de las pruebas con escenarios de ataque, las reglas se midieron con dato
 
 - **107 ataques de Windows (OTRF Security-Datasets):** la técnica correcta en 41 (con 1.5.0: 20; antes de calibrar: 13), hallazgos de otra técnica en 26 y ninguno en 37. La cobertura es limitada y está documentada, con los huecos que quedan (movimiento lateral por red, credenciales en memoria, inyección de procesos) y por qué no se cubren.
 
-- **Phishing real (12.864 correos de phishing_pot):** 87,7 % con criticidad Medio o más y 64,9 % Alto o más; comprobado con 11.364 correos no usados para ajustar (87,6 % y 64,8 %). **Correo legítimo:** con 20 correos reales (boletines, LinkedIn, GitHub, cursos) los falsos positivos pasaron de 14 a 0 tras calibrar, a costa de detectar menos spam comercial; es una muestra pequeña y el detalle, con sus límites, está en `docs/VALIDACION.md`.
+- **Phishing real (12.864 correos de phishing_pot):** 86,4 % con criticidad Medio o más y 62,5 % Alto o más; comprobado con 11.362 correos no usados para ajustar (86,3 % y 62,4 %). También se calibró con el corpus público de SpamAssassin y con 19 correos reales de bancos, billeteras y empresas de Argentina (de 6 falsos positivos a 0). **Correo legítimo:** con 20 correos reales (boletines, LinkedIn, GitHub, cursos) los falsos positivos pasaron de 14 a 0 tras calibrar, a costa de detectar menos spam comercial; es una muestra pequeña y el detalle, con sus límites, está en `docs/VALIDACION.md`.
 
 - **Tráfico normal:** 35 casos de actividad corriente sin hallazgos; los 5 falsos positivos que se midieron primero (por ejemplo, un solo `ipconfig`) se calibraron y el antes y el después están documentados.
 

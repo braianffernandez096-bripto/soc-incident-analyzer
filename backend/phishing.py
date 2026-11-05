@@ -44,11 +44,36 @@ BRANDS = {
     "amazon": {"amazon.com", "amazon.es", "amazon.com.mx", "amazon.com.br", "amazonaws.com"}, "netflix": {"netflix.com"},
     "mercadolibre": {"mercadolibre.com", "mercadolibre.com.ar", "mercadolibre.com.mx", "mercadolivre.com.br"}, "mercadopago": {"mercadopago.com", "mercadopago.com.ar"},
     "santander": {"santander.com", "santander.com.ar", "santander.com.mx", "santander.es"}, "bbva": {"bbva.com", "bbva.com.ar", "bbva.mx", "bbva.es"},
-    "galicia": {"galicia.com.ar", "bancogalicia.com.ar"}, "afip": {"afip.gob.ar", "arca.gob.ar"}, "arca": {"arca.gob.ar", "afip.gob.ar"},
+    "galicia": {"galicia.com.ar", "bancogalicia.com.ar", "galicia.ar", "gedco.com.ar"}, "afip": {"afip.gob.ar", "arca.gob.ar"}, "arca": {"arca.gob.ar", "afip.gob.ar"},
     "correoargentino": {"correoargentino.com.ar"}, "dhl": {"dhl.com"}, "fedex": {"fedex.com"}, "linkedin": {"linkedin.com"},
     "facebook": {"facebook.com", "fb.com", "meta.com"}, "instagram": {"instagram.com"}, "whatsapp": {"whatsapp.com"},
     "dropbox": {"dropbox.com"}, "docusign": {"docusign.com", "docusign.net"}, "github": {"github.com"},
 }
+# Palabras con las que el phishing acompaña a una marca en un dominio (paypal-secure, appleid, microsoft365-login…).
+BRAND_WORDS = ("account", "accounts", "alert", "alerts", "auth", "billing", "care", "center", "confirm", "customer", "help", "id", "login", "logon", "mail", "my",
+               "online", "pay", "payment", "payments", "portal", "recovery", "secure", "security", "service", "services", "signin", "support", "team", "unlock",
+               "update", "verification", "verify", "wallet", "web")
+_BRAND_REST_RE = re.compile(r"(?:" + "|".join(sorted(BRAND_WORDS, key=len, reverse=True)) + r")*")
+
+
+def _brand_in_host(brand: str, labels: list[str]) -> bool:
+    """¿Alguna parte del host (sin el TLD) es la marca, o la marca con palabras típicas de phishing?
+
+    Antes bastaba con que el nombre de la marca apareciera dentro de cualquier texto («applecore.lockergnome.com» o «pineapple.example» daban «imita a apple»).
+    Ahora la marca debe ser una palabra entera (paypal.evil.example, apple-id.example, pay-pal.example) o ir acompañada solo de palabras como id, support,
+    login, secure o de números (appleid, secure-paypal-login, microsoft365).
+    """
+    for label in labels:
+        for cand in {re.sub(r"[^a-z0-9]", "", label), *label.split("-")}:
+            if cand == brand:
+                return True
+            if brand in cand:
+                rest = re.sub(r"\d+", "", cand.replace(brand, "", 1))
+                if _BRAND_REST_RE.fullmatch(rest):
+                    return True
+    return False
+
+
 # Marcas muy suplantadas en el nombre visible (criptoactivos, seguridad y bancos). Se usan SOLO para el nombre del remitente, con la palabra completa:
 # si entraran en BRANDS, sus nombres cortos darían falsos positivos en la comparación con los dominios de los enlaces.
 NAME_BRANDS = {
@@ -67,7 +92,8 @@ RISKY_TLDS = {"zip", "mov", "top", "xyz", "click", "country", "gq", "tk", "ml", 
 # Servicios de envío masivo cuyos enlaces de rastreo reescriben las direcciones (el texto muestra una y el enlace pasa por ellos).
 ESP_TRACKERS = {"sendgrid.net", "list-manage.com", "mandrillapp.com", "mailgun.org", "sparkpostmail.com", "hubspotlinks.com", "hubspotemail.net", "exacttarget.com",
                 "klaviyomail.com", "customeriomail.com", "convertkit-mail.com", "convertkit-mail2.com", "beehiiv.com", "substack.com", "mailchimp.com", "sendinblue.com",
-                "brevo.com", "sendibm1.com", "sendibm2.com", "sendibm3.com", "sendibt1.com", "sendibt2.com", "sendibt3.com", "rs6.net", "constantcontact.com", "campaign-archive.com", "elasticemail.com", "mcsv.net", "createsend.com", "cmail19.com", "cmail20.com"}
+                "brevo.com", "sendibm1.com", "sendibm2.com", "sendibm3.com", "sendibt1.com", "sendibt2.com", "sendibt3.com", "rs6.net", "constantcontact.com", "campaign-archive.com", "elasticemail.com", "mcsv.net", "createsend.com", "cmail19.com", "cmail20.com",
+                "embluemail.com", "embluejet.com", "embluenitro.com", "embluebtl.com"}
 SENSITIVE_LINK_TEXT = re.compile(r"billing|payment|invoice|account|login|log-in|signin|sign-in|verif|password|passwd|secure|suspend|confirm|wallet|credential|update", re.I)
 SECOND_LEVEL = {"com", "net", "org", "gov", "edu", "co", "gob", "ac"}          # com.ar, co.uk, gob.mx, org.br…
 EXEC_EXT = {"exe", "scr", "com", "pif", "msi", "dll", "cpl", "jar", "bat", "cmd", "ps1", "psm1", "vbs", "vbe", "js", "jse", "wsf", "wsh", "hta", "lnk", "reg", "chm", "iso", "img", "vhd", "application", "gadget"}
@@ -92,7 +118,11 @@ ADVANCE_FEE = [re.compile(p, re.I) for p in (
     r"reply (?:to|me)|responde(?:r)? (?:a )?mi|contact (?:me|my)|private (?:e-?mail|address)|correo privado|western union|moneygram|processing fee|clearance fee",
     r"lawyer|attorney|abogad[oa]|barrister|bank manager|diplomat|dem[oó]cratic republic|burkina|ivory coast|c[oô]te d.ivoire")]
 # Reclamo o validación de criptoactivos (airdrops, migración de billetera): se necesita un objeto cripto y un verbo de acción.
-CRYPTO_OBJ = re.compile(r"airdrop|wallet|billetera|stETH|\bnft\b|\btokens?\b|seed phrase|recovery phrase|frase semilla|bitcoin|ethereum|crypto|\$[A-Z]{3,6}\b", re.I)
+_CRYPTO_ACT_WORDS = r"claim|reclam\w*|migrat\w*|validate|valida[rd]|verify|verifica[rd]|connect|conect\w*|restore|restaura\w*|synchroni[sz]e|sincroniza\w*"
+# «wallet», «billetera» y «token» también son palabras normales en fintech e inteligencia artificial: solo cuentan si el verbo está pegado al objeto.
+_CRYPTO_WEAK = r"(?:wallet|billetera|tokens?)"
+CRYPTO_OBJ = re.compile(r"airdrop|stETH|\bnft\b|seed phrase|recovery phrase|frase semilla|bitcoin|ethereum|crypto|\$[A-Z]{3,6}\b", re.I)
+CRYPTO_WEAK_NEAR = re.compile(r"\b(?:" + _CRYPTO_ACT_WORDS + r")\W+(?:\w+\W+){0,3}" + _CRYPTO_WEAK + r"\b|\b" + _CRYPTO_WEAK + r"\W+(?:\w+\W+){0,3}(?:" + _CRYPTO_ACT_WORDS + r")\b", re.I)
 CRYPTO_ACT = re.compile(r"claim|reclam|migrat|validate|valida[rd]|verify|verifica[rd]|connect your|conecta|restore|restaura|synchroni[sz]e|sincroniza|trophy|awaits|waiting for you|te esperan|tus tokens", re.I)
 HOP_FROM_RE = re.compile(r"from\s+(?P<from>\S+)", re.I)
 RECV_WITH_RE = re.compile(r"\bwith\s+(\S+)", re.I)
@@ -603,7 +633,7 @@ def _check_url(url: str, text: str, sig: _Sig, from_domains: set[str], location:
         sig.add("URL", "Bajo", 1, "Enlace sin HTTPS", "El sitio no cifra la conexión.", mitre, key=dom)
     if not _is_ip(host):
         labels = host.split(".")
-        brand_hit = next((b for b in BRANDS if b in re.sub(r"[^a-z0-9]", "", ".".join(labels[:-1])) and dom not in BRANDS[b]), "")
+        brand_hit = next((b for b in BRANDS if _brand_in_host(b, labels[:-1]) and dom not in BRANDS[b]), "")
         if brand_hit:
             info["flags"].append(f"Suplanta {brand_hit}")
             sig.add("URL", "Alto", 5, f"Dominio que imita a {brand_hit}", f"{host} contiene «{brand_hit}» pero su dominio real es {dom}, que no es de esa empresa.", ["T1566.002", "T1684.001"], key=dom)
@@ -664,6 +694,22 @@ def _hg_entry(label: str, value: str, kind: str = "address") -> tuple[dict, dict
         notes.append(f"Forma técnica del dominio: {res['idn']}")
     return ({"label": label, "value": value, "spelled": homograph.spelled(value), "chars": cells, "truncated": trunc, "scripts": res["scripts"],
              "suspicious": res["suspicious"], "notes": notes}, res)
+
+
+_WORD_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
+
+
+def _mixed_script_words(text: str) -> list[str]:
+    """Palabras escritas sobre todo en letras latinas con alguna cirílica o griega que imita una latina (técnica para esquivar filtros de texto)."""
+    out = []
+    for w in _WORD_RE.findall(text[:200_000]):
+        if w.isascii() or len(w) < 3:
+            continue
+        look = sum(1 for c in w if not c.isascii() and homograph.script_of(c) in ("Cirílico", "Griego") and homograph.lookalike(c))
+        latin = sum(1 for c in w if c.isascii())
+        if look and latin >= look:
+            out.append(w)
+    return out
 
 
 def _hg_signals(sig: _Sig, label: str, value: str, res: dict) -> None:
@@ -891,6 +937,11 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
         elif ctype == "text/plain":
             body_text.append(_decode(part))
     plain = "\n".join(body_text)
+    mixed_words = _mixed_script_words(plain + " " + subject)
+    if len(mixed_words) >= 3:
+        sig.add("Contenido", "Alto", 5, "Texto con letras de otro alfabeto mezcladas dentro de las palabras",
+                f"{len(mixed_words)} palabras del mensaje (por ejemplo «{_clean(mixed_words[0], 30)}») mezclan letras latinas con cirílicas o griegas que se ven iguales. "
+                "Se usa para que el texto se lea normal pero los filtros no reconozcan las palabras.", ["T1566", "T1684.001"])
     for m in URL_RE.finditer(plain):
         u = m.group(0).rstrip(".,;:!?")
         if u not in seen_urls and u not in shown_text and len(urls) < MAX_URLS:
@@ -925,7 +976,7 @@ def analyze_eml(data: bytes, filename: str = "correo.eml", expected: str = "", p
     if scam_hits >= 3 or (scam_hits >= 2 and from_dom in FREE_MAIL):
         sig.add("Contenido", "Medio", 3, "Texto típico de estafa de adelanto de pago", "Menciona herencias, donaciones o fondos y pide responder a un correo privado, sin enlaces que revisar. "
                 "Es el patrón de la estafa «419»: el dinero prometido nunca llega y se piden «gastos» por adelantado.", ["T1566"])
-    if CRYPTO_OBJ.search(plain + " " + subject) and CRYPTO_ACT.search(plain + " " + subject) and (urls or attachments):
+    if ((CRYPTO_OBJ.search(plain + " " + subject) and CRYPTO_ACT.search(plain + " " + subject)) or CRYPTO_WEAK_NEAR.search(plain + " " + subject)) and (urls or attachments):
         sig.add("Contenido", "Medio", 3, "Pide reclamar o validar criptoactivos", "El texto ofrece tokens o pide validar, migrar o conectar una billetera. Los «airdrops» y avisos de migración "
                 "son un cebo habitual para robar la frase semilla o la autorización de la billetera.", ["T1566.002", "T1598.003"])
     if ENABLE_CONTENT.search(plain + " " + subject):

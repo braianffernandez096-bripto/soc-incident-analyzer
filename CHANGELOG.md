@@ -4,6 +4,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+### Corregido: calibración con correo legítimo de bancos y empresas
+- Con 19 correos reales (Banco Galicia, Naranja X, Personal Pay, Gobierno, boletines) hubo 6 falsos positivos; ahora 0. Causas: dominios propios del banco (`galicia.ar`, cobranzas) que no figuraban, enlaces de rastreo de emBlue y las palabras «billetera» y «tokens» tomadas por cebo de criptoactivos (ahora solo cuentan junto a un verbo de reclamar, validar, migrar o conectar).
+
+### Añadido: letras de otro alfabeto dentro de las palabras del mensaje
+- Nueva señal (Alto) cuando 3 o más palabras del cuerpo mezclan letras latinas con cirílicas o griegas que se ven iguales. Detecta un phishing real enviado desde un servicio de encuestas legítimo, que ahora sale Crítico.
+
+### Corregido: calibración del phishing con el corpus público de SpamAssassin
+- **Marca por subdominio:** `applecore…` ya no se toma por «imita a Apple»; la marca debe ir sola o con palabras típicas de suplantación (`login`, `secure`, `verify`…).
+- **`mailto:` con entidades HTML:** ya no se marca como enlace ofuscado; sigue alertando si se oculta un enlace web.
+- Medición completa tras las calibraciones: phishing_pot 86,4 % Medio o más y 62,5 % Alto o más (antes 87,7 % / 64,9 %: ya no se llama «imitación de Google/Microsoft» al phishing alojado en sitios legítimos de esas empresas). Los 20 correos reales siguen en 0 de 20. Detalle en `docs/VALIDACION.md` (sección 3b).
+
 ### Añadido: evasión de defensas y persistencia por línea de comandos
 - **Programas de confianza (LOLBins)** (`cmd_lolbin_proxy`, T1218.x y T1220): `mshta` con JavaScript, VBScript, URL o `.hta`; `cmstp /s … .inf`; `hh.exe` con un `.chm` de una ruta de usuario; `control.exe` o `rundll32` con un `.cpl` de ProgramData, Temp o del usuario; InstallUtil sobre un `.dll` o `.exe` de esas rutas; `Register-CimProvider -Path`; y `wmic … /format:` con una hoja XSL remota. El hallazgo cita la técnica concreta de cada uno.
 - **Auditoría o registro de eventos alterado** (`cmd_log_tamper`, T1685.001 y T1685.005): `wevtutil cl` o `set-log` que cambia la ruta o lo desactiva, `auditpol` que desactiva o borra, `sc config eventlog`, `Stop-Service EventLog`, `Clear-EventLog` y el apagado de la línea de comandos de los procesos (`ProcessCreationIncludeCmdLine_Enabled = 0`). El uso normal (`wevtutil sl … /ms:`, `auditpol /set … :enable`, activar la línea de comandos) no alerta.

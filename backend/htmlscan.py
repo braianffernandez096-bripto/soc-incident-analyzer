@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import html
 import logging
 import re
 from html.parser import HTMLParser
@@ -20,7 +21,10 @@ INVISIBLE = "\u200b\u200c\u200d\u2060\ufeff\u00ad\u034f"
 HIDDEN_STYLE = re.compile(r"display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*0(?:px|pt|em|%)?\s*(?:;|$)|opacity\s*:\s*0(?:\.0+)?\s*(?:;|$)|"
                           r"(?:max-)?height\s*:\s*0(?:px)?\s*;[^\"']*overflow\s*:\s*hidden|text-indent\s*:\s*-\d{3,}", re.I)
 META_REFRESH = re.compile(r"<meta[^>]+http-equiv\s*=\s*[\"']?refresh[\"']?[^>]*content\s*=\s*[\"']\s*\d+\s*;\s*url\s*=\s*['\"]?([^\"'>\s]+)", re.I)
-HREF_NUMENT = re.compile(r"""(?:href|src|action)\s*=\s*["'][^"']*&#(?:x[0-9a-f]+|\d+);""", re.I)
+_ENT = r"&#(?:x[0-9a-f]+|\d+);"
+# Valor de href/src/action cuyo INICIO o servidor está escrito con entidades numéricas: «&#104;&#116;&#116;&#112;…» o «http://&#101;vil.com». Un «&#38;» dentro de una
+# URL normal, y el mailto: escrito con entidades (técnica legítima contra los recolectores de correo), no cuentan.
+HREF_NUMENT = re.compile(r"""(?:href|src|action)\s*=\s*(["'])\s*((?:(?:""" + _ENT + r"""\s*){3,}|(?:https?:)?//[^/?#"'\s]*?""" + _ENT + r""")[^"']{0,2000})\1""", re.I)
 SCRIPT_RE = re.compile(r"<script\b[^>]*>(.*?)</script\s*>", re.I | re.S)
 ATOB_RE = re.compile(r"""\batob\(\s*(['"])([A-Za-z0-9+/=\s]{16,%d})\1\s*\)""" % MAX_DECODE, re.I)
 UNESCAPE_RE = re.compile(r"""\bunescape\(\s*(['"])((?:%[0-9a-fA-F]{2}|%u[0-9a-fA-F]{4}|[^'"\\]){6,""" + str(MAX_DECODE) + r"""})\1\s*\)""", re.I)
@@ -114,7 +118,7 @@ def scan(html_text: str, where: str = "cuerpo") -> dict:
         urls.append(m.group(1)[:500])
         add("Medio", 3, "Redirección automática (meta refresh)", f"El HTML manda al navegador a {m.group(1)[:120]} sin que el usuario haga clic. "
             "Se usa para saltar de una página inocente a la de captura de datos.", ["T1566.002"], "meta")
-    if HREF_NUMENT.search(h):
+    if any(not html.unescape(m.group(2)).strip().lower().startswith(("mailto:", "tel:", "sms:")) for m in HREF_NUMENT.finditer(h)):
         add("Medio", 3, "Enlace escrito con entidades HTML numéricas", "Un enlace está escrito como «&#104;&#116;…» para que no se lea ni lo detecten filtros simples. "
             "El navegador lo interpreta igual que un enlace normal.", ["T1027", "T1566.002"], "nument")
 

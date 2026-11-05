@@ -66,6 +66,33 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 
 `sample_data/logs_multifuente.json` (100 eventos de SSH, web, base de datos, DNS, correo, endpoint y nube) es un segundo ejemplo, y `sample_data/SIEM_Logs_500_Eventos.{csv,xlsx,json}` (500 eventos de un día con Windows, Linux, web, proxy, DNS, correo, EDR y nube) un tercero con 7 incidentes y señuelos que no deben alertar, sin Event IDs de Windows: produce **15 hallazgos** agrupados en **9 incidentes** (fuerza bruta SSH con compromiso de `admin`, ataque web con exfiltración, phishing con movimiento lateral, ransomware, escalamiento SUID, túnel DNS, abuso de identidad cloud, password spraying y minería).
 
+## Demostración
+
+**Análisis de logs: del export del SIEM al panel, los incidentes, los hallazgos y el informe**
+
+![Recorrido por el análisis de logs: panel, incidentes, hallazgos, eventos, indicadores e informe](img/gif/logs-demo.gif)
+
+**Phishing: análisis de correos de ejemplo, detalle con homógrafos y descarga del informe**
+
+![Recorrido por el análisis de phishing: carga, tabla de correos, detalle del correo y desglose de caracteres](img/gif/phishing-demo.gif)
+
+**Evaluar dominio: nota de A a F con lo que resta cada comprobación (SPF, DKIM y DMARC)**
+
+![Evaluación de un dominio con su nota y la tabla de comprobaciones](img/gif/dominio-demo.gif)
+
+**Dominios parecidos: variantes de typosquatting y comprobación de cuáles están registradas**
+
+![Generación de variantes de un dominio y comprobación de registro en el DNS](img/gif/parecidos-demo.gif)
+
+<details>
+<summary>Ver los informes PDF generados (logs y phishing)</summary>
+
+![Informe técnico en PDF del análisis de logs](img/gif/informe-logs.gif)
+
+![Informe en PDF del análisis de correos, con recorrido y puntaje](img/gif/informe-phishing.gif)
+
+</details>
+
 ## Capturas
 
 **Inicio: carga del archivo o prueba con datos de ejemplo** (arriba, las pestañas «Análisis de logs» y «Phishing»)

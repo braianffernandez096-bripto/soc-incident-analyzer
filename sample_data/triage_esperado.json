@@ -1,0 +1,34 @@
+{
+  "_aviso": "Etiquetas de triaje según el criterio del autor sobre datos sintéticos (los mismos de sample_data). No son una verdad de campo ni salen de casos reales: sirven para comparar versiones del motor o modelos entre sí, no para afirmar una tasa de acierto en producción.",
+  "SOC_L2_Logs_Ampliados_Multiples_Incidentes.xlsx": {
+    "INC-001": {"esperado": "Escalar", "criterio": "Password spraying seguido de logon exitoso y uso de privilegios con la misma cuenta."},
+    "INC-002": {"esperado": "Escalar", "criterio": "Acceso externo, movimiento lateral, staging y exfiltración."},
+    "INC-003": {"esperado": "Escalar", "criterio": "Borrado de copias de sombra: señal típica de ransomware."},
+    "INC-004": {"esperado": "Escalar", "criterio": "Archivado y salida de datos a IP externa por el proxy."},
+    "INC-005": {"esperado": "Falta información", "aceptable": ["Escalar"], "criterio": "Una sola persistencia de una cuenta de soporte: puede ser legítima; hay que preguntar al propietario."},
+    "INC-006": {"esperado": "Escalar", "criterio": "Ataque web con ejecución de comandos desde el servicio."}
+  },
+  "logs_multifuente.json": {
+    "INC-001": {"esperado": "Escalar", "criterio": "Fuerza bruta SSH con acceso exitoso a admin."},
+    "INC-002": {"esperado": "Escalar", "criterio": "Ataque web con acceso a datos y exfiltración."},
+    "INC-003": {"esperado": "Escalar", "criterio": "Cadena de phishing, C2, persistencia y movimiento lateral."},
+    "INC-004": {"esperado": "Escalar", "criterio": "Cifrado masivo y borrado de respaldos."},
+    "INC-005": {"esperado": "Escalar", "criterio": "Escalamiento a root por una cuenta de desarrollo."},
+    "INC-006": {"esperado": "Falta información", "aceptable": ["Escalar"], "criterio": "El túnel DNS se infiere por volumen y longitud de consultas; puede ser software legítimo con dominios largos."},
+    "INC-007": {"esperado": "Escalar", "criterio": "Uso anómalo de una identidad cloud desde una IP externa."},
+    "INC-008": {"esperado": "Falta información", "aceptable": ["Escalar"], "criterio": "Password spraying sin acceso exitoso: hay que revisar si la cuenta está protegida con MFA y si la IP vuelve a aparecer."},
+    "INC-009": {"esperado": "Escalar", "criterio": "Minería de criptomonedas en un host servido por www-data: indica ejecución no autorizada."}
+  },
+  "SIEM_Logs_500_Eventos.csv": {
+    "INC-001": {"esperado": "Escalar", "criterio": "Fuerza bruta SSH con root comprometido, persistencia y minería."},
+    "INC-002": {"esperado": "Escalar", "criterio": "Cadena completa con exfiltración."},
+    "INC-003": {"esperado": "Falta información", "aceptable": ["Escalar"], "criterio": "Túnel DNS inferido por patrones; sin otra señal asociada al host."},
+    "INC-004": {"esperado": "Escalar", "criterio": "Ejecución remota desde el servicio web."},
+    "INC-005": {"esperado": "Escalar", "criterio": "Phishing seguido de cifrado y borrado de respaldos."},
+    "INC-006": {"esperado": "Escalar", "criterio": "Uso anómalo de una identidad cloud desde IP externa."},
+    "INC-007": {"esperado": "Falta información", "aceptable": ["Escalar"], "criterio": "Persistencia aislada de una cuenta con rol de administración: requiere confirmar el cambio con su dueño."}
+  },
+  "auth_log_ejemplo.txt": {
+    "INC-001": {"esperado": "Escalar", "criterio": "Password spraying con acceso exitoso a admin."}
+  }
+}

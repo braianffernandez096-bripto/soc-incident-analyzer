@@ -353,3 +353,13 @@ tbody tr[data-mail].sel{background:var(--soft2);box-shadow:inset 3px 0 0 var(--a
 .chk{display:flex;gap:8px;align-items:flex-start;margin:12px 0 4px;max-width:640px}
 .recs dt{font-weight:600;margin-top:8px}.recs dd{margin:2px 0 0;word-break:break-all}
 details.panel summary{cursor:pointer}
+
+.tri{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.tri-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:4px 0 6px}
+.tri-chip{display:inline-block;font-size:13px;font-weight:600;padding:3px 11px;border-radius:6px;background:var(--soft);color:var(--ink)}
+.tri-chip.Escalar{background:var(--crit-bg);color:var(--crit)}
+.tri-chip.Probable-falso-positivo{background:var(--bajo-bg);color:var(--bajo)}
+.tri-chip.Falta-información{background:var(--med-bg);color:var(--med)}
+.tri-reasons{margin:6px 0 8px 18px}
+.tri-dec{display:grid;gap:8px;margin-top:8px}
+.tri-dec textarea{width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:inherit;resize:vertical}

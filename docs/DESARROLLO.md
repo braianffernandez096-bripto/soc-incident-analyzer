@@ -73,7 +73,7 @@ En la pestaña **Phishing** (disponible desde el inicio, sin cargar logs) sube u
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 997 pruebas
+python -m pytest                                           # 1.107 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
@@ -84,6 +84,7 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 - `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras), clave de acceso (401 en todas las rutas protegidas, fuerza bruta), capa de IA y consultas de reputación con servidores simulados (las pruebas no usan red ni claves) el botón de datos de ejemplo, el módulo de phishing (PDF, reputación y remitente esperado) y el captcha de imágenes y de rompecabezas.
 
 - `tests/e2e/`: arranca el servidor real; `test_smoke.py` recorre carga, análisis y PDF por API, y `test_ui.py` maneja un navegador real (Playwright + Chromium: `pip install playwright && playwright install chromium`; si falta, se salta) para el flujo de logs, el PDF, el phishing y una prueba de que un log con HTML/JS no se ejecuta.
+- `tests/integration/test_triaje.py` y `tests/unit/test_evaluar_triage.py`: triaje con modelos simulados (honesto, con `Log_ID` inventados, que baja la guardia, que devuelve basura o falla), decisiones del analista, API y coherencia de las etiquetas de evaluación.
 - `tests/integration/test_ai_ollama.py`: IA local contra un servidor Ollama simulado (estado y modelos, dirección válida, JSON roto y reintento, errores legibles, caída del servidor con respaldo por reglas, la API sin clave, y que el navegador no pueda cambiar la dirección ni el modelo).
 - `tests/integration/test_prompt_injection.py`: logs con instrucciones inyectadas y un modelo simulado que las obedece; comprueba que la criticidad sigue siendo la del motor, que lo inventado se descarta y que el PDF no genera enlaces activos.
 

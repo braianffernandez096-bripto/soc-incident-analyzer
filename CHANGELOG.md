@@ -4,6 +4,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+### Añadido: triaje asistido por IA con decisión del analista
+- En la pestaña Incidentes, cada incidente trae una recomendación de triaje (**Escalar**, **Probable falso positivo** o **Falta información**) con confianza, motivos que citan `Log_ID` y «qué me haría cambiar de opinión». Sin IA la da el motor; con IA (Claude u Ollama, desde el panel de la misma pestaña) la propone el modelo.
+- La severidad sigue siendo del motor. Si la IA propone ser menos exigente en un incidente Crítico o Alto, se conserva la recomendación del motor y se marca el **conflicto**. Se descartan los `Log_ID` e IP inventados, los motivos genéricos y las respuestas inválidas (ese incidente queda con la del motor).
+- El analista registra su decisión (Escalado, Descartado o En investigación) con una nota; aparece en el PDF junto con la recomendación de IA.
+- Nuevo `scripts/evaluar_triage.py` y `sample_data/triage_esperado.json` para medir un modelo (aciertos, subescalado, sobreescalado, conflictos, citas descartadas). Las etiquetas son criterio del autor sobre datos sintéticos; ver `docs/TRIAGE.md`.
+- Nuevos `backend/triage.py` y endpoints `GET /api/sessions/{id}/triage`, `POST …/triage/ai` y `POST …/triage/{incidente}/decision`. Sin dependencias nuevas. 21 pruebas nuevas (1.107 en total).
+
 ### Añadido: reglas Sigma para Linux, web, DNS y nube
 - Los hallazgos de SSH, ataque web, túnel DNS, minería, lectura de credenciales en Linux, persistencia (cron, claves SSH y también Windows), ransomware, phishing con doble extensión, comandos sospechosos, sondeo de recursos compartidos y cambios de IAM en la nube ahora ofrecen una regla **Sigma** en «Buscar en tu SIEM» y en la descarga de reglas de la pestaña Hallazgos. Son solo Sigma (sin Splunk ni KQL), con campos estándar. No tienen regla la exfiltración ni el comando y control.
 - Las reglas se convierten sin error con pySigma (backend Splunk) y se prueban contra las evidencias de los ejemplos; esa prueba detectó que el regex de túnel DNS no cubría subdominios de dos niveles, y se corrigió.
@@ -21,7 +28,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - Se descartan las acciones y recomendaciones genéricas del modelo («tomar medidas para prevenir futuros ataques»); en el plan por hallazgo, la columna genérica o vacía se completa con el plan de las reglas. En el plan de acción, la acción del modelo solo se usa si se refiere a un único incidente y nombra algo concreto de él (IP, equipo, cuenta o indicador); si no, entra la acción de las reglas. Una justificación de criticidad que repite la explicación técnica se reemplaza por la de las reglas.
 - Cronología: la hora ya no se corta ni se pierde cuando el modelo devuelve la fecha completa (también con formato ISO «…T10:08:59Z»). PDF: el Log_ID no se parte en dos líneas y «1 host» en singular.
 - Tiempo de espera por consulta configurable (`OLLAMA_TIMEOUT`, 60 minutos por defecto): una prueba real con un modelo de 8B en una VM de 2 procesadores mostró consultas de más de 15 minutos con incidentes grandes.
-- Nuevo `backend/ai_local.py`, endpoint `GET /api/ai/providers` y parámetros `provider` y `model` en `POST /api/sessions/{id}/ai`. 36 pruebas nuevas con un servidor Ollama simulado y una prueba de navegador. Sin dependencias nuevas.
+- Nuevo `backend/ai_local.py`, endpoint `GET /api/ai/providers` y parámetros `provider` y `model` en `POST /api/sessions/{id}/ai`. 36 pruebas nuevas con un servidor Ollama simulado y una prueba de navegador. Sin dependencias nuevas. 21 pruebas nuevas (1.107 en total).
 
 ### Corregido: números de los ejemplos en la documentación
 - `docs/FORMATOS.md` atribuía al ejemplo de 500 eventos el resultado del de 100 (15 hallazgos y 9 incidentes). Ahora: `logs_multifuente.json` produce 15 hallazgos en 9 incidentes y `SIEM_Logs_500_Eventos` 28 hallazgos en 7 incidentes.

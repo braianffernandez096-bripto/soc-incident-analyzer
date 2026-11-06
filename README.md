@@ -143,6 +143,10 @@ En la pestaña **Phishing** (disponible desde el inicio, sin cargar logs) sube u
 
 Es análisis estático y determinista: no se abre ningún enlace ni se ejecuta ningún adjunto, y las URL se muestran «defangeadas». Incluye ataques homógrafos con desglose carácter por carácter, remitente esperado, recorrido `Received`, puntaje con factores visibles, evaluación de dominio (SPF/DKIM/DMARC) y dominios parecidos. Todo el detalle, con sus límites, está en [docs/DESARROLLO.md](docs/DESARROLLO.md#análisis-de-correos-phishing-detalle).
 
+## Triaje asistido por IA (opcional)
+
+Cada incidente trae una recomendación (**Escalar**, **Probable falso positivo** o **Falta información**) con motivos, confianza y «qué me haría cambiar de opinión»; el analista registra su decisión y una nota, que va al PDF. La severidad la fija siempre el motor y, si la IA quiere ser menos exigente en un incidente Crítico o Alto, se conserva la del motor y se marca el conflicto. Incluye un script para medir modelos. Detalle y límites: [docs/TRIAGE.md](docs/TRIAGE.md).
+
 ## IA local con Ollama (opcional)
 
 Alternativa a Claude para quien no quiere pagar ni enviar datos a un tercero: en la pestaña **Informe** eliges **IA local (Ollama)** y uno de los modelos instalados (`ollama pull llama3.1:8b`). Mismas garantías que con Claude: la criticidad y la prioridad del plan de acción las fija el motor y el verificador descarta lo inventado. Sin GPU, un modelo de 8B tarda minutos por consulta. Configuración (`OLLAMA_HOST`, `OLLAMA_NUM_CTX`, `OLLAMA_TIMEOUT`), Docker y tiempos medidos: [docs/IA-LOCAL.md](docs/IA-LOCAL.md).
@@ -159,7 +163,7 @@ Los mensajes de error más comunes (formato no soportado, cabecera no reconocida
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 1.086 pruebas
+python -m pytest                                           # 1.107 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 

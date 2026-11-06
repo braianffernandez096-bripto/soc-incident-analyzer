@@ -451,7 +451,26 @@ def build_phishing_pdf(items: list[dict], meta: dict, intel: dict | None = None)
     return buf.getvalue()
 
 
-def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: dict | None = None, phishing: list[dict] | None = None) -> bytes:
+def triage_block(t: dict | None) -> list:
+    """Recomendación de triaje y decisión del analista de un incidente (solo si hay IA o una decisión registrada)."""
+    if not t or (t["source"] != "ia" and not t.get("decision")):
+        return []
+    out = []
+    if t["source"] == "ia":
+        out.append(PR(f"<b>Triaje asistido por IA:</b> {escape(t['recommendation'])} (confianza {escape(t['confidence'])}). "
+                      + escape(" ".join(t["reasons"][:3])) + f" <i>Cambiaría de opinión si:</i> {escape(t['would_change_if'])}", "small"))
+    if t.get("conflicto") and t.get("ia_sugirio"):
+        out.append(PR(f"<b>Conflicto:</b> la IA sugirió «{escape(t['ia_sugirio']['recommendation'])}», pero se mantiene la recomendación del motor "
+                      "porque la severidad es alta; la decisión es del analista.", "small"))
+    d = t.get("decision")
+    if d:
+        out.append(PR(f"<b>Decisión del analista:</b> {escape(d['decision'])}" + (f" — {escape(d['note'])}" if d["note"] else "")
+                      + f" <font color='#6b7280'>({escape(d['at'])})</font>", "small"))
+    return out
+
+
+def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: dict | None = None, phishing: list[dict] | None = None,
+              triage: dict | None = None) -> bytes:
     meta = {"client": meta.get("client") or "Cliente", "analyst": meta.get("analyst") or "Analista SOC",
             "filename": meta.get("filename") or "export_siem.xlsx", "footer": meta.get("footer"), "title_suffix": meta.get("title_suffix") or ""}
     buf = io.BytesIO()
@@ -545,6 +564,7 @@ def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: dic
     # ---- 4. incidentes y hallazgos -------------------------------------------
     story.append(PageBreak())
     story.append(P("4. Incidentes y hallazgos", "h1"))
+    triage_by_inc = {t["incident_id"]: t for t in (triage or {}).get("items", [])}
     for inc in incidents:
         g = ai["incidents"].get(inc["id"], {})
         story.append(CondPageBreak(60 * mm))
@@ -553,6 +573,7 @@ def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: dic
                      + (f" · IP externas: {', '.join(inc['external_ips'])}" if inc["external_ips"] else "")
                      + (f" · Cuentas: {', '.join(D.short_user(u) for u in inc['actor_users'])}" if inc["actor_users"] else ""))
         story += [P(meta_line, "small"), Spacer(1, 3), P(g.get("narrative", ""))]
+        story += triage_block(triage_by_inc.get(inc["id"]))
         if g.get("confidence"):
             story.append(PR(f"<b>Confianza de la agrupación:</b> {escape(g['confidence'])}. {escape(g.get('confidence_reason', ''))}", "small"))
         kc = [[hcell("Hora"), hcell("Paso"), hcell("Evidencia")]]

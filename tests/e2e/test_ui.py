@@ -118,6 +118,23 @@ def test_hostile_log_content_is_shown_as_text_and_never_executed(page, tmp_path)
     assert "onerror" in seen                                           # el texto hostil se ve, literal
 
 
+def test_triage_recommendation_and_analyst_decision(page):
+    """Triaje: cada incidente muestra la recomendación del motor y el analista puede registrar su decisión con una nota (texto hostil incluido)."""
+    _upload_logs(page, SAMPLE)
+    page.get_by_role("link", name="Incidentes").first.click()
+    main = page.locator("#main")
+    expect(main).to_contain_text("Triaje asistido por IA")
+    expect(main.locator(".tri-chip").first).to_have_text("Escalar")
+    box = main.locator(".tri").first
+    box.locator("textarea").fill("<img src=x onerror=window.__pwned=1> Se abrió ticket")
+    box.get_by_role("button", name="Escalado").click()
+    expect(main.locator(".tri").first).to_contain_text("Decisión: Escalado")
+    expect(main).to_contain_text("Decididos: 1 de")
+    assert page.evaluate("window.__pwned") is None
+    assert page.locator("#main .tri img").count() == 0
+    assert page.problems == []
+
+
 def test_phishing_flow_critical_and_legit(page):
     page.get_by_role("link", name="Phishing").click()
     page.set_input_files("#pfile", [str(MAILS / "01_factura_adjunto_pdf_exe.eml"), str(MAILS / "05_legitimo_interno.eml")])

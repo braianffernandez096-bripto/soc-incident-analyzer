@@ -34,6 +34,7 @@ from . import intel as intel_mod
 from . import lookalikes as lookalikes_mod
 from . import phishing as phishing_mod
 from . import senderreview
+from . import triage as triage_mod
 from . import siemqueries
 from .analysis import analyze, rows_for
 from .parser import SUPPORTED_EXT, ParseError, load_events
@@ -169,6 +170,8 @@ class Session:
     created: float = field(default_factory=time.time)
     intel: dict | None = None      # estado de la consulta de reputación (VirusTotal / AbuseIPDB)
     phish_id: str = ""             # análisis de correos asociado (se añade al PDF)
+    triage: dict | None = None     # recomendaciones de triaje generadas con IA (sin ellas se usa la del motor)
+    decisions: dict = field(default_factory=dict)   # decisión del analista por incidente (solo en memoria, como la sesión)
 
 
 SESSIONS: dict[str, Session] = {}
@@ -435,15 +438,10 @@ def ai_providers(request: Request):
             "ollama": ai_local.status(_ollama_http())}
 
 
-@app.post("/api/sessions/{sid}/ai")
-def run_ai(sid: str, request: Request, x_anthropic_key: str | None = Header(default=None),
-           provider: str = "anthropic", model: str | None = None):
-    _rate_limit(request, "/api/ai", *RATE_LIMITS["/api/ai"])
-    s = _get(sid)
+def _resolve_provider(provider: str, model: str | None, header_key: str | None) -> tuple[dict, str | None]:
+    """Valida el proveedor de IA y devuelve (kwargs para generate, clave de Anthropic). Lo comparten el informe y el triaje."""
     if provider not in ("anthropic", "ollama"):
         raise HTTPException(400, "Proveedor de IA no reconocido.")
-    kwargs: dict = {}
-    key = None
     if provider == "ollama":
         st = ai_local.status(_ollama_http())
         if not st["available"] or not st["models"]:
@@ -451,13 +449,21 @@ def run_ai(sid: str, request: Request, x_anthropic_key: str | None = Header(defa
         if not model or model not in st["models"]:
             raise HTTPException(400, "Elige un modelo instalado en Ollama.")
         try:
-            kwargs = {"model": model, "call": ai_local.make_call(model, _ollama_http()), "provider": "ollama", "workers": 1}
+            return {"model": model, "call": ai_local.make_call(model, _ollama_http()), "provider": "ollama", "workers": 1}, None
         except ai_local.OllamaError as exc:
             raise HTTPException(400, str(exc)) from exc
-    else:
-        key = _api_key(x_anthropic_key)
-        if not key:
-            raise HTTPException(400, "No hay API key de Anthropic. Define ANTHROPIC_API_KEY en el archivo .env o pégala en el campo de la interfaz.")
+    key = _api_key(header_key)
+    if not key:
+        raise HTTPException(400, "No hay API key de Anthropic. Define ANTHROPIC_API_KEY en el archivo .env o pégala en el campo de la interfaz.")
+    return {}, key
+
+
+@app.post("/api/sessions/{sid}/ai")
+def run_ai(sid: str, request: Request, x_anthropic_key: str | None = Header(default=None),
+           provider: str = "anthropic", model: str | None = None):
+    _rate_limit(request, "/api/ai", *RATE_LIMITS["/api/ai"])
+    s = _get(sid)
+    kwargs, key = _resolve_provider(provider, model, x_anthropic_key)
     try:
         result = ai_mod.generate(s.analysis, s.df, key, **kwargs)
     except Exception as exc:  # error inesperado de la llamada global: detalle al log, mensaje genérico al usuario
@@ -469,6 +475,50 @@ def run_ai(sid: str, request: Request, x_anthropic_key: str | None = Header(defa
         raise HTTPException(502, f"No se pudo usar la IA ({first}). Se mantiene el informe generado por reglas.")
     s.ai = result
     return {"ai": result}
+
+
+# ---------------------------------------------------------------- triaje asistido por IA
+@app.get("/api/sessions/{sid}/triage")
+def get_triage(sid: str):
+    """Recomendación por incidente (la del motor, o la de la IA si se generó) y la decisión del analista."""
+    s = _get(sid)
+    return triage_mod.view(s.analysis, s.triage, s.decisions)
+
+
+@app.post("/api/sessions/{sid}/triage/ai")
+def run_triage_ai(sid: str, request: Request, x_anthropic_key: str | None = Header(default=None),
+                  provider: str = "anthropic", model: str | None = None):
+    _rate_limit(request, "/api/ai", *RATE_LIMITS["/api/ai"])
+    s = _get(sid)
+    if not s.analysis["incidents"]:
+        raise HTTPException(400, "No hay incidentes para evaluar.")
+    kwargs, key = _resolve_provider(provider, model, x_anthropic_key)
+    used = kwargs.get("model") or os.environ.get("ANTHROPIC_MODEL") or ai_mod.DEFAULT_MODEL
+    call = kwargs.get("call") or ai_mod.make_anthropic_call(key, used)
+    try:
+        result = triage_mod.generate(s.analysis, s.df, call, provider=provider, model=used)
+    except Exception as exc:
+        log.exception("triage_failed session=%s", sid)
+        raise HTTPException(502, f"No se pudo completar el triaje con IA ({type(exc).__name__}). Se mantiene la recomendación del motor.") from exc
+    if result["mode"] != "ia":
+        first = result["errors"][0] if result["errors"] else "el modelo no devolvió resultados verificables"
+        log.warning("triage_fallback session=%s reason=%s", sid, first[:200])
+        raise HTTPException(502, f"No se pudo usar la IA ({first}). Se mantiene la recomendación del motor.")
+    s.triage = result
+    return triage_mod.view(s.analysis, s.triage, s.decisions)
+
+
+@app.post("/api/sessions/{sid}/triage/{incident_id}/decision")
+def set_decision(sid: str, incident_id: str, decision: str = Form(...), note: str = Form("")):
+    """Decisión del analista sobre un incidente. La IA no la toma ni la cambia; no modifica la severidad del motor."""
+    s = _get(sid)
+    if incident_id not in {i["id"] for i in s.analysis["incidents"]}:
+        raise HTTPException(404, "Incidente no encontrado.")
+    if decision not in triage_mod.DECISIONS:
+        raise HTTPException(400, "Decisión no válida.")
+    s.decisions[incident_id] = {"decision": decision, "note": triage_mod.clean_note(note),
+                                "by": s.analyst or "", "at": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + " UTC"}
+    return triage_mod.view(s.analysis, s.triage, s.decisions)
 
 
 # ---------------------------------------------------------------- inteligencia de amenazas (opcional)
@@ -727,8 +777,9 @@ def attack_layer(sid: str):
 def _pdf_response(s: Session) -> Response:
     intel = s.intel if s.intel and s.intel.get("results") else None
     ph = PHISH.get(s.phish_id)
+    tv = triage_mod.view(s.analysis, s.triage, s.decisions) if (s.triage or s.decisions) else None
     pdf = build_pdf(s.analysis, s.ai, s.df, {"client": s.client, "analyst": s.analyst, "filename": s.filename}, intel=intel,
-                    phishing=ph.items if ph else None)
+                    phishing=ph.items if ph else None, triage=tv)
     return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": 'attachment; filename="informe_incidentes_seguridad.pdf"'})
 

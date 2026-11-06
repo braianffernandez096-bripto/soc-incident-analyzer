@@ -164,7 +164,7 @@ function adopt(res) {
   S.a = res.analysis; S.ai = res.ai; if (res.ai_configured !== undefined) S.aiConfigured = res.ai_configured;
   S.logs = { page: 1, q: "", severity: "", flagged: "", host: "", user: "", event_id: "", finding: "" };
   S.findingFilter = "Todos"; S.findingCat = ""; S.findingQ = "";
-  S.intel = null; S.intelConfirm = false; S.intelReserved = false; clearInterval(S.intelTimer);   // S.ph (correos) es un análisis aparte: no se mezcla con el de logs
+  S.triage = null; S.intel = null; S.intelConfirm = false; S.intelReserved = false; clearInterval(S.intelTimer);   // S.ph (correos) es un análisis aparte: no se mezcla con el de logs
   store.set("sid", S.sid);
 }
 async function upload(file, client, analyst) {
@@ -432,14 +432,81 @@ function incidents() {
       ${(g.kill_chain || []).length ? `<h4 style="margin-top:12px">Secuencia de eventos</h4><ol class="kc" style="list-style:none">${g.kill_chain.map((s) => `<li><span class="t">${esc(hhmmss(s.time) || s.time)}</span>${esc(s.step)} ${evLinks(s.evidence_ids)}</li>`).join("")}</ol>` : ""}
       <h4 style="margin-top:12px">Hallazgos</h4>
       ${fs.map((f) => `<div class="finding-row">${sevPill(f.severity)}<button class="title" data-open="${esc(f.id)}">${esc(f.id)} · ${esc(f.title)}</button><span class="muted mono">${hhmm(f.time_start)}</span></div>`).join("")}
+      ${triageBox(inc.id)}
     </article>`;
   }).join("");
   const hyp = S.a.hypotheses.length ? `<div class="panel"><h3>Posibles relaciones sin evidencia directa</h3><p class="muted">No se fusionan incidentes por compartir recursos u hosts. Estas relaciones quedan como hipótesis de confianza baja para validar.</p><ul>${S.a.hypotheses.map((h) => `<li><b>${esc(h.id)}</b> ${esc(h.statement)} <span class="muted">${esc(h.basis)}</span></li>`).join("")}</ul></div>` : "";
-  return `<div class="page-head"><div><h1>Incidentes</h1><p>${esc(A.cross_incident_assessment || "")}</p></div></div>${cards}${hyp}`;
+  return `<div class="page-head"><div><h1>Incidentes</h1><p>${esc(A.cross_incident_assessment || "")}</p></div></div>${triagePanel()}${cards}${hyp}`;
+}
+
+/* ---------- triaje asistido por IA: la IA recomienda, el analista decide, la severidad es del motor ---------- */
+const DECISIONS = ["Escalado", "Descartado", "En investigación"];
+function triagePanel() {
+  const T = S.triage;
+  if (!T) return `<div class="panel"><h3>Triaje</h3><p class="muted">Cargando recomendaciones…</p></div>`;
+  const isAI = T.mode === "ia", v = T.validation || {}, r = T.resumen || {};
+  return `<div class="panel" id="triPanel"><h3>Triaje asistido por IA</h3>
+    <p class="muted">Cada incidente tiene una recomendación (Escalar, Probable falso positivo o Falta información) con sus motivos y qué dato la cambiaría. La severidad la fija siempre el motor: la IA no la modifica y, si propone ser menos exigente en un incidente Crítico o Alto, se conserva la del motor y se marca el conflicto. La decisión final es tuya.</p>
+    <p>Recomendaciones: <span class="mode-badge ${isAI ? "ia" : "determinista"}">${isAI ? (T.provider === "ollama" ? "IA local · Ollama (" : "IA (") + esc(T.model) + ")" : "Reglas del motor"}</span>
+      · Decididos: <b>${r.decididos ?? 0}</b> de ${r.total ?? 0}</p>
+    ${isAI ? `<div class="stat-line"><span>Con IA: <b>${v.con_ia ?? 0}</b></span><span>Respaldo del motor: <b>${v.respaldo_motor ?? 0}</b></span><span>Conflictos con el motor: <b>${v.conflictos ?? 0}</b></span><span>Difieren del motor: <b>${v.difieren ?? 0}</b></span><span>Citas descartadas: <b>${v.citas_descartadas ?? 0}</b></span><span>IPs descartadas: <b>${v.ips_descartadas ?? 0}</b></span></div>` : ""}
+    ${(T.errors || []).length ? `<div class="notice" style="margin-top:10px">${T.errors.map(esc).join("<br>")}</div>` : ""}
+    <div class="fields" style="margin-top:10px">
+      <label class="f">Proveedor<select id="triProv"><option value="anthropic">Claude (Anthropic, requiere clave)</option><option value="ollama">IA local (Ollama)</option></select></label>
+      <label class="f" id="triKeyBox" ${S.aiConfigured ? "hidden" : ""}>API key de Anthropic (solo esta sesión)<input type="password" id="triKey" placeholder="sk-ant-…" autocomplete="off"></label>
+      <label class="f" id="triModelBox" hidden>Modelo de Ollama<select id="triModel"></select></label></div>
+    <div style="margin-top:10px"><button class="btn dark" id="triRun">${isAI ? "Volver a generar con IA" : "Generar recomendaciones con IA"}</button></div></div>`;
+}
+function triageBox(id) {
+  const t = S.triage && (S.triage.items || []).find((x) => x.incident_id === id);
+  if (!t) return "";
+  const d = t.decision, sug = t.ia_sugirio;
+  return `<div class="tri" data-tri="${esc(id)}"><h4>Triaje</h4>
+    <div class="tri-head"><span class="tri-chip ${esc(t.recommendation.replace(/\s+/g, "-"))}">${esc(t.recommendation)}</span>
+      <span class="muted">Confianza: ${esc(t.confidence)} · ${t.source === "ia" ? "propuesta por la IA" : "propuesta por el motor"}${t.difiere ? " · difiere del motor" : ""}</span></div>
+    ${t.conflicto && sug ? `<div class="notice" style="margin:8px 0">Conflicto: la IA sugirió «${esc(sug.recommendation)}», pero el incidente es grave para el motor y se mantiene su recomendación. Revísalo antes de descartar.</div>` : ""}
+    <ul class="tri-reasons">${t.reasons.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
+    ${(t.evidence_ids || []).length ? `<div>${evLinks(t.evidence_ids)}</div>` : ""}
+    <p class="muted"><b>Cambiaría de opinión si:</b> ${esc(t.would_change_if)}</p>
+    <div class="tri-dec"><textarea maxlength="500" rows="2" placeholder="Nota del analista (opcional)" aria-label="Nota del analista para ${esc(id)}">${esc(d ? d.note : "")}</textarea>
+      <div>${DECISIONS.map((x) => `<button class="btn ${d && d.decision === x ? "dark" : ""}" data-dec="${esc(x)}">${esc(x)}</button>`).join(" ")}</div></div>
+    ${d ? `<p class="muted">Decisión: <b>${esc(d.decision)}</b>${d.by ? " · " + esc(d.by) : ""} · ${esc(d.at)}</p>` : ""}</div>`;
+}
+async function loadTriage() {
+  try { S.triage = await api(`/api/sessions/${S.sid}/triage`); } catch { S.triage = { mode: "motor", items: [], resumen: {}, validation: {}, errors: [] }; }
+  S.keepScroll = true; if (route() === "incidents") render();
+}
+function bindTriage() {
+  if (S.triage === null) { S.triage = false; loadTriage(); return; }
+  document.querySelectorAll("[data-dec]").forEach((b) => b.onclick = async () => {
+    const box = b.closest(".tri"), fd = new FormData();
+    fd.append("decision", b.dataset.dec); fd.append("note", box.querySelector("textarea").value);
+    try { S.triage = { ...S.triage, ...(await api(`/api/sessions/${S.sid}/triage/${encodeURIComponent(box.dataset.tri)}/decision`, { method: "POST", body: fd })) }; S.keepScroll = true; render(); toast("Decisión registrada"); }
+    catch (e) { toast(e.message); }
+  });
+  const prov = $("#triProv"); if (!prov) return;
+  let ol = null;
+  const sync = () => {
+    const isOl = prov.value === "ollama";
+    $("#triKeyBox").hidden = isOl || S.aiConfigured; $("#triModelBox").hidden = !isOl;
+    if (isOl && !ol) api("/api/ai/providers").then((p) => { ol = p.ollama; fill(); }).catch(() => { ol = { models: [] }; fill(); });
+    else if (isOl) fill();
+  };
+  const fill = () => { const sel = $("#triModel"); sel.replaceChildren(...((ol && ol.models) || []).map((m) => { const o = document.createElement("option"); o.value = m; o.textContent = m; return o; })); };
+  prov.onchange = sync;
+  $("#triRun").onclick = async () => {
+    busy(true, "La IA está evaluando cada incidente. Un modelo local puede tardar varios minutos…");
+    try {
+      const h = {}; const k = $("#triKey"); if (k && k.value.trim()) h["X-Anthropic-Key"] = k.value.trim();
+      const q = prov.value === "ollama" ? `?provider=ollama&model=${encodeURIComponent($("#triModel").value || "")}` : "";
+      S.triage = await api(`/api/sessions/${S.sid}/triage/ai${q}`, { method: "POST", headers: h });
+      toast("Recomendaciones generadas"); S.keepScroll = true; render();
+    } catch (e) { toast(e.message); } finally { busy(false); }
+  };
 }
 function bindIncidents() {
   if (S.openInc) { const el = document.getElementById(S.openInc); S.openInc = null; if (el) { el.scrollIntoView({ block: "start" }); el.classList.add("pulse"); } }
-  bindEvidence(); document.querySelectorAll("[data-open]").forEach((b) => b.onclick = () => { S.openFinding = b.dataset.open; S.findingFilter = "Todos"; location.hash = "#/findings"; }); }
+  bindEvidence(); bindTriage(); document.querySelectorAll("[data-open]").forEach((b) => b.onclick = () => { S.openFinding = b.dataset.open; S.findingFilter = "Todos"; location.hash = "#/findings"; }); }
 
 /* ---------- MITRE ATT&CK ---------- */
 const MITRE_URL = /^https:\/\/attack\.mitre\.org\/techniques\/T\d{4}(\/\d{3})?\/$/;

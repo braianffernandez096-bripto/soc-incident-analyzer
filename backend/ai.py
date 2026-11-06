@@ -524,6 +524,13 @@ def _call_tool(client, model: str, tool: dict, user_text: str, max_tokens: int) 
     raise RuntimeError("El modelo no devolvió el resultado estructurado esperado.")
 
 
+def make_anthropic_call(api_key: str | None, model: str) -> Callable:
+    """`call(tool, texto, max_tokens)` para Claude, con la misma firma que usa el adaptador de Ollama."""
+    import anthropic
+    client = anthropic.Anthropic(api_key=api_key, max_retries=2, timeout=180)
+    return lambda tool, text, mt: _call_tool(client, model, tool, text, mt)
+
+
 def generate(analysis: dict, df: pd.DataFrame, api_key: str | None, model: str | None = None,
              call: Callable | None = None, client=None, provider: str = "anthropic", workers: int = 4) -> dict:
     """Genera el análisis con IA. `call`/`client` permiten inyectar un modelo o cliente de prueba (o el adaptador local de Ollama,

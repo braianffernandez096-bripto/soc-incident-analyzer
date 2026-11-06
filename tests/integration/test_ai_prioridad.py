@@ -3,6 +3,7 @@ Casos tomados de un informe real generado con llama3.1:8b (ransomware como «Cor
 import pytest
 
 from backend import ai
+from backend import detection as D
 from tests.integration.test_ai import SAMPLE, _fake_model
 from backend.analysis import analyze
 from backend.parser import load_events
@@ -27,10 +28,14 @@ def _run(ctx, actions, recs=None):
     return a, ai.generate(a, df, api_key=None, call=model)
 
 
+def _ent(inc):
+    return (inc["hosts"] or inc["external_ips"] or [D.short_user(u) for u in inc["actor_users"]])[0]
+
+
 def test_modelo_no_puede_bajar_la_prioridad_de_un_incidente_critico(ctx):
-    a, _ = ctx[1], None
+    a = ctx[1]
     crit = next(i for i in a["incidents"] if i["severity"] == "Crítico")
-    _, r = _run(ctx, [{"priority": "Mediano plazo", "action": f"Aislar el equipo afectado y revocar credenciales de {crit['id']}",
+    _, r = _run(ctx, [{"priority": "Mediano plazo", "action": f"Aislar el equipo {_ent(crit)} y revocar sus credenciales",
                        "incident_ids": [crit["id"]]}])
     act = next(x for x in r["prioritized_actions"] if x["incident_ids"] == [crit["id"]])
     assert act["priority"] == "Inmediata"
@@ -44,13 +49,22 @@ def test_toda_prioridad_sale_de_la_severidad_del_motor(ctx):
         assert x["priority"] == PRIO[max((sev[i] for i in x["incident_ids"]), key=lambda s: ["Bajo", "Medio", "Alto", "Crítico"].index(s))]
 
 
-def test_accion_con_varios_incidentes_toma_el_mas_grave(ctx):
+def test_accion_que_mezcla_varios_incidentes_se_descarta(ctx):
     a = ctx[1]
-    crit = next(i["id"] for i in a["incidents"] if i["severity"] == "Crítico")
-    otro = next(i["id"] for i in a["incidents"] if i["severity"] != "Crítico")
-    _, r = _run(ctx, [{"priority": "Mediano plazo", "action": "Restablecer contraseñas de las cuentas comprometidas",
-                       "incident_ids": [otro, crit]}])
-    assert next(x for x in r["prioritized_actions"] if x["action"].startswith("Restablecer"))["priority"] == "Inmediata"
+    crit = next(i for i in a["incidents"] if i["severity"] == "Crítico")
+    otro = next(i for i in a["incidents"] if i["severity"] != "Crítico")
+    _, r = _run(ctx, [{"priority": "Inmediata", "action": f"Remediar {_ent(crit)} y {_ent(otro)} en conjunto y revisar todo",
+                       "incident_ids": [otro["id"], crit["id"]]}])
+    assert not any(len(x["incident_ids"]) > 1 for x in r["prioritized_actions"])
+    assert {x["incident_ids"][0] for x in r["prioritized_actions"]} == {i["id"] for i in a["incidents"]}
+
+
+def test_accion_sin_nada_concreto_del_incidente_se_reemplaza(ctx):
+    a = ctx[1]
+    inc = a["incidents"][0]
+    _, r = _run(ctx, [{"priority": "Inmediata", "action": "Investigar el ataque y restaurar los datos afectados", "incident_ids": [inc["id"]]}])
+    act = next(x for x in r["prioritized_actions"] if x["incident_ids"] == [inc["id"]])
+    assert act["action"].startswith(inc["id"] + ":")
 
 
 def test_todos_los_incidentes_quedan_cubiertos_aunque_el_modelo_mencione_pocos(ctx):
@@ -96,6 +110,9 @@ def test_si_todas_las_recomendaciones_son_genericas_se_usan_las_del_motor(ctx):
     ("Tomar medidas para prevenir futuros ataques", True),
     ("Implementar medidas de seguridad para prevenir ataques de inyección SQL.", True),
     ("Realizar una auditoría de seguridad", True),
+    ("Remediar el incidente de ransomware.", True),
+    ("Revisar la configuración de seguridad del sistema y asegurarse de que esté actualizada y configurada correctamente", True),
+    ("Implementar un sistema de monitoreo y respuesta a incidentes más efectivo.", True),
     ("", True),
     ("Bloquear la IP externa 198.51.100.45 en el firewall perimetral", False),
     ("Habilitar MFA", False),
@@ -150,7 +167,7 @@ def test_justificacion_que_repite_la_explicacion_se_cambia_por_la_de_las_reglas(
 
 
 @pytest.mark.parametrize("raw,esperado", [
-    ("2026-11-04 10:08:59", "10:08:59"), ("10:08:59", "10:08:59"), ("10:08", "10:08"), ("sin hora", ""), ("", ""),
+    ("2026-11-04 10:08:59", "10:08:59"), ("2026-11-04T10:08:59Z", "10:08:59"), ("T10:08", "10:08"), ("123:45:678", ""), ("10:08:59", "10:08:59"), ("10:08", "10:08"), ("sin hora", ""), ("", ""),
 ])
 def test_hora_de_la_cronologia_no_se_trunca(raw, esperado):
     assert ai._clock(raw) == esperado

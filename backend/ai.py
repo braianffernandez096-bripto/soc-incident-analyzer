@@ -156,7 +156,9 @@ _GENERIC_PHRASES = (
     "futuros ataques", "futuras amenazas", "medidas de seguridad", "medidas adecuadas", "medidas necesarias",
     "medidas para prevenir", "medidas de prevención", "politicas de seguridad", "buenas practicas",
     "vulnerabilidades y debilidades", "auditoria de seguridad", "concientizacion", "mejorar la seguridad",
-    "fortalecer la seguridad", "reforzar la seguridad",
+    "fortalecer la seguridad", "reforzar la seguridad", "configurada correctamente", "actualizada y configurada",
+    "revisar la configuracion de seguridad", "mas seguras", "mas efectivo", "infraestructura del cliente",
+    "remediar el incidente", "remediar los incidentes",
 )
 # Prioridad por criticidad del incidente: la decide el motor, nunca el modelo.
 SEVERITY_PRIORITY = {"Crítico": "Inmediata", "Alto": "Corto plazo", "Medio": "Mediano plazo", "Bajo": "Mediano plazo"}
@@ -184,7 +186,7 @@ def _concrete(items: list[str], fallback: list[str]) -> list[str]:
 
 def _clock(s: str) -> str:
     """Hora HH:MM:SS dentro de lo que devuelva el modelo (acepta fecha completa); vacío si no hay."""
-    m = re.search(r"\b(\d{2}:\d{2}(?::\d{2})?)\b", str(s))
+    m = re.search(r"(?<!\d)(\d{2}:\d{2}(?::\d{2})?)(?!\d)", str(s))
     return m.group(1) if m else ""
 
 
@@ -267,24 +269,37 @@ def deterministic_report(analysis: dict) -> dict:
     }
 
 
+def _incident_entities(analysis: dict, inc: dict) -> set[str]:
+    """Nombres concretos del incidente (IP, equipos, cuentas, indicadores) que una acción útil debería mencionar."""
+    by_id = {f["id"]: f for f in analysis["findings"]}
+    ents = set(inc.get("external_ips") or []) | set(inc.get("hosts") or []) | {D.short_user(u) for u in inc.get("actor_users") or []}
+    ents |= {str(i["value"]) for i in analysis.get("iocs", []) if set(i.get("finding_ids", [])) & set(inc["finding_ids"])
+             and i.get("type") in ("IP", "Cuenta", "Dominio", "Host")}
+    ents |= {h for fid in inc["finding_ids"] for h in by_id[fid].get("hosts", [])}
+    return {e.lower() for e in ents if e and len(str(e)) >= 3}
+
+
 def _merge_actions(raw_actions, analysis: dict, base_actions: list[dict], ver, allowed: set[str], incident_ids: set[str]) -> list[dict]:
-    """Plan de acción final. El texto puede venir del modelo; la prioridad la fija SIEMPRE el motor (criticidad del incidente
-    más grave al que se refiere la acción) y todo incidente queda cubierto: si el modelo no lo mencionó o su acción es
-    genérica, entra la acción concreta de las reglas."""
-    sev = {i["id"]: i["severity"] for i in analysis["incidents"]}
-    out, covered = [], set()
+    """Plan de acción final. Cada incidente tiene SIEMPRE una acción concreta de las reglas; la del modelo la reemplaza solo si
+    se refiere a un único incidente, no es genérica y nombra algo concreto de ese incidente (IP, equipo, cuenta o indicador).
+    La prioridad la fija el motor según la criticidad del incidente. Las acciones que mezclan varios incidentes se descartan:
+    no se pueden priorizar ni asignar."""
+    incs = {i["id"]: i for i in analysis["incidents"]}
+    ents = {k: _incident_entities(analysis, v) for k, v in incs.items()}
+    chosen: dict[str, dict] = {}
     for a in raw_actions or []:
         if not isinstance(a, dict) or not a.get("action"):
             continue
-        ids = [i for i in (a.get("incident_ids") or []) if isinstance(i, str) and i in incident_ids]
-        text = ver.text(a["action"], allowed)
-        if not ids or is_generic(text):     # sin incidente verificable o sin contenido: no se puede priorizar ni sirve
+        ids = [i for i in dict.fromkeys(a.get("incident_ids") or []) if isinstance(i, str) and i in incident_ids]
+        if len(ids) != 1 or ids[0] in chosen:
             continue
-        worst = min((sev[i] for i in ids), key=lambda x: -D.SEV_ORDER[x])
-        out.append({"priority": SEVERITY_PRIORITY.get(worst, "Mediano plazo"), "action": text, "incident_ids": ids})
-        covered.update(ids)
-    out += [b for b in base_actions if not set(b["incident_ids"]) <= covered]
-    return sorted(out, key=lambda a: (PRIORITY_ORDER[a["priority"]], a["incident_ids"][0] if a["incident_ids"] else ""))
+        text = ver.text(a["action"], allowed)
+        low = text.lower()
+        if is_generic(text) or not any(e in low for e in ents[ids[0]]):
+            continue
+        chosen[ids[0]] = {"priority": SEVERITY_PRIORITY.get(incs[ids[0]]["severity"], "Mediano plazo"), "action": text, "incident_ids": ids}
+    out = list(chosen.values()) + [b for b in base_actions if b["incident_ids"][0] not in chosen]
+    return sorted(out, key=lambda a: (PRIORITY_ORDER[a["priority"]], a["incident_ids"][0]))
 
 
 def build_deterministic(analysis: dict) -> dict:

@@ -159,7 +159,7 @@ Los mensajes de error más comunes (formato no soportado, cabecera no reconocida
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 1.060 pruebas
+python -m pytest                                           # 1.067 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 

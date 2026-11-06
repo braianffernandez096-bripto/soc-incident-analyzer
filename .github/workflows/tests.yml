@@ -87,3 +87,25 @@ jobs:
       # Playwright solo se usa en este job y no está en los lock con hashes; versión fija
       - run: pip install playwright==1.63.0 && python -m playwright install --with-deps chromium
       - run: python -m pytest tests/e2e/test_ui.py
+
+  sbom:
+    name: SBOM (CycloneDX)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir la imagen
+        run: docker build -t soc-incident-analyzer:ci .
+      # Mismo Trivy fijado que en el job de la imagen: lista los componentes (Python y sistema) en formato CycloneDX.
+      - name: Generar el SBOM de la imagen
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v trivy-cache:/root/.cache \
+            -v "$PWD:/out" \
+            aquasec/trivy:0.69.3 image --format cyclonedx --output /out/sbom.cdx.json soc-incident-analyzer:ci
+      - name: Comprobar que el SBOM tiene componentes
+        run: python -c "import json,sys; d=json.load(open('sbom.cdx.json')); n=len(d.get('components',[])); print(n,'componentes'); sys.exit(0 if n>20 else 1)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json

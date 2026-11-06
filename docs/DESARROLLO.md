@@ -16,7 +16,7 @@ Contenido: [Cómo funciona](#cómo-funciona-detalle) · [Análisis de correos](#
 
 5. **PDF** (`backend/report.py`): resumen ejecutivo, hallazgos, evidencia, criticidad y justificación, impacto, plan de acción (investigar, contener, remediar) y recomendaciones generales.
 
-6. **Reputación (opcional)** (`backend/intel.py`): consulta en VirusTotal y AbuseIPDB las IP y dominios públicos que tú confirmes. Ver [más abajo](#reputación-de-ip-y-dominios-virustotal-y-abuseipdb).
+6. **Reputación (opcional)** (`backend/intel.py`): consulta en VirusTotal y AbuseIPDB las IP y dominios públicos que tú confirmes. Ver [REPUTACION.md](REPUTACION.md).
 
 7. **MITRE ATT&CK** (`backend/attack.py`): cada técnica sugerida por un hallazgo se muestra con su nombre oficial y un enlace a attack.mitre.org. La pestaña **ATT&CK** agrupa las técnicas por táctica en una matriz y permite descargar una capa `.json` para [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/). Los datos son los oficiales de MITRE (v20.0), incluidos en `backend/data/` y validados contra las reglas por las pruebas. No se consulta Internet.
 

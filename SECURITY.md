@@ -38,7 +38,7 @@ Solo la rama `main`.
 
 ## Datos que salen de tu equipo
 
-Nada sale sin una acción tuya: la IA y la reputación están apagadas hasta que las activas. Detalle en la sección *Privacidad* del [README](README.md).
+Nada sale sin una acción tuya: la IA y la reputación están apagadas hasta que las activas. Detalle en la sección *Privacidad* del [README](README.md) y en [docs/PRIVACIDAD.md](docs/PRIVACIDAD.md).
 
 ## Si vas a desplegarla
 

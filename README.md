@@ -29,7 +29,7 @@ Proyecto personal de Braian Fernandez, hecho para practicar el análisis de inci
 
 5. **PDF** (`backend/report.py`): resumen ejecutivo, hallazgos, evidencia, impacto, plan de acción y recomendaciones.
 
-6. **Reputación (opcional)** (`backend/intel.py`): VirusTotal y AbuseIPDB, solo con tu confirmación. Ver [más abajo](#reputación-de-ip-y-dominios-virustotal-y-abuseipdb).
+6. **Reputación (opcional)** (`backend/intel.py`): VirusTotal y AbuseIPDB, solo con tu confirmación. Ver [más abajo](#reputación-de-ip-y-dominios-virustotal-y-abuseipdb) y [docs/REPUTACION.md](docs/REPUTACION.md).
 
 7. **MITRE ATT&CK** (`backend/attack.py`): técnicas con nombre oficial, matriz por táctica y capa para ATT&CK Navigator. Sin Internet.
 
@@ -43,21 +43,7 @@ Detalle de cada punto en [docs/DESARROLLO.md](docs/DESARROLLO.md#cómo-funciona-
 
 ## Formatos de entrada
 
-| Formato | Extensiones | Detalles |
-|---|---|---|
-| Excel | `.xlsx`, `.xlsm` | Usa la hoja con más filas; detecta la fila de cabecera aunque haya títulos encima. |
-| CSV / TSV | `.csv`, `.tsv`, `.txt`, `.log` | Detecta el separador (`,` `;` tab `\|`) y la codificación (UTF-8, UTF-16, Windows-1252). |
-| JSON | `.json` | Arreglo de eventos, contenedores como `{"events": [...]}` (o cualquier otro nombre: se elige la lista que tiene fecha) y respuestas de Elasticsearch/OpenSearch (`hits.hits[]._source`). |
-| NDJSON | `.jsonl`, `.ndjson` | Un evento por línea; también el formato de exportación de Splunk (`{"result": {...}}`). |
-| auth.log / secure | `.log`, `.txt` | Syslog de Linux en texto (fecha clásica o ISO). Se leen los eventos de `sshd` (contraseña o clave aceptada/fallida) y de `sudo`; el resto de líneas se ignora y se avisa cuántas. Ejemplo: `sample_data/auth_log_ejemplo.txt`. Si el archivo no tiene extensión, agrégale `.log`. |
-
-- **Columnas:** se reconocen por nombre aunque cambien mayúsculas, acentos o idioma (`Descripción`, `hostname`, `Equipo`…) y los campos anidados típicos de Elastic ECS / Winlogbeat (`@timestamp`, `host.name`, `winlog.event_id`, `source.ip`, `user.name`, `process.command_line`…). Solo son indispensables `Timestamp` y `Event_ID`; lo que falte queda vacío y se informa. Si el archivo no trae `Event_ID` pero sí `action` (o `event_type`), se usa como código de evento, y `category` pasa a ser la fuente del log.
-
-- **Marcas de tiempo:** si traen zona horaria (`Z`, `+02:00`) o son epoch (segundos, milisegundos…), se convierten a UTC y el informe lo declara. Si no la traen, se usan tal cual.
-
-- **Log_ID:** si no existe, se generan identificadores `ROW-00001…` estables.
-
-- Un `.txt` o `.log` que contenga JSON se detecta por su contenido. Si un JSON se guardó línea por línea en una hoja de cálculo (`.csv` o `.xlsx`), se reconstruye; si le faltan líneas sueltas se lee lo que haya y se avisa.
+Acepta Excel (`.xlsx`, `.xlsm`), CSV/TSV, JSON, NDJSON (también el formato de Splunk y las respuestas de Elasticsearch/OpenSearch) y `auth.log` de Linux en texto. Reconoce las columnas por nombre aunque cambie el idioma o el esquema (incluido Elastic ECS), y solo exige `Timestamp` y `Event_ID`. Tabla de formatos, columnas, marcas de tiempo y cada ejemplo de `sample_data/`: [docs/FORMATOS.md](docs/FORMATOS.md).
 
 ## Resultado con el Excel de ejemplo
 
@@ -72,9 +58,7 @@ Detalle de cada punto en [docs/DESARROLLO.md](docs/DESARROLLO.md#cómo-funciona-
 | INC-005 | Persistencia en APP-SRV01 por la cuenta `helpdesk` | Alto |
 | INC-006 | Ataque web contra WEB-01 con ejecución remota de comandos | Crítico |
 
-Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 5737).
-
-`sample_data/logs_multifuente.json` (100 eventos de SSH, web, base de datos, DNS, correo, endpoint y nube) es un segundo ejemplo, y `sample_data/SIEM_Logs_500_Eventos.{csv,xlsx,json}` (500 eventos de un día con Windows, Linux, web, proxy, DNS, correo, EDR y nube) un tercero con 7 incidentes y señuelos que no deben alertar, sin Event IDs de Windows: produce **15 hallazgos** agrupados en **9 incidentes** (fuerza bruta SSH con compromiso de `admin`, ataque web con exfiltración, phishing con movimiento lateral, ransomware, escalamiento SUID, túnel DNS, abuso de identidad cloud, password spraying y minería).
+Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 5737). Hay otros ejemplos con distintas fuentes (SSH, web, DNS, nube, correo) en [docs/FORMATOS.md](docs/FORMATOS.md#datos-de-ejemplo).
 
 ## Demostración
 
@@ -105,99 +89,11 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 
 ## Capturas
 
-**Inicio: carga del archivo o prueba con datos de ejemplo** (arriba, las pestañas «Análisis de logs» y «Phishing»)
-
-![Pantalla de inicio con las pestañas Análisis de logs y Phishing, la zona de carga y el botón de datos de ejemplo](img/Inicio.png)
-
 **Panel: resumen e incidentes detectados**
 
 ![Panel con las tarjetas de incidentes y la línea de tiempo](img/Dashboard.png)
 
-**Panel: actividad, hallazgos por criticidad e IP con más movimiento**
-
-![Actividad de la ventana analizada, hallazgos por criticidad e IP](img/Metricas.png)
-
-**Incidentes: secuencia de eventos con el `Log_ID` que respalda cada paso** (INC-002)
-
-![Incidente INC-002 con su secuencia de eventos](img/INC-002.png)
-
-**Hallazgos: explicación técnica, criticidad, impacto y plan de acción**
-
-![Hallazgo con explicación, impacto y plan de acción en tres columnas](img/Seccion-Hallazgos.png)
-
-**ATT&CK: técnicas sugeridas por los hallazgos, agrupadas por táctica, con descarga de la capa para Navigator**
-
-![Matriz MITRE ATT&CK por táctica](img/Matriz-ATTACK.png)
-
-**Eventos: los 715 registros originales, con marca de los ligados a incidentes**
-
-![Tabla de eventos con filtros](img/Eventos.png)
-
-**Indicadores de compromiso (IoC)**
-
-![Tabla de indicadores de compromiso](img/IOCs.png)
-
-**Informe: datos de portada, redacción con IA y descarga del PDF**
-
-![Pantalla del informe técnico](img/Informe.png)
-
-**Verificación del archivo: un PNG renombrado a `.csv` se rechaza por su contenido, no por su extensión**
-
-![Mensaje de rechazo al subir una imagen renombrada como CSV](img/Archivo-rechazado.png)
-
-**Informe técnico generado**
-
-[Ver el informe de ejemplo en PDF](examples/informe-ejemplo.pdf) (29 páginas: resumen ejecutivo, 6 incidentes, hallazgos con evidencia, plan de acción y recomendaciones). El nombre del cliente es ficticio.
-
-### Capturas del análisis de correos (phishing)
-
-**Phishing: carga de uno o varios `.eml` o de cabeceras pegadas, con el campo opcional «Remitente esperado»**
-
-![Pantalla de carga de correos con las pestañas de herramientas, las cabeceras pegadas y el campo Remitente esperado](img/Phishing-inicio.png)
-
-**Resultados: los correos de ejemplo ordenados por criticidad, con veredicto y puntaje**
-
-![Tabla de correos analizados con criticidad, remitente, veredicto y puntaje](img/Phishing-resultados.png)
-
-**Recorrido del correo: saltos `Received` del origen al destino, con hora UTC, retraso y avisos**
-
-![Tabla de saltos del correo con hora UTC, retraso entre servidores y un salto marcado con retraso largo](img/Phishing-recorrido.png)
-
-**Puntaje con factores visibles: qué sumó cada señal, los topes por categoría y los umbrales**
-
-![Desglose del puntaje de un correo crítico por categoría y señal](img/Phishing-puntaje.png)
-
-**Dominios parecidos: variantes de typosquatting con descarga de la lista**
-
-![Lista de variantes de un dominio con el tipo de cambio y botones para descargar](img/Phishing-parecidos.png)
-
-**Homógrafos: desglose carácter por carácter de un remitente con una «о» cirílica (U+043E) que parece latina**
-
-![Desglose de caracteres del remitente con la letra cirílica resaltada](img/Phishing-homografo.png)
-
-**Remitente esperado: se escribe la dirección legítima y la app señala qué letra cambió**
-
-![Campo Remitente esperado completado con la dirección legítima](img/Phishing-remitente-esperado.png)
-
-![Resultado que indica que la «I» mayúscula de la posición 15 reemplaza a una «l» minúscula](img/Phishing-esperado-resultado.png)
-
-**Informe en PDF del análisis de correos** (los caracteres fuera del alfabeto latino se muestran como `[U+XXXX]`)
-
-![Página del informe PDF con señales, verificación de caracteres y qué verificar](img/Informe-phishing.png)
-
-**Ayuda: «¿Cómo funciona?» tiene una sección para el análisis de logs y otra para phishing**
-
-![Ventana de ayuda con la sección de phishing abierta](img/Como-funciona-phishing.png)
-
-### Captcha local opcional (`CAPTCHA=on`)
-
-**Imágenes: marcar las 3 que muestran la misma figura, aunque estén giradas o de otro color**
-
-![Captcha de imágenes con seis figuras de dispositivos](img/Captcha-imagenes.png)
-
-**Rompecabezas deslizante: arrastrar la pieza hasta el hueco correcto**
-
-![Captcha de rompecabezas deslizante](img/Captcha-rompecabezas.png)
+Galería completa (incidentes, hallazgos, ATT&CK, eventos, IoC, informe, análisis de correos y captcha): [docs/CAPTURAS.md](docs/CAPTURAS.md). Informe técnico de ejemplo: [ver el PDF](examples/informe-ejemplo.pdf) (29 páginas; el nombre del cliente es ficticio).
 
 ## Instalación y ejecución (Ubuntu 24.04)
 
@@ -216,7 +112,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install --require-hashes -r requirements.lock      # versiones exactas, verificadas por hash
 
-# 4. (Opcional) claves: Anthropic para la redacción con IA (de pago); VirusTotal y AbuseIPDB para reputación. Para IA local sin clave, instala Ollama y un modelo (ver más abajo)
+# 4. (Opcional) claves: Anthropic para la redacción con IA (de pago); VirusTotal y AbuseIPDB para reputación. Para IA local sin clave, instala Ollama y un modelo (ver [IA local](#ia-local-con-ollama-opcional))
 cp .env.example .env
 nano .env                       # ANTHROPIC_API_KEY=...  VT_API_KEY=...  ABUSEIPDB_API_KEY=...
 
@@ -249,36 +145,11 @@ Es análisis estático y determinista: no se abre ningún enlace ni se ejecuta n
 
 ## IA local con Ollama (opcional)
 
-Alternativa a Claude para quien no quiere pagar ni enviar datos a un tercero. En la pestaña **Informe**, elige **IA local (Ollama)** y uno de los modelos que tengas instalados.
-
-```bash
-# Instala Ollama (https://ollama.com) y un modelo; el nombre es de ejemplo, usa el que prefieras y tu equipo aguante
-ollama pull llama3.1:8b
-```
-
-- **La dirección la define el servidor,** no el navegador: `OLLAMA_HOST` (por defecto `http://127.0.0.1:11434`). Con Docker, define en `.env` `OLLAMA_HOST=http://host.docker.internal:11434` (el contenedor alcanza el Ollama de tu equipo) y haz que Ollama escuche en todas las interfaces locales (`OLLAMA_HOST=0.0.0.0` en el servicio de Ollama), porque por defecto solo escucha en `127.0.0.1`.
-
-- **Contexto:** Ollama recorta en silencio lo que supera su ventana (2.048-4.096 tokens por defecto), así que la app pide 16.384 (`OLLAMA_NUM_CTX` lo cambia). Si el equipo se queda sin memoria, usa un modelo más chico.
-
-- **Mismas garantías que con Claude:** la criticidad la decide el motor, el verificador descarta los `Log_ID` y las IP inventados y, si el modelo falla, el informe se genera por reglas.
-
-- **Calidad y tiempo:** un modelo local pequeño redacta peor que uno grande y, sin GPU, tarda minutos por consulta (medido con un modelo de 8B en una VM de 2 procesadores: unos 5 minutos por consulta con 100 eventos y bastante más con incidentes grandes). La app consulta de a una vez y espera hasta 60 minutos por consulta; `OLLAMA_TIMEOUT` (en segundos) lo cambia. Si una consulta se agota, ese incidente se redacta por reglas. Con cualquier modelo, la criticidad y la prioridad del plan de acción las fija el motor; un modelo chico solo puede empeorar el texto, no el orden de urgencia.
-
-- **Sin probar con modelos reales en CI:** las pruebas usan un servidor Ollama simulado; el funcionamiento con cada modelo depende de tu equipo.
+Alternativa a Claude para quien no quiere pagar ni enviar datos a un tercero: en la pestaña **Informe** eliges **IA local (Ollama)** y uno de los modelos instalados (`ollama pull llama3.1:8b`). Mismas garantías que con Claude: la criticidad y la prioridad del plan de acción las fija el motor y el verificador descarta lo inventado. Sin GPU, un modelo de 8B tarda minutos por consulta. Configuración (`OLLAMA_HOST`, `OLLAMA_NUM_CTX`, `OLLAMA_TIMEOUT`), Docker y tiempos medidos: [docs/IA-LOCAL.md](docs/IA-LOCAL.md).
 
 ## Reputación de IP y dominios (VirusTotal y AbuseIPDB)
 
-Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputación** enriquece los indicadores externos con VirusTotal (cuántos motores los marcan como maliciosos) y AbuseIPDB (puntaje de confianza de abuso y reportes de los últimos 90 días). El resultado aparece en la tabla de IoC y en una sección del informe PDF.
-
-- **Tú decides qué sale.** Antes de consultar, la app muestra la lista exacta de indicadores que se enviarán y los que se omiten, con el motivo. Solo viajan IP públicas y dominios; nunca IP internas, cuentas, equipos, comandos ni contenido de los logs.
-
-- **Las IP de documentación (RFC 5737) no se consultan**, porque no tienen reputación real. El export de ejemplo usa solo esas, así que allí no hay nada que enviar; hay una casilla para incluirlas únicamente si quieres probar que tu clave funciona.
-
-- **No cambia la criticidad.** La reputación es contexto para el analista; el motor de reglas sigue decidiendo.
-
-- **Claves gratuitas:** crea una cuenta en [VirusTotal](https://www.virustotal.com) y otra en [AbuseIPDB](https://www.abuseipdb.com) y define `VT_API_KEY` y `ABUSEIPDB_API_KEY` en `.env`, o pégalas en la interfaz (solo se usan en esa consulta). Con una sola de las dos funciona igual (AbuseIPDB solo consulta IP; los dominios van solo a VirusTotal).
-
-- **Límites del plan gratuito:** VirusTotal permite 4 consultas por minuto y 500 por día, así que la app consulta una cada ~15 s (25 indicadores como máximo por consulta, ~6 min). AbuseIPDB permite 1.000 por día. Si una clave es rechazada o se agota la cuota, esa consulta se detiene con un aviso.
+Opcional. El botón **Consultar reputación** enriquece los indicadores externos con VirusTotal y AbuseIPDB. Antes de consultar ves la lista exacta de lo que se enviará: solo IP públicas y dominios, nunca IP internas, cuentas ni contenido de los logs. No cambia la criticidad. Claves gratuitas, límites y detalle: [docs/REPUTACION.md](docs/REPUTACION.md).
 
 ## Si algo falla
 
@@ -298,29 +169,29 @@ Hay pruebas unitarias, de integración (API con entradas hostiles, capa de IA co
 
 ## Validación de las reglas
 
-Además de las pruebas con escenarios de ataque, las reglas se midieron con datos que no escribí yo. Resultados (detalle, método y límites en [docs/VALIDACION.md](docs/VALIDACION.md)):
+Las reglas se midieron con datos que no escribí yo. Método, resultados y límites en [docs/VALIDACION.md](docs/VALIDACION.md):
 
-- **SSH real (Loghub):** subiendo el `auth.log` tal cual, de 11 IPs que atacaron con fuerza bruta la app detectó las 11, sin falsos positivos.
+- **SSH real (Loghub):** de 11 IPs que atacaron con fuerza bruta, la app detectó las 11, sin falsos positivos.
 
-- **107 ataques de Windows (OTRF Security-Datasets):** la técnica correcta en 41 (con 1.5.0: 20; antes de calibrar: 13), hallazgos de otra técnica en 26 y ninguno en 37. La cobertura es limitada y está documentada, con los huecos que quedan (movimiento lateral por red, credenciales en memoria, inyección de procesos) y por qué no se cubren.
+- **107 ataques de Windows (OTRF Security-Datasets):** la técnica correcta en 41 (antes de calibrar: 13), otra técnica en 26 y ninguna en 37; la cobertura es limitada y está documentada.
 
-- **Phishing real (12.864 correos de phishing_pot):** 86,4 % con criticidad Medio o más y 62,5 % Alto o más; comprobado con 11.362 correos no usados para ajustar (86,3 % y 62,4 %). También se calibró con el corpus público de SpamAssassin y con 19 correos reales de bancos, billeteras y empresas de Argentina (de 6 falsos positivos a 0). **Correo legítimo:** con 20 correos reales (boletines, LinkedIn, GitHub, cursos) los falsos positivos pasaron de 14 a 0 tras calibrar, a costa de detectar menos spam comercial; es una muestra pequeña y el detalle, con sus límites, está en `docs/VALIDACION.md`.
+- **Phishing real (12.864 correos de phishing_pot):** 86,4 % con criticidad Medio o más y 62,5 % Alto o más (86,3 % y 62,4 % en los 11.362 correos no usados para ajustar). Correo legítimo: 0 falsos positivos en 39 correos reales (muestra pequeña).
 
-- **Tráfico normal:** 35 casos de actividad corriente sin hallazgos; los 5 falsos positivos que se midieron primero (por ejemplo, un solo `ipconfig`) se calibraron y el antes y el después están documentados.
+- **Tráfico normal:** 35 casos de actividad corriente sin hallazgos.
 
 Se pueden repetir con `scripts/validar_datasets.py`.
 
 ## Privacidad: qué datos salen de tu equipo
 
-La app corre en tu equipo y no envía telemetría. Solo salen datos si tú activas una de estas tres funciones:
+La app corre en tu equipo y no envía telemetría. Solo salen datos si tú activas una de estas funciones:
 
 | Función | Qué se envía | A quién |
 |---|---|---|
-| **Redacción con IA** (botón en la pestaña Informe, requiere clave de Anthropic) | Por incidente y hallazgo: título, criticidad, métricas, explicación del motor y las **filas de evidencia** (`Log_ID`, fecha, equipo, usuario, IP de origen y destino, origen del log, descripción del evento y línea de comandos recortadas, resultado y severidad). También el resumen del conjunto (cantidad de eventos, ventana de tiempo, IP externas). **No** se envían el nombre del cliente ni del analista, ni el archivo completo. | Anthropic |
-| **Consulta DNS** (botones «Evaluar» en Evaluar dominio y «Comprobar registro» en Dominios parecidos) | Solo **nombres de dominio**, por DNS sobre HTTPS (nunca el correo, sus enlaces ni sus adjuntos). Se desactiva con `DNS_LOOKUPS=off`. | Cloudflare (si falla, Google) |
-| **Reputación** (botón en Indicadores (IoC) o en Phishing, requiere clave de VirusTotal o AbuseIPDB) | Solo las IP públicas, dominios y, en phishing, el hash SHA-256 de los adjuntos, que ves y confirmas en pantalla. Nunca IP internas, cuentas, equipos ni comandos. | VirusTotal y AbuseIPDB |
+| **Redacción con IA de Anthropic** (requiere clave) | Título, criticidad, métricas y filas de evidencia de cada hallazgo (puede incluir usuarios, equipos e IP reales); no el nombre del cliente ni el archivo completo | Anthropic |
+| **Consulta DNS** (Evaluar dominio, Dominios parecidos) | Solo nombres de dominio, por DNS sobre HTTPS; `DNS_LOOKUPS=off` la desactiva | Cloudflare (si falla, Google) |
+| **Reputación** (requiere clave) | Solo IP públicas, dominios y hash SHA-256 de adjuntos, que confirmas en pantalla | VirusTotal y AbuseIPDB |
 
-Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones IP reales. Antes de activar la IA de Anthropic, asegúrate de tener permiso para compartir esos datos con un tercero; sin la clave de Anthropic, el informe se genera por reglas y no sale nada. Con **Ollama** en tu propio equipo (`127.0.0.1`) los datos no salen de él; la pantalla avisa si Ollama está en otro equipo, y en ese caso los datos viajan hasta esa dirección.
+Con **Ollama** en tu propio equipo los datos no salen de él. Antes de activar la IA de Anthropic, asegúrate de tener permiso para compartir esos datos con un tercero. Detalle completo: [docs/PRIVACIDAD.md](docs/PRIVACIDAD.md).
 
 ## Seguridad
 
@@ -354,7 +225,7 @@ frontend/     interfaz web sin build (HTML, CSS y JS)
 tests/        unit, integration y e2e
 scripts/      validación con datasets públicos y regeneración de datos
 sample_data/  exports y correos .eml de ejemplo
-docs/         VALIDACION.md (método y resultados) y DESARROLLO.md (detalle técnico)
+docs/         detalle: DESARROLLO, FORMATOS, CAPTURAS, IA-LOCAL, REPUTACION, PRIVACIDAD y VALIDACION
 ```
 
 Árbol completo, con scripts y archivos de configuración: [docs/DESARROLLO.md](docs/DESARROLLO.md#estructura).

@@ -14,6 +14,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - Tiempo de espera por consulta configurable (`OLLAMA_TIMEOUT`, 60 minutos por defecto): una prueba real con un modelo de 8B en una VM de 2 procesadores mostró consultas de más de 15 minutos con incidentes grandes.
 - Nuevo `backend/ai_local.py`, endpoint `GET /api/ai/providers` y parámetros `provider` y `model` en `POST /api/sessions/{id}/ai`. 36 pruebas nuevas con un servidor Ollama simulado y una prueba de navegador. Sin dependencias nuevas.
 
+### Cambiado: README aún más corto
+- El README pasa de 364 a unas 235 líneas. Formatos de entrada y datos de ejemplo, la galería de capturas, IA local con Ollama, reputación y privacidad se movieron, completos, a `docs/FORMATOS.md`, `docs/CAPTURAS.md`, `docs/IA-LOCAL.md`, `docs/REPUTACION.md` y `docs/PRIVACIDAD.md`; el README deja un resumen y el enlace a cada uno. No se eliminó información.
+
 ### Cambiado: README más corto
 - El README pasa de 411 a unas 345 líneas (de 5.900 a 3.400 palabras): «Cómo funciona», el detalle del análisis de correos, «Si algo falla», «Pruebas», «Seguridad» y «Estructura» se resumen y su texto completo está en `docs/DESARROLLO.md`. No se eliminó información.
 

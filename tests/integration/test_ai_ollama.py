@@ -165,6 +165,12 @@ def test_unrecoverable_list_is_retried(monkeypatch):
     assert len(srv.chats()) == 2
 
 
+@pytest.mark.parametrize("value,expected", [("", 3600.0), ("1800", 1800.0), ("5", 60.0), ("999999", 14400.0), ("abc", 3600.0)])
+def test_call_timeout_is_configurable_and_bounded(monkeypatch, value, expected):
+    monkeypatch.setenv("OLLAMA_TIMEOUT", value)
+    assert ai_local.call_timeout() == expected
+
+
 @pytest.mark.parametrize("status,msg", [(404, "ollama pull"), (500, "código 500")])
 def test_http_errors_have_readable_messages(monkeypatch, status, msg):
     monkeypatch.delenv("OLLAMA_HOST", raising=False)
@@ -176,7 +182,7 @@ def test_http_errors_have_readable_messages(monkeypatch, status, msg):
 def test_connection_failure_and_timeout_have_readable_messages(monkeypatch):
     monkeypatch.delenv("OLLAMA_HOST", raising=False)
     tool = {"name": "t", "input_schema": {"type": "object", "properties": {}}}
-    for exc, msg in ((httpx.ConnectError("x"), "¿Está en ejecución"), (httpx.ReadTimeout("x"), "tardó demasiado")):
+    for exc, msg in ((httpx.ConnectError("x"), "¿Está en ejecución"), (httpx.ReadTimeout("x"), "OLLAMA_TIMEOUT")):
         def boom(request, exc=exc):
             raise exc
         with pytest.raises(ai_local.OllamaError, match=msg):

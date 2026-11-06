@@ -7,6 +7,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ### Añadido: IA local con Ollama
 - En la pestaña Informe se puede elegir **IA local (Ollama)** además de Claude, con un modelo instalado en Ollama: sin clave, sin costo y, si Ollama corre en el mismo equipo, sin enviar datos a terceros. Claude funciona exactamente igual que antes.
 - Mismas garantías: la criticidad la decide el motor, el verificador descarta `Log_ID` e IP inventados y, si el modelo falla, el informe sale por reglas. La dirección de Ollama (`OLLAMA_HOST`) solo la define el servidor; se pide un contexto de 16.384 tokens (`OLLAMA_NUM_CTX`) para que no recorte la evidencia.
+- La prioridad del plan de acción (sección 7) la fija el motor según la criticidad del incidente (Crítico → Inmediata, Alto → Corto plazo, Medio/Bajo → Mediano plazo); el modelo ya no puede bajarla. Una prueba real con un modelo local de 8B había dejado un ransomware en «Corto plazo».
+- Todo incidente queda cubierto en el plan de acción: si el modelo no lo menciona, entra la acción concreta de las reglas.
+- Se descartan las acciones y recomendaciones genéricas del modelo («tomar medidas para prevenir futuros ataques»); en el plan por hallazgo, la columna genérica o vacía se completa con el plan de las reglas. Una justificación de criticidad que repite la explicación técnica se reemplaza por la de las reglas.
+- Cronología: la hora ya no se corta cuando el modelo devuelve la fecha completa. PDF: el Log_ID no se parte en dos líneas y «1 host» en singular.
+- Tiempo de espera por consulta configurable (`OLLAMA_TIMEOUT`, 60 minutos por defecto): una prueba real con un modelo de 8B en una VM de 2 procesadores mostró consultas de más de 15 minutos con incidentes grandes.
 - Nuevo `backend/ai_local.py`, endpoint `GET /api/ai/providers` y parámetros `provider` y `model` en `POST /api/sessions/{id}/ai`. 36 pruebas nuevas con un servidor Ollama simulado y una prueba de navegador. Sin dependencias nuevas.
 
 ### Cambiado: README más corto

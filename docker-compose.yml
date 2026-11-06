@@ -18,6 +18,7 @@ services:
       - ENABLE_DOCS=${ENABLE_DOCS:-}
       - OLLAMA_HOST=${OLLAMA_HOST:-}
       - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-}
+      - OLLAMA_TIMEOUT=${OLLAMA_TIMEOUT:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     # Lets the container reach an Ollama running on this computer (OLLAMA_HOST=http://host.docker.internal:11434)
     extra_hosts:

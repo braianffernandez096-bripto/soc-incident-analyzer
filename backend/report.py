@@ -167,7 +167,7 @@ def chart_timeline(stats: dict) -> Drawing:
 # --------------------------------------------------------------------------
 def evidence_table(df: pd.DataFrame, ids: list[str]) -> list:
     rows = rows_for(df, ids)
-    fixed = [17 * mm, 13 * mm, 21 * mm, 17 * mm, 20 * mm]
+    fixed = [21 * mm, 13 * mm, 17 * mm, 17 * mm, 20 * mm]
     cw = fixed + [CONTENT_W - sum(fixed) - 20 * mm, 20 * mm]
     head = [hcell(h) for h in ("Log_ID", "Hora", "Host", "Usuario", "IP origen", "Evento / comando", "SIEM")]
     shown = rows if len(rows) <= 14 else rows[:9] + rows[-2:]
@@ -518,7 +518,7 @@ def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: dic
 
     # ---- 2. alcance y metodología -------------------------------------------
     story.append(P("2. Alcance y metodología", "h1"))
-    story.append(P(f"Se analizó el export del SIEM «{meta['filename']}» ({D.fmt_int(p['rows'])} eventos, {p['hosts']} hosts, {p['users']} cuentas, "
+    story.append(P(f"Se analizó el export del SIEM «{meta['filename']}» ({D.fmt_int(p['rows'])} eventos, {D.pl(p['hosts'], 'host', 'hosts')}, {D.pl(p['users'], 'cuenta', 'cuentas')}, "
                    f"{p['time_start']} a {p['time_end']}, {p['duration']}). El análisis combina tres pasos:"))
     story += bullets([
         "Detección determinista: reglas explícitas sobre los campos del archivo (fuerza bruta, inicios de sesión sospechosos, escalamiento, comandos y "

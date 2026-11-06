@@ -262,7 +262,7 @@ ollama pull llama3.1:8b
 
 - **Mismas garantías que con Claude:** la criticidad la decide el motor, el verificador descarta los `Log_ID` y las IP inventados y, si el modelo falla, el informe se genera por reglas.
 
-- **Calidad y tiempo:** un modelo local pequeño redacta peor que uno grande y, sin GPU, tarda minutos. La app consulta de a una vez.
+- **Calidad y tiempo:** un modelo local pequeño redacta peor que uno grande y, sin GPU, tarda minutos por consulta (medido con un modelo de 8B en una VM de 2 procesadores: unos 5 minutos por consulta con 100 eventos y bastante más con incidentes grandes). La app consulta de a una vez y espera hasta 60 minutos por consulta; `OLLAMA_TIMEOUT` (en segundos) lo cambia. Si una consulta se agota, ese incidente se redacta por reglas. Con cualquier modelo, la criticidad y la prioridad del plan de acción las fija el motor; un modelo chico solo puede empeorar el texto, no el orden de urgencia.
 
 - **Sin probar con modelos reales en CI:** las pruebas usan un servidor Ollama simulado; el funcionamiento con cada modelo depende de tu equipo.
 
@@ -288,7 +288,7 @@ Los mensajes de error más comunes (formato no soportado, cabecera no reconocida
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 1.033 pruebas
+python -m pytest                                           # 1.060 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 

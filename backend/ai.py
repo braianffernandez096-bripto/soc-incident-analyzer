@@ -15,6 +15,7 @@ import os
 import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from difflib import SequenceMatcher
 from typing import Callable
 
 import pandas as pd
@@ -150,6 +151,43 @@ def _fmt(lines: list[str], ent: dict) -> list[str]:
     return [s.format_map(ent) for s in lines]
 
 
+# Frases vacías que un modelo chico repite en lugar de decir QUÉ hacer. Una acción así no sirve en un informe al cliente.
+_GENERIC_PHRASES = (
+    "futuros ataques", "futuras amenazas", "medidas de seguridad", "medidas adecuadas", "medidas necesarias",
+    "medidas para prevenir", "medidas de prevención", "politicas de seguridad", "buenas practicas",
+    "vulnerabilidades y debilidades", "auditoria de seguridad", "concientizacion", "mejorar la seguridad",
+    "fortalecer la seguridad", "reforzar la seguridad",
+)
+# Prioridad por criticidad del incidente: la decide el motor, nunca el modelo.
+SEVERITY_PRIORITY = {"Crítico": "Inmediata", "Alto": "Corto plazo", "Medio": "Mediano plazo", "Bajo": "Mediano plazo"}
+PRIORITY_ORDER = {"Inmediata": 0, "Corto plazo": 1, "Mediano plazo": 2}
+
+
+def _plain(s: str) -> str:
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", str(s).lower()) if unicodedata.category(c) != "Mn")
+
+
+def is_generic(text) -> bool:
+    """True si el texto es vacío o hecho de frases sin contenido para ser una acción concreta."""
+    t = _plain(text).strip()
+    if len(t.split()) < 2:
+        return True
+    return any(p in t for p in _GENERIC_PHRASES)
+
+
+def _concrete(items: list[str], fallback: list[str]) -> list[str]:
+    """Quita acciones genéricas; si no queda ninguna, usa el plan determinista."""
+    keep = [x for x in items if not is_generic(x)]
+    return keep or fallback
+
+
+def _clock(s: str) -> str:
+    """Hora HH:MM:SS dentro de lo que devuelva el modelo (acepta fecha completa); vacío si no hay."""
+    m = re.search(r"\b(\d{2}:\d{2}(?::\d{2})?)\b", str(s))
+    return m.group(1) if m else ""
+
+
 def _playbook_for(f: dict) -> dict:
     return PLAYBOOK.get(f["rule"], GENERIC)
 
@@ -220,12 +258,33 @@ def deterministic_report(analysis: dict) -> dict:
         ent = _entities(top)
         contain = _fmt(_playbook_for(top).get("contain", []), ent)
         if contain:
-            actions.append({"priority": "Inmediata" if i["severity"] == "Crítico" else "Corto plazo",
+            actions.append({"priority": SEVERITY_PRIORITY.get(i["severity"], "Mediano plazo"),
                             "action": f"{i['id']}: {contain[0]}", "incident_ids": [i["id"]]})
     return {
         "executive_summary": summary, "cross_incident_assessment": cross,
-        "general_recommendations": recs, "prioritized_actions": actions,
+        "general_recommendations": recs,
+        "prioritized_actions": sorted(actions, key=lambda a: PRIORITY_ORDER[a["priority"]]),
     }
+
+
+def _merge_actions(raw_actions, analysis: dict, base_actions: list[dict], ver, allowed: set[str], incident_ids: set[str]) -> list[dict]:
+    """Plan de acción final. El texto puede venir del modelo; la prioridad la fija SIEMPRE el motor (criticidad del incidente
+    más grave al que se refiere la acción) y todo incidente queda cubierto: si el modelo no lo mencionó o su acción es
+    genérica, entra la acción concreta de las reglas."""
+    sev = {i["id"]: i["severity"] for i in analysis["incidents"]}
+    out, covered = [], set()
+    for a in raw_actions or []:
+        if not isinstance(a, dict) or not a.get("action"):
+            continue
+        ids = [i for i in (a.get("incident_ids") or []) if isinstance(i, str) and i in incident_ids]
+        text = ver.text(a["action"], allowed)
+        if not ids or is_generic(text):     # sin incidente verificable o sin contenido: no se puede priorizar ni sirve
+            continue
+        worst = min((sev[i] for i in ids), key=lambda x: -D.SEV_ORDER[x])
+        out.append({"priority": SEVERITY_PRIORITY.get(worst, "Mediano plazo"), "action": text, "incident_ids": ids})
+        covered.update(ids)
+    out += [b for b in base_actions if not set(b["incident_ids"]) <= covered]
+    return sorted(out, key=lambda a: (PRIORITY_ORDER[a["priority"]], a["incident_ids"][0] if a["incident_ids"] else ""))
 
 
 def build_deterministic(analysis: dict) -> dict:
@@ -304,7 +363,7 @@ def validate_group(raw: dict, group_findings: list[dict], ver: Verifier) -> tupl
         if not ev:       # un paso sin evidencia verificable no entra al informe
             ver.dropped_ids += 1
             continue
-        steps.append({"time": ver.text(s.get("time", ""), allowed)[:8], "step": ver.text(s.get("step", ""), allowed), "evidence_ids": ev})
+        steps.append({"time": _clock(ver.text(s.get("time", ""), allowed)), "step": ver.text(s.get("step", ""), allowed), "evidence_ids": ev})
     conf = raw.get("confidence") if raw.get("confidence") in ("Alta", "Media", "Baja") else "Media"
     group = {
         "title": ver.text(raw.get("incident_title", ""), allowed), "narrative": ver.text(raw.get("narrative", ""), allowed),
@@ -321,7 +380,8 @@ def validate_group(raw: dict, group_findings: list[dict], ver: Verifier) -> tupl
             "technical_explanation": ver.text(fa.get("technical_explanation", ""), f_allowed),
             "severity_justification": ver.text(fa.get("severity_justification", ""), f_allowed),
             "impact": ver.text(fa.get("impact", ""), f_allowed),
-            "action_plan": {k: ver.tlist(fa.get(k), f_allowed) for k in ("investigate", "contain", "remediate")},
+            "action_plan": {k: [x for x in ver.tlist(fa.get(k), f_allowed) if not is_generic(x)]
+                            for k in ("investigate", "contain", "remediate")},
             "source": "ia",
         }
     return group, out
@@ -491,6 +551,13 @@ def generate(analysis: dict, df: pd.DataFrame, api_key: str | None, model: str |
                     out_groups[gid]["title"] = group["title"] or base["incidents"][gid]["title"]
             for fid, val in fa.items():
                 if val["technical_explanation"] and val["impact"]:
+                    det = base["findings"][fid]
+                    # lo que el modelo dejó vacío o genérico lo completa el plan del motor; una justificación que repite la
+                    # explicación técnica no aporta: se usa la de las reglas
+                    val["action_plan"] = {k: val["action_plan"].get(k) or det["action_plan"][k] for k in det["action_plan"]}
+                    if (not val["severity_justification"]
+                            or SequenceMatcher(None, _plain(val["severity_justification"]), _plain(val["technical_explanation"])).ratio() > 0.75):
+                        val["severity_justification"] = det["severity_justification"]
                     out_findings[fid] = val
                     completed += 1
 
@@ -514,16 +581,10 @@ def generate(analysis: dict, df: pd.DataFrame, api_key: str | None, model: str |
         incident_ids = {i["id"] for i in analysis["incidents"]}
         summary["executive_summary"] = ver.text(raw.get("executive_summary", ""), allowed_all) or summary["executive_summary"]
         summary["cross_incident_assessment"] = ver.text(raw.get("cross_incident_assessment", ""), allowed_all) or summary["cross_incident_assessment"]
-        recs = ver.tlist(raw.get("general_recommendations"), allowed_all)
+        recs = [r for r in ver.tlist(raw.get("general_recommendations"), allowed_all) if not is_generic(r)]
         summary["general_recommendations"] = recs or summary["general_recommendations"]
-        acts = []
-        for a in raw.get("prioritized_actions", []) or []:
-            if not isinstance(a, dict):
-                continue
-            if a.get("priority") in ("Inmediata", "Corto plazo", "Mediano plazo") and a.get("action"):
-                acts.append({"priority": a["priority"], "action": ver.text(a["action"], allowed_all),
-                             "incident_ids": [i for i in a.get("incident_ids", []) if i in incident_ids]})
-        summary["prioritized_actions"] = acts or summary["prioritized_actions"]
+        summary["prioritized_actions"] = _merge_actions(raw.get("prioritized_actions"), analysis, summary["prioritized_actions"],
+                                                        ver, allowed_all, incident_ids)
     except Exception as exc:
         errors.append(f"resumen: {type(exc).__name__}: {exc}")
 

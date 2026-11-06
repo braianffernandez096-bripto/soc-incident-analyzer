@@ -24,7 +24,7 @@ from .ai import SYSTEM_PROMPT, _normalize
 
 DEFAULT_HOST = "http://127.0.0.1:11434"
 PROBE_TIMEOUT = 3.0            # s: ver si Ollama responde y qué modelos tiene
-CALL_TIMEOUT = 900.0           # s: un modelo local sin GPU puede tardar minutos por incidente
+DEFAULT_CALL_TIMEOUT = 3600    # s por consulta: un equipo de 2 procesadores sin GPU puede tardar más de 15 minutos en un incidente grande
 DEFAULT_NUM_CTX = 16384        # Ollama usa por defecto un contexto de 2.048-4.096 tokens y recortaría la evidencia en silencio
 
 _FENCE_RE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.I)
@@ -61,6 +61,14 @@ def num_ctx() -> int:
         return max(2048, min(int(os.environ.get("OLLAMA_NUM_CTX", DEFAULT_NUM_CTX)), 131072))
     except ValueError:
         return DEFAULT_NUM_CTX
+
+
+def call_timeout() -> float:
+    """Tiempo máximo de espera por consulta, en segundos (`OLLAMA_TIMEOUT`; entre 60 s y 4 h)."""
+    try:
+        return float(max(60, min(int(os.environ.get("OLLAMA_TIMEOUT", DEFAULT_CALL_TIMEOUT)), 14400)))
+    except ValueError:
+        return float(DEFAULT_CALL_TIMEOUT)
 
 
 def _client(http: httpx.Client | None, timeout: float) -> tuple[httpx.Client, bool]:
@@ -107,7 +115,8 @@ def make_call(model: str, http: httpx.Client | None = None) -> Callable[[dict, s
     """Devuelve `call(tool, texto, max_tokens)` con la misma firma que usa `ai.generate` para Claude."""
     h = host()
     ctx = num_ctx()
-    client, own = _client(http, CALL_TIMEOUT)
+    limit = call_timeout()
+    client, own = _client(http, limit)
 
     def call(tool: dict, user_text: str, max_tokens: int) -> dict:
         schema = tool.get("input_schema", {})
@@ -120,11 +129,11 @@ def make_call(model: str, http: httpx.Client | None = None) -> Callable[[dict, s
                     "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user_text + must + extra}],
                     "options": {"temperature": 0.2, "num_ctx": ctx, "num_predict": max_tokens}}
             try:
-                r = client.post(f"{h}/api/chat", json=body, timeout=CALL_TIMEOUT)
+                r = client.post(f"{h}/api/chat", json=body, timeout=limit)
             except httpx.ConnectError as exc:
                 raise OllamaError(f"No se pudo conectar con Ollama en {h}. ¿Está en ejecución?") from exc
             except httpx.TimeoutException as exc:
-                raise OllamaError("Ollama tardó demasiado en responder. Prueba con un modelo más chico o con GPU.") from exc
+                raise OllamaError(f"Ollama tardó más de {int(limit // 60)} minutos en responder. Sube OLLAMA_TIMEOUT, usa un modelo más chico o analiza menos eventos.") from exc
             except httpx.HTTPError as exc:
                 raise OllamaError(f"Error de red al hablar con Ollama ({type(exc).__name__}).") from exc
             if r.status_code == 404:

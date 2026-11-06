@@ -163,7 +163,7 @@ Los mensajes de error más comunes (formato no soportado, cabecera no reconocida
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 1.107 pruebas
+python -m pytest                                           # 1.109 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
@@ -207,9 +207,9 @@ Con **Ollama** en tu propio equipo los datos no salen de él. Antes de activar l
 
 - **Opcionales:** clave de acceso (`APP_ACCESS_TOKEN`), captcha local (`CAPTCHA=on`) y documentación de la API desactivada por defecto.
 
-- **Contenedor y CI:** imagen sin privilegios, de solo lectura y con dependencias verificadas por hash; el CI corre pruebas, navegador, `bandit`, `pip-audit` y Trivy.
+- **Contenedor y CI:** imagen sin privilegios, de solo lectura y con dependencias verificadas por hash; el CI corre pruebas, navegador, `bandit`, `pip-audit` y Trivy, y publica un SBOM (CycloneDX) de la imagen.
 
-- Detalle: [docs/DESARROLLO.md](docs/DESARROLLO.md#seguridad-detalle). Alcance, límites y cómo reportar una vulnerabilidad: [SECURITY.md](SECURITY.md).
+- Detalle: [docs/DESARROLLO.md](docs/DESARROLLO.md#seguridad-detalle). Alcance, límites y cómo reportar una vulnerabilidad: [SECURITY.md](SECURITY.md). Para colaborar: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Límites
 

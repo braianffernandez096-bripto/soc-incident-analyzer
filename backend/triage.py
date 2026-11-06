@@ -4,7 +4,7 @@ Principios (los mismos que el resto del proyecto):
 - La severidad la fija el motor y la IA nunca la cambia. El triaje es una opinión aparte, con motivos y evidencia.
 - La recomendación del motor (``baseline``) existe siempre: sin IA, o si el modelo falla o alucina, es la que se muestra.
 - Toda cita a un Log_ID o IP que no exista en el archivo (o que no pertenezca al incidente) se descarta y se cuenta.
-- Si el motor marca el incidente como Crítico/Alto y la IA propone ser MENOS exigente, se conserva la recomendación del motor,
+- Si el motor marca el incidente como Crítico/Alto (o con señales de abuso: varios hallazgos, IP externa) y la IA propone ser MENOS exigente, se conserva la recomendación del motor,
   se marca el conflicto y se muestra lo que sugirió la IA: bajar la guardia es una decisión humana, no del modelo.
 - La decisión del analista (escalar / descartar / seguir investigando) es lo único que cierra el triaje.
 """
@@ -103,7 +103,14 @@ def _payload(analysis: dict, df: pd.DataFrame, inc: dict, base: dict) -> dict:
     }
 
 
-def _review(raw: dict, base: dict, allowed: set[str], ver: ai_mod.Verifier, inc: dict) -> dict:
+def has_abuse_signals(analysis: dict, inc: dict) -> bool:
+    """Señales de que el incidente no es ruido: gravedad Crítica/Alta, varios hallazgos relacionados, una IP externa o un hallazgo Alto/Crítico."""
+    fs = _incident_findings(analysis, inc)
+    return (inc["severity"] in ("Crítico", "Alto") or len(fs) >= 2 or bool(inc["external_ips"])
+            or any(f["severity"] in ("Crítico", "Alto") for f in fs))
+
+
+def _review(raw: dict, base: dict, allowed: set[str], ver: ai_mod.Verifier, inc: dict, protected: bool = False) -> dict:
     """Valida la respuesta del modelo. Devuelve el ítem final (con la IA o con el respaldo del motor)."""
     rec = raw.get("recommendation")
     conf = raw.get("confidence") if raw.get("confidence") in CONFIDENCE else "Baja"
@@ -116,8 +123,8 @@ def _review(raw: dict, base: dict, allowed: set[str], ver: ai_mod.Verifier, inc:
         change = base["would_change_if"]
     item = {"incident_id": inc["id"], "recommendation": rec, "confidence": conf, "reasons": reasons, "evidence_ids": ev,
             "would_change_if": change, "source": "ia", "ia_sugirio": None, "conflicto": False, "difiere": False}
-    if inc["severity"] in ("Crítico", "Alto") and RANK[rec] < RANK[base["recommendation"]]:
-        # la IA quiere bajar la guardia en un incidente que el motor considera grave: se conserva el motor y se deja constancia
+    if (protected or inc["severity"] in ("Crítico", "Alto")) and RANK[rec] < RANK[base["recommendation"]]:
+        # la IA quiere bajar la guardia en un incidente grave o con señales de abuso: se conserva el motor y se deja constancia
         kept = {**base, "conflicto": True, "ia_sugirio": {"recommendation": rec, "confidence": conf, "reasons": reasons, "would_change_if": change}}
         return kept
     item["difiere"] = rec != base["recommendation"]
@@ -148,7 +155,7 @@ def generate(analysis: dict, df: pd.DataFrame, call: Callable, provider: str = "
                 + "\n\n<incidente>\n" + ai_mod._as_data(_payload(analysis, df, inc, base)) + "\n</incidente>")
         try:
             raw = call(TRIAGE_TOOL, text, 1500)
-            item = _review(raw, base, allowed, ver, inc)
+            item = _review(raw, base, allowed, ver, inc, has_abuse_signals(analysis, inc))
             if item.get("ia_error"):
                 errors.append(f"{inc['id']}: {item.pop('ia_error')}")
         except Exception as exc:   # un incidente fallido no tumba el triaje

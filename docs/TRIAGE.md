@@ -18,7 +18,7 @@ Sin IA, la recomendación sale del motor (Crítico → Escalar; Alto → Escalar
 | Riesgo | Cómo se controla |
 |---|---|
 | La IA baja la severidad | No puede: la severidad es del motor y el triaje es una opinión aparte. |
-| La IA quiere descartar un incidente Crítico o Alto | Se **conserva la recomendación del motor**, se marca «Conflicto» y se muestra lo que sugirió la IA. Bajar la guardia es decisión humana. |
+| La IA quiere bajar la recomendación de un incidente Crítico o Alto, o con señales de abuso (varios hallazgos, IP externa, hallazgo Alto/Crítico) | Se **conserva la recomendación del motor**, se marca «Conflicto» y se muestra lo que sugirió la IA. Bajar la guardia es decisión humana. |
 | La IA inventa `Log_ID` o IP | El verificador los elimina (y solo se aceptan `Log_ID` del propio incidente). Se cuentan en el panel. |
 | Motivos vacíos o genéricos («revisar logs») | Se descartan; sin motivos concretos se usa la recomendación del motor. |
 | Respuesta inválida o fallo del modelo | Ese incidente queda con la recomendación del motor; el resto sigue. Si ninguno es válido, se informa el error y no se guarda nada. |

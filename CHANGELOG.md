@@ -2,14 +2,24 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
-## [Sin publicar]
+## [1.7.0] - 2026-11-06
+
+### Añadido: higiene del repositorio
+- `CONTRIBUTING.md` con las reglas del proyecto, cómo preparar el entorno y la lista previa a un pull request.
+- Plantillas de issues (error, falso positivo o detección omitida, mejora) con enlace al reporte privado de vulnerabilidades, y plantilla de pull request.
+- El CI genera un **SBOM** de la imagen en formato CycloneDX (Trivy, misma versión fijada) y lo publica como artefacto de cada ejecución.
+- `INTEL_MAX_INDICATORS`, `INTEL_VT_INTERVAL` e `INTEL_ABUSE_INTERVAL` quedan documentadas en `.env.example` y `docs/REPUTACION.md`.
+
+### Cambiado: protección extra del triaje
+- La IA tampoco puede bajar la recomendación de un incidente con señales de abuso (varios hallazgos, IP externa o un hallazgo Alto/Crítico), aunque el motor lo haya clasificado como Medio: se conserva la del motor y se marca el conflicto.
+
 
 ### Añadido: triaje asistido por IA con decisión del analista
 - En la pestaña Incidentes, cada incidente trae una recomendación de triaje (**Escalar**, **Probable falso positivo** o **Falta información**) con confianza, motivos que citan `Log_ID` y «qué me haría cambiar de opinión». Sin IA la da el motor; con IA (Claude u Ollama, desde el panel de la misma pestaña) la propone el modelo.
 - La severidad sigue siendo del motor. Si la IA propone ser menos exigente en un incidente Crítico o Alto, se conserva la recomendación del motor y se marca el **conflicto**. Se descartan los `Log_ID` e IP inventados, los motivos genéricos y las respuestas inválidas (ese incidente queda con la del motor).
 - El analista registra su decisión (Escalado, Descartado o En investigación) con una nota; aparece en el PDF junto con la recomendación de IA.
 - Nuevo `scripts/evaluar_triage.py` y `sample_data/triage_esperado.json` para medir un modelo (aciertos, subescalado, sobreescalado, conflictos, citas descartadas). Las etiquetas son criterio del autor sobre datos sintéticos; ver `docs/TRIAGE.md`.
-- Nuevos `backend/triage.py` y endpoints `GET /api/sessions/{id}/triage`, `POST …/triage/ai` y `POST …/triage/{incidente}/decision`. Sin dependencias nuevas. 21 pruebas nuevas (1.107 en total).
+- Nuevos `backend/triage.py` y endpoints `GET /api/sessions/{id}/triage`, `POST …/triage/ai` y `POST …/triage/{incidente}/decision`. Sin dependencias nuevas. 23 pruebas nuevas (1.109 en total).
 
 ### Añadido: reglas Sigma para Linux, web, DNS y nube
 - Los hallazgos de SSH, ataque web, túnel DNS, minería, lectura de credenciales en Linux, persistencia (cron, claves SSH y también Windows), ransomware, phishing con doble extensión, comandos sospechosos, sondeo de recursos compartidos y cambios de IAM en la nube ahora ofrecen una regla **Sigma** en «Buscar en tu SIEM» y en la descarga de reglas de la pestaña Hallazgos. Son solo Sigma (sin Splunk ni KQL), con campos estándar. No tienen regla la exfiltración ni el comando y control.

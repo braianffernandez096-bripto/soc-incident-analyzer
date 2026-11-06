@@ -87,6 +87,31 @@ def test_ia_que_baja_la_guardia_en_incidente_grave_genera_conflicto(ctx):
     assert r["validation"]["conflictos"] == len(graves)
 
 
+def test_medio_con_senales_de_abuso_no_se_puede_descartar(ctx):
+    df, a = ctx
+    inc = next(i for i in a["incidents"] if i["external_ips"])
+    medio = {**inc, "severity": "Medio"}
+    assert T.has_abuse_signals(a, medio)
+    base = T.baseline(a, medio)
+    allowed = set(T._incident_evidence(a, medio))
+    ver = __import__("backend.ai", fromlist=["x"]).Verifier(df)
+    raw = {"recommendation": "Probable falso positivo", "confidence": "Alta", "reasons": [f"El evento {sorted(allowed)[0]} parece actividad normal de mantenimiento."],
+           "evidence_ids": sorted(allowed)[:1], "would_change_if": "Aparece un acceso exitoso desde la misma IP externa."}
+    it = T._review(raw, base, allowed, ver, medio, T.has_abuse_signals(a, medio))
+    assert it["recommendation"] == base["recommendation"] == "Falta información" and it["conflicto"] and it["source"] == "motor"
+    assert it["ia_sugirio"]["recommendation"] == "Probable falso positivo"
+
+
+def test_sin_senales_el_incidente_medio_si_puede_descartarse(ctx):
+    _, a = ctx
+    aislado = {**a["incidents"][0], "severity": "Medio", "external_ips": [], "finding_ids": a["incidents"][0]["finding_ids"][:1]}
+    f = T._incident_findings(a, aislado)[0]
+    quieto = {**aislado}
+    # un único hallazgo Medio y sin IP externa no cuenta como señal de abuso
+    a2 = {**a, "findings": [{**f, "severity": "Medio"}]}
+    assert not T.has_abuse_signals(a2, quieto)
+
+
 def test_ia_en_incidente_medio_puede_descartar_y_si_escala_mas_se_marca(ctx):
     df, a = ctx
     inc = {**a["incidents"][0], "severity": "Medio"}

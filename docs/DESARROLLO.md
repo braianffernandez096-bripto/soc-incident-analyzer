@@ -73,7 +73,7 @@ En la pestaña **Phishing** (disponible desde el inicio, sin cargar logs) sube u
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 1.107 pruebas
+python -m pytest                                           # 1.109 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 

@@ -1,5 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Reportar una vulnerabilidad (privado)
-    url: https://github.com/braianffernandez096-bripto/soc-incident-analyzer/security/advisories/new
-    about: No abras un issue público para fallos de seguridad.

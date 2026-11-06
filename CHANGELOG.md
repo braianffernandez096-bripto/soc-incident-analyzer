@@ -4,6 +4,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+## [1.6.0] - 2026-11-06
+
 ### Añadido: IA local con Ollama
 - En la pestaña Informe se puede elegir **IA local (Ollama)** además de Claude, con un modelo instalado en Ollama: sin clave, sin costo y, si Ollama corre en el mismo equipo, sin enviar datos a terceros. Claude funciona exactamente igual que antes.
 - Mismas garantías: la criticidad la decide el motor, el verificador descarta `Log_ID` e IP inventados y, si el modelo falla, el informe sale por reglas. La dirección de Ollama (`OLLAMA_HOST`) solo la define el servidor; se pide un contexto de 16.384 tokens (`OLLAMA_NUM_CTX`) para que no recorte la evidencia.

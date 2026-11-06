@@ -256,7 +256,7 @@ los traduce antes de comparar (tabla `RENOMBRADAS`).
 - No hay un conjunto de **tráfico normal real** equivalente (solo el sintético de las pruebas negativas), así que la tasa de falsos positivos
   en producción es desconocida. Los casos de la sección 3 son pruebas puntuales, no una tasa.
 - **Ofuscación: lo que se resuelve y lo que no.** Se normalizan estáticamente: IP numéricas en URL (decimal, hexadecimal, octal, abreviada, IPv6 mapeada), `%XX` en el host o repetido, caracteres invisibles y entidades en el esquema, `^` de cmd, acentos graves, comillas intercaladas, concatenación `'a'+'b'`, `.Replace()`, `[char]`, `-join` y `FromBase64String` con literales; en HTML, `atob`/`unescape`/`fromCharCode`/`\x` con literales, `meta refresh`, texto oculto y «HTML smuggling». Un comando ofuscado solo se reporta si la ofuscación **escondía** un programa o técnica relevante (no por usar `+` o comillas). Queda fuera todo lo que exige **ejecutar** el código: claves construidas en tiempo de ejecución, cadenas invertidas (`[-1..-n]`), variables de entorno con subcadenas (`%COMSPEC:~0,1%`), empaquetadores de JavaScript, varias capas de cifrado y la desofuscación de macros VBA o scripts largos. No se hizo una medición sobre un corpus etiquetado de ofuscación; la verificación son pruebas unitarias con técnicas conocidas y con comandos normales que no deben alertar.
-- Los resultados dependen de la versión de la app (1.5.0) y de la versión de los datasets; se pueden regenerar.
+- Los resultados dependen de la versión de la app (1.6.0) y de la versión de los datasets; se pueden regenerar.
 
 ## 6. Cómo reproducirlo
 

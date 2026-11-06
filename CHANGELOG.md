@@ -4,6 +4,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+### Añadido: reglas Sigma para Linux, web, DNS y nube
+- Los hallazgos de SSH, ataque web, túnel DNS, minería, lectura de credenciales en Linux, persistencia (cron, claves SSH y también Windows), ransomware, phishing con doble extensión, comandos sospechosos, sondeo de recursos compartidos y cambios de IAM en la nube ahora ofrecen una regla **Sigma** en «Buscar en tu SIEM» y en la descarga de reglas de la pestaña Hallazgos. Son solo Sigma (sin Splunk ni KQL), con campos estándar. No tienen regla la exfiltración ni el comando y control.
+- Las reglas se convierten sin error con pySigma (backend Splunk) y se prueban contra las evidencias de los ejemplos; esa prueba detectó que el regex de túnel DNS no cubría subdominios de dos niveles, y se corrigió.
+
+### Corregido: regla de firewall (Windows) en Sigma, Splunk y KQL
+- El patrón de «regla de firewall que abre el tráfico entrante o lo desactiva» usaba «mirar adelante» (`(?=…)`), que los motores de Sigma y de KQL no admiten, y pySigma lo rechazaba. Ahora se exporta con un patrón equivalente sin ese operador; la detección de la app no cambia.
+
 ## [1.6.0] - 2026-11-06
 
 ### Añadido: IA local con Ollama

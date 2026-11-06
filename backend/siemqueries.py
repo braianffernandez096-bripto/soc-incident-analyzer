@@ -4,8 +4,9 @@ Sirven para **buscar lo mismo en el SIEM real** (cazar el patrón en más equipo
 Se generan con plantillas deterministas, sin IA y sin salir a Internet. Los nombres de campos siguen los de Splunk Add-on for Windows y de la
 tabla ``SecurityEvent``/``Event`` de Sentinel; cada SIEM puede nombrarlos distinto, por eso la interfaz recuerda revisar índice y campos.
 
-Solo cubre las reglas de Windows con un equivalente directo. Las de otras fuentes (``g_*``), calidad de datos y exfiltración por proxy no
-tienen consulta porque dependen del esquema de cada producto.
+Splunk y KQL solo cubren las reglas de Windows con un equivalente directo. Para las demás fuentes (SSH, web, DNS, Linux, nube) se genera
+**solo Sigma**, que usa nombres de campo estándar (``webserver``, ``dns``, ``process_creation``…) y cada SIEM traduce a los suyos. Calidad de
+datos, exfiltración y comando y control (``g_exfil``, ``g_c2``) no tienen regla: dependen de flujos de red o de inteligencia de amenazas.
 """
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from datetime import timedelta
 import pandas as pd
 
 from . import detection as D
+from .detection_generic import _IAM_PRIV
 
 SYSMON_SPL = 'sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational"'
 SEC_SPL = 'sourcetype="WinEventLog:Security"'
@@ -74,11 +76,20 @@ def _ip(f: dict) -> str:
     return (f.get("link_ips") or f.get("ips") or [""])[0]
 
 
+_LOOKAHEAD_PAIR = re.compile(r"\(\?=\[\^\\n\]\*([^()]+)\)\(\?=\[\^\\n\]\*([^()]+)\)")
+
+
+def _re2(pattern: str) -> str:
+    """Sigma (pySigma), Splunk y KQL usan motores RE2/PCRE sin «mirar adelante»: dos condiciones en cualquier orden, ``(?=…A)(?=…B)``, se
+    reescriben como ``A…B`` o ``B…A``. La app sí usa el patrón original; esto solo cambia lo que se exporta."""
+    return _LOOKAHEAD_PAIR.sub(lambda m: rf"[^\n]*(?:{m.group(1)}[^\n]*{m.group(2)}|{m.group(2)}[^\n]*{m.group(1)})", pattern)
+
+
 def _cmd_regex(key: str) -> str:
     p = next((x for x in D.CMD_PATTERNS if x["key"] == key), None)
     if key == "web_service_shell":
         return r"\b(cmd|powershell|pwsh|wscript|cscript|whoami)(\.exe)?\b"
-    return p["rx"].pattern if p and p["rx"] is not None else ""
+    return _re2(p["rx"].pattern) if p and p["rx"] is not None else ""
 
 
 # --------------------------------------------------------------------------
@@ -313,6 +324,82 @@ def _sigma_specs() -> dict[str, dict]:
                    "condition": "selection"},
         fields=["SubjectUserName", "PrivilegeList"], falsepositives=["Cuentas administrativas en uso normal; conviene combinarla con un origen externo"],
         desc="Muy ruidosa por sí sola: úsala para correlacionar, no como alerta aislada.")
+
+    # ---- otras fuentes: solo Sigma (campos estándar de Sigma; el SIEM los traduce a los suyos) -----------------------------------------
+    def add(rule, title, level, mitre, logsource, detection, desc, fields=(), fp=None):
+        specs[rule] = dict(title=title, level=level, mitre=mitre, logsource=logsource, detection=detection, fields=list(fields), desc=desc)
+        if fp:
+            specs[rule]["falsepositives"] = fp
+
+    add("g_auth", "Fallo de autenticación SSH (sshd)", "low", ["T1110.001", "T1110.003"],
+        {"product": "linux", "service": "sshd"},
+        {"selection": ["Failed password for", "Invalid user", "authentication failure"], "condition": "selection"},
+        "Cada fallo de inicio de sesión por SSH. Un solo fallo es normal: la detección de fuerza bruta o password spraying es el conteo "
+        "(3 o más fallos desde la misma IP en 10 minutos) y, sobre todo, un acceso exitoso desde esa IP después de los fallos.",
+        ["Message"], ["Usuarios que se equivocan de clave; revisa la IP de origen y si hubo un acceso exitoso posterior"])
+    add("g_web", "Petición web con patrones de ataque (SQL, rutas, XSS, Log4Shell, webshell)", "medium", ["T1190"],
+        {"category": "webserver"},
+        {"selection": {"cs-uri-query|contains": [
+            "union select", "' or '", " or 1=1", "or%201=1", "%27%20or%20", "information_schema", "sleep(", "; drop ",
+            "../", "..%2f", "%2e%2e%2f", "/etc/passwd", "win.ini",
+            "<script", "%3cscript", "javascript:", "onerror=",
+            "${jndi:", "cmd=", "/bin/sh", "/bin/bash", "exec("]}, "condition": "selection"},
+        "Peticiones HTTP con los mismos patrones que usa la app: inyección SQL, recorrido de rutas, XSS, Log4Shell y ejecución de comandos. "
+        "Una ráfaga desde la misma IP y una respuesta 200 aumentan la confianza; un solo intento suele ser un escáner.",
+        ["c-ip", "cs-uri-stem", "cs-uri-query", "sc-status"], ["Escáneres de vulnerabilidades autorizados; pruebas del propio equipo"])
+    add("g_dns_tunnel", "Consulta DNS con un subdominio largo y aleatorio (posible túnel DNS)", "medium", ["T1071.004"],
+        {"category": "dns"},
+        {"selection": {"query|re": "(?i)(^|\\.)[a-z0-9]{6,}[0-9][a-z0-9]{5,}(\\.[a-z0-9-]+){2,}$"}, "condition": "selection"},
+        "Una etiqueta de 12 o más caracteres alfanuméricos con al menos un dígito, delante del dominio (la app además mide la entropía, que Sigma no puede calcular). "
+        "Un solo nombre así es normal; un túnel DNS genera muchos: cuenta 5 o más consultas distintas al mismo dominio desde el mismo host.",
+        ["query", "src_ip"], ["Servicios de antivirus o CDN que consultan nombres con hash; valida el dominio"])
+    add("g_mining", "Minería de criptomonedas (xmrig, stratum, pools)", "high", ["T1496.001"],
+        {"category": "process_creation", "product": "linux"},
+        {"selection_img": {"Image|endswith": ["/xmrig", "/minerd", "/cpuminer"]},
+         "selection_cmd": {"CommandLine|contains": ["stratum+tcp://", "stratum+ssl://", "--donate-level", "pool.minexmr", "xmrig"]},
+         "condition": "1 of selection_*"},
+        "Proceso o línea de comandos típicos de un minero. Suele ir acompañado de CPU al ~100 % sostenida y de conexiones a un pool.",
+        ["Image", "CommandLine", "User"], ["Minería autorizada por la organización (poco habitual)"])
+    add("g_privesc", "Lectura de archivos de credenciales en Linux", "medium", ["T1003.008", "T1552.001"],
+        {"category": "process_creation", "product": "linux"},
+        {"selection_img": {"Image|endswith": ["/cat", "/less", "/more", "/head", "/tail", "/cp", "/base64", "/xxd"]},
+         "selection_file": {"CommandLine|contains": ["/etc/shadow", "/etc/sudoers", "id_rsa", ".aws/credentials"]},
+         "condition": "selection_img and selection_file"},
+        "Un usuario lee o copia archivos con contraseñas o claves. Es más grave si viene después de un cambio a root (SUID).",
+        ["Image", "CommandLine", "User"], ["Administración legítima; valida el usuario y el momento"])
+    add("g_persistence_linux", "Persistencia en Linux: cron o claves SSH autorizadas", "medium", ["T1098.004", "T1053.003"],
+        {"category": "process_creation", "product": "linux"},
+        {"selection": {"CommandLine|contains": ["| crontab -", "/etc/cron.d/", "/etc/crontab", "authorized_keys"]}, "condition": "selection"},
+        "Una tarea cron nueva o una clave agregada a authorized_keys permiten volver a entrar aunque cambien la contraseña.",
+        ["Image", "CommandLine", "User"], ["Gestión de claves y tareas por el administrador o por herramientas de configuración"])
+    add("g_ransomware", "Ransomware: nota de rescate o archivos cifrados", "critical", ["T1486"],
+        {"category": "file_event"},
+        {"selection_note": {"TargetFilename|contains": ["HOW_TO_DECRYPT", "README_RECOVER", "DECRYPT_INSTRUCTIONS", "RANSOM"]},
+         "selection_ext": {"TargetFilename|endswith": [".locked", ".encrypted", ".lockbit", ".crypt"]},
+         "condition": "1 of selection_*"},
+        "Creación de una nota de rescate o de archivos con extensión de cifrado. Combínala con la eliminación de copias de seguridad (regla de vssadmin).",
+        ["TargetFilename", "Image"], ["Software de cifrado legítimo que use esas extensiones"])
+    add("g_phishing", "Ejecución de un adjunto con doble extensión", "high", ["T1204.002", "T1036.007"],
+        {"category": "process_creation", "product": "windows"},
+        {"selection": {"Image|re": "(?i)\\.(pdf|docx?|xlsx?|jpe?g|png|txt)\\.(exe|scr|js|vbs|bat|cmd|ps1|lnk|hta)$"}, "condition": "selection"},
+        "Un archivo que parece un documento (factura.pdf.exe) se ejecuta como programa: señal típica de adjunto de phishing abierto por la víctima.",
+        ["Image", "CommandLine", "ParentImage", "User"], ["Muy poco habitual en uso legítimo"])
+    add("g_cmd", "Comandos sospechosos: bypass de PowerShell y descargas", "high", ["T1059.001", "T1105"],
+        {"category": "process_creation", "product": "windows"},
+        {"selection": {"CommandLine|contains": ["-ExecutionPolicy Bypass", "-EncodedCommand", "DownloadString", "Invoke-WebRequest", "IEX(",
+                                                "certutil -urlcache", "bitsadmin /transfer"]}, "condition": "selection"},
+        "Línea de comandos con las técnicas más comunes de ejecución y descarga. Para variantes más específicas usa las reglas de PowerShell codificado y de descarga.",
+        ["CommandLine", "Image", "User", "ParentImage"], ["Scripts de administración que usan Bypass; valida el origen"])
+    add("g_share_probe", "Sondeo de recursos compartidos administrativos (IPC$, C$, ADMIN$)", "low", ["T1135", "T1021.002"],
+        {"product": "windows", "service": "security"},
+        {"selection": {"EventID": 5145, "ShareName|endswith": ["\\IPC$", "\\C$", "\\ADMIN$"]}, "condition": "selection"},
+        "Accesos a recursos administrativos. Muy ruidosa por sí sola: es sospechosa cuando una misma cuenta o IP los toca en varios equipos en poco tiempo.",
+        ["SubjectUserName", "IpAddress", "ShareName"], ["Herramientas de administración y de inventario"])
+    add("g_cloud", "Cambios de permisos, credenciales o registros en la nube (AWS CloudTrail)", "high", ["T1098", "T1078.004"],
+        {"product": "aws", "service": "cloudtrail"},
+        {"selection": {"eventName": list(_IAM_PRIV)}, "condition": "selection"},
+        "Creación de claves, cambios de políticas y apagado de registros. Si la plataforma es Azure o GCP, adapta los nombres de evento.",
+        ["eventName", "userIdentity.arn", "sourceIPAddress"], ["Cambios de IAM autorizados; valida la identidad y el momento"])
     return specs
 
 
@@ -321,6 +408,12 @@ _SPECS = _sigma_specs()
 # Reglas con al menos una consulta (la interfaz solo ofrece el botón en estas)
 SUPPORTED = frozenset({"brute_force", "external_logon", "privilege", "lateral", "cred_lsass", "cred_dcsync", "persist_run", "persistence",
                        "outbound_shell", "sensitive_share", "mass_access", "kerberoast", *CMD_KEYS})
+
+
+# Reglas con Sigma pero sin consulta Splunk/KQL (otras fuentes: SSH, web, DNS, Linux, nube)
+SIGMA_ONLY = frozenset({"g_auth", "g_web", "g_dns_tunnel", "g_mining", "g_privesc", "g_persistence", "g_ransomware", "g_phishing", "g_cmd",
+                        "g_share_probe", "g_cloud"})
+ALL_SUPPORTED = SUPPORTED | SIGMA_ONLY
 
 
 def sigma_rule(rule: str) -> str | None:
@@ -337,6 +430,8 @@ def sigma_rule(rule: str) -> str | None:
                 "correlation": {"type": "event_count", "rules": ["soc_ia_logon_failure"], "group-by": ["IpAddress"], "timespan": "10m",
                                 "condition": {"gte": 3}}, "level": "medium"}
         return _y(base) + "\n---\n" + _y(corr) + "\n"
+    if rule == "g_persistence":     # una sola regla de la app cubre Linux (cron, claves SSH) y Windows (Run, tareas): se exportan todas
+        return "---\n".join(sigma_rule(r) for r in ("g_persistence_linux", "persist_run", "persistence"))
     s = _SPECS.get(rule)
     if not s:
         return None

@@ -31,7 +31,7 @@ def test_every_supported_rule_has_splunk_and_kql():
 
 
 def test_unsupported_rules_have_no_queries():
-    for rule in ("g_auth", "exfil_proxy", "web_attack", "dq_host_alias", "siem_underclass"):
+    for rule in ("g_exfil", "g_c2", "exfil_proxy", "web_attack", "dq_host_alias", "siem_underclass"):
         assert S.queries_for(_base(rule)) is None
 
 
@@ -46,7 +46,7 @@ def test_every_finding_of_the_sample_is_either_covered_or_cleanly_skipped(findin
     covered = 0
     for f in findings:
         qs = S.queries_for(f)
-        assert (qs is not None) == (f["rule"] in S.SUPPORTED)
+        assert (qs is not None) == (f["rule"] in S.ALL_SUPPORTED)
         covered += bool(qs)
     assert covered >= 5
 
@@ -69,7 +69,7 @@ def test_control_characters_are_removed_from_entities():
 
 def test_sigma_is_valid_yaml_with_required_fields():
     yaml = pytest.importorskip("yaml")
-    for rule in list(S.SUPPORTED) + ["brute_force"]:
+    for rule in list(S.ALL_SUPPORTED) + ["brute_force"]:
         text = S.sigma_rule(rule)
         if not text:
             continue
@@ -108,7 +108,7 @@ def test_sigma_rules_parse_and_convert_with_pysigma_when_installed():
     pytest.importorskip("sigma")
     from sigma.backends.splunk import SplunkBackend
     from sigma.collection import SigmaCollection
-    text = "---\n".join(S.sigma_rule(r) for r in sorted(S.SUPPORTED | {"brute_force"}) if S.sigma_rule(r))
+    text = "---\n".join(S.sigma_rule(r) for r in sorted(S.ALL_SUPPORTED | {"brute_force"}) if S.sigma_rule(r))
     col = SigmaCollection.from_yaml(text)
     assert len(col.rules) >= 12 and not any(r.errors for r in col.rules)
     assert "event_count >= 3" in "".join(SplunkBackend().convert(SigmaCollection([r for r in col.rules if "4625" in r.title or "Fuerza bruta" in r.title])))

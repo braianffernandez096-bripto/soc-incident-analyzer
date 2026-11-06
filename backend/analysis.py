@@ -8,7 +8,7 @@ import pandas as pd
 
 from . import attack
 from . import detection as D
-from .siemqueries import SUPPORTED as SIEM_SUPPORTED
+from .siemqueries import ALL_SUPPORTED as SIEM_SUPPORTED
 
 log = logging.getLogger("soc.analysis")
 

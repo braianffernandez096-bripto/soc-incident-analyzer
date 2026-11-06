@@ -33,7 +33,7 @@ Proyecto personal de Braian Fernandez, hecho para practicar el análisis de inci
 
 7. **MITRE ATT&CK** (`backend/attack.py`): técnicas con nombre oficial, matriz por táctica y capa para ATT&CK Navigator. Sin Internet.
 
-8. **Consultas para tu SIEM** (`backend/siemqueries.py`): Splunk (SPL), Sentinel (KQL) y reglas Sigma por cada hallazgo de Windows.
+8. **Consultas para tu SIEM** (`backend/siemqueries.py`): Splunk (SPL), Sentinel (KQL) y reglas Sigma para los hallazgos de Windows; para SSH, web, DNS, Linux y nube, reglas Sigma.
 
 9. **Phishing** (`backend/phishing.py`): análisis estático de `.eml` (remitente, SPF/DKIM/DMARC, enlaces, homógrafos, adjuntos, ClickFix) con veredicto y puntaje.
 
@@ -159,7 +159,7 @@ Los mensajes de error más comunes (formato no soportado, cabecera no reconocida
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 1.067 pruebas
+python -m pytest                                           # 1.086 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 

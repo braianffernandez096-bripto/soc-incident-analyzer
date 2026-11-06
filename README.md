@@ -11,7 +11,7 @@ Esta herramienta toma el export de un SIEM (Excel, CSV o JSON) y lo convierte en
 Cada hallazgo se mapea a MITRE ATT&CK y trae un plan de acción (investigar, contener, remediar) y un informe técnico en PDF.
 
 Está pensada para analistas SOC y estudiantes que practican triage, y para quien quiera ver cómo se correlacionan los eventos sin montar un SIEM completo.
-El análisis, los incidentes, MITRE ATT&CK y el informe en PDF funcionan sin Internet y sin costo, porque las reglas son deterministas y el informe usa plantillas. La redacción con IA es opcional: requiere tu propia clave de API de Anthropic (servicio de pago por uso) y solo mejora la redacción, nunca cambia la criticidad.
+El análisis, los incidentes, MITRE ATT&CK y el informe en PDF funcionan sin Internet y sin costo, porque las reglas son deterministas y el informe usa plantillas. La redacción con IA es opcional: puedes usar tu propia clave de API de Anthropic (servicio de pago por uso) o un modelo local con Ollama, sin costo y sin enviar datos a terceros. Solo mejora la redacción, nunca cambia la criticidad.
 
 ## Cómo se desarrolló
 
@@ -25,7 +25,7 @@ Proyecto personal de Braian Fernandez, hecho para practicar el análisis de inci
 
 3. **Correlación**: los hallazgos se agrupan en incidentes cuando comparten IP externa o cuenta de actor.
 
-4. **IA (Claude)** (`backend/ai.py`, opcional): solo redacta; no puede cambiar la criticidad y un verificador descarta lo inventado. Sin clave, el informe usa plantillas.
+4. **IA (Claude u Ollama local)** (`backend/ai.py`, `backend/ai_local.py`, opcional): solo redacta; no puede cambiar la criticidad y un verificador descarta lo inventado. Se elige el proveedor en la pestaña Informe. Sin clave ni Ollama, el informe usa plantillas.
 
 5. **PDF** (`backend/report.py`): resumen ejecutivo, hallazgos, evidencia, impacto, plan de acción y recomendaciones.
 
@@ -216,7 +216,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install --require-hashes -r requirements.lock      # versiones exactas, verificadas por hash
 
-# 4. (Opcional) claves: Anthropic para la redacción con IA (de pago); VirusTotal y AbuseIPDB para reputación
+# 4. (Opcional) claves: Anthropic para la redacción con IA (de pago); VirusTotal y AbuseIPDB para reputación. Para IA local sin clave, instala Ollama y un modelo (ver más abajo)
 cp .env.example .env
 nano .env                       # ANTHROPIC_API_KEY=...  VT_API_KEY=...  ABUSEIPDB_API_KEY=...
 
@@ -247,6 +247,21 @@ En la pestaña **Phishing** (disponible desde el inicio, sin cargar logs) sube u
 
 Es análisis estático y determinista: no se abre ningún enlace ni se ejecuta ningún adjunto, y las URL se muestran «defangeadas». Incluye ataques homógrafos con desglose carácter por carácter, remitente esperado, recorrido `Received`, puntaje con factores visibles, evaluación de dominio (SPF/DKIM/DMARC) y dominios parecidos. Todo el detalle, con sus límites, está en [docs/DESARROLLO.md](docs/DESARROLLO.md#análisis-de-correos-phishing-detalle).
 
+## IA local con Ollama (opcional)
+
+Alternativa a Claude para quien no quiere pagar ni enviar datos a un tercero. En la pestaña **Informe**, elige **IA local (Ollama)** y uno de los modelos que tengas instalados.
+
+```bash
+# Instala Ollama (https://ollama.com) y un modelo; el nombre es de ejemplo, usa el que prefieras y tu equipo aguante
+ollama pull llama3.1:8b
+```
+
+- **La dirección la define el servidor,** no el navegador: `OLLAMA_HOST` (por defecto `http://127.0.0.1:11434`). Con Docker, define en `.env` `OLLAMA_HOST=http://host.docker.internal:11434` (el contenedor alcanza el Ollama de tu equipo) y haz que Ollama escuche en todas las interfaces locales (`OLLAMA_HOST=0.0.0.0` en el servicio de Ollama), porque por defecto solo escucha en `127.0.0.1`.
+- **Contexto:** Ollama recorta en silencio lo que supera su ventana (2.048-4.096 tokens por defecto), así que la app pide 16.384 (`OLLAMA_NUM_CTX` lo cambia). Si el equipo se queda sin memoria, usa un modelo más chico.
+- **Mismas garantías que con Claude:** la criticidad la decide el motor, el verificador descarta los `Log_ID` y las IP inventados y, si el modelo falla, el informe se genera por reglas.
+- **Calidad y tiempo:** un modelo local pequeño redacta peor que uno grande y, sin GPU, tarda minutos. La app consulta de a una vez.
+- **Sin probar con modelos reales en CI:** las pruebas usan un servidor Ollama simulado; el funcionamiento con cada modelo depende de tu equipo.
+
 ## Reputación de IP y dominios (VirusTotal y AbuseIPDB)
 
 Opcional. En la pestaña **Indicadores (IoC)**, el botón **Consultar reputación** enriquece los indicadores externos con VirusTotal (cuántos motores los marcan como maliciosos) y AbuseIPDB (puntaje de confianza de abuso y reportes de los últimos 90 días). El resultado aparece en la tabla de IoC y en una sección del informe PDF.
@@ -269,7 +284,7 @@ Los mensajes de error más comunes (formato no soportado, cabecera no reconocida
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 997 pruebas
+python -m pytest                                           # 1.033 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
@@ -301,7 +316,7 @@ La app corre en tu equipo y no envía telemetría. Solo salen datos si tú activ
 | **Consulta DNS** (botones «Evaluar» en Evaluar dominio y «Comprobar registro» en Dominios parecidos) | Solo **nombres de dominio**, por DNS sobre HTTPS (nunca el correo, sus enlaces ni sus adjuntos). Se desactiva con `DNS_LOOKUPS=off`. | Cloudflare (si falla, Google) |
 | **Reputación** (botón en Indicadores (IoC) o en Phishing, requiere clave de VirusTotal o AbuseIPDB) | Solo las IP públicas, dominios y, en phishing, el hash SHA-256 de los adjuntos, que ves y confirmas en pantalla. Nunca IP internas, cuentas, equipos ni comandos. | VirusTotal y AbuseIPDB |
 
-Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones IP reales. Antes de activar la IA, asegúrate de tener permiso para compartir esos datos con un tercero; sin la clave de Anthropic, el informe se genera por reglas y no sale nada.
+Las filas de evidencia pueden contener nombres de usuario, equipos y direcciones IP reales. Antes de activar la IA de Anthropic, asegúrate de tener permiso para compartir esos datos con un tercero; sin la clave de Anthropic, el informe se genera por reglas y no sale nada. Con **Ollama** en tu propio equipo (`127.0.0.1`) los datos no salen de él; la pantalla avisa si Ollama está en otro equipo, y en ese caso los datos viajan hasta esa dirección.
 
 ## Seguridad
 

@@ -450,8 +450,9 @@ def _call_tool(client, model: str, tool: dict, user_text: str, max_tokens: int) 
 
 
 def generate(analysis: dict, df: pd.DataFrame, api_key: str | None, model: str | None = None,
-             call: Callable | None = None, client=None) -> dict:
-    """Genera el análisis con IA. `call`/`client` permiten inyectar un modelo o cliente de prueba."""
+             call: Callable | None = None, client=None, provider: str = "anthropic", workers: int = 4) -> dict:
+    """Genera el análisis con IA. `call`/`client` permiten inyectar un modelo o cliente de prueba (o el adaptador local de Ollama,
+    con `provider="ollama"` y `workers=1`: un equipo local atiende de a una consulta)."""
     model = model or os.environ.get("ANTHROPIC_MODEL") or DEFAULT_MODEL
     base = build_deterministic(analysis)           # respaldo por hallazgo/grupo
     if call is None:
@@ -475,7 +476,7 @@ def generate(analysis: dict, df: pd.DataFrame, api_key: str | None, model: str |
                 + _as_data(payload) + "\n</analisis>")
         return gid, call(GROUP_TOOL, text, 8000)
 
-    with ThreadPoolExecutor(max_workers=4) as ex:
+    with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
         futures = [ex.submit(run, gid) for gid in groups]
         for fu in futures:
             try:
@@ -528,7 +529,7 @@ def generate(analysis: dict, df: pd.DataFrame, api_key: str | None, model: str |
 
     total_findings = len(analysis["findings"])
     return {
-        "mode": "ia" if completed else "determinista", "model": model if completed else None,
+        "mode": "ia" if completed else "determinista", "model": model if completed else None, "provider": provider if completed else None,
         "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         **summary, "incidents": out_groups, "findings": out_findings,
         "validation": {"citas_verificadas": ver.checked, "citas_descartadas": ver.dropped_ids, "ips_descartadas": ver.dropped_ips,

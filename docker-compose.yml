@@ -16,7 +16,12 @@ services:
       - CAPTCHA=${CAPTCHA:-}
       - CAPTCHA_TYPE=${CAPTCHA_TYPE:-}
       - ENABLE_DOCS=${ENABLE_DOCS:-}
+      - OLLAMA_HOST=${OLLAMA_HOST:-}
+      - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    # Lets the container reach an Ollama running on this computer (OLLAMA_HOST=http://host.docker.internal:11434)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # Least privilege: read-only filesystem (uploads are spooled to a small tmpfs), no capabilities, no escalation
     read_only: true
     tmpfs:

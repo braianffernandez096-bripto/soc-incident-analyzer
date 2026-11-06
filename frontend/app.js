@@ -714,9 +714,14 @@ function report() {
       <div class="fields"><label class="f">Cliente<input type="text" id="rClient" value="${esc(S.client)}"></label><label class="f">Analista<input type="text" id="rAnalyst" value="${esc(S.analyst)}"></label></div>
       <div class="row" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" id="pdf">Descargar informe en PDF</button></div></div>
     <div class="panel"><h3>Redacción con IA</h3>
-      <p>Modo actual: <span class="mode-badge ${isAI ? "ia" : "determinista"}">${isAI ? "IA (" + esc(A.model) + ")" : "Reglas deterministas"}</span></p>
+      <p>Modo actual: <span class="mode-badge ${isAI ? "ia" : "determinista"}">${isAI ? (A.provider === "ollama" ? "IA local · Ollama (" : "IA (") + esc(A.model) + ")" : "Reglas deterministas"}</span></p>
       <p class="muted">La IA redacta el análisis de cada incidente a partir de los hallazgos ya detectados. No puede cambiar la criticidad ni agregar eventos: toda cita a un Log_ID o IP que no exista en el archivo se descarta y se informa abajo.</p>
-      ${S.aiConfigured ? "" : `<label class="f" style="max-width:480px">API key de Anthropic (solo se usa en esta sesión)<input type="password" id="key" placeholder="sk-ant-…" autocomplete="off"></label>`}
+      <label class="f" style="max-width:480px">Proveedor de IA
+        <select id="prov"><option value="anthropic">Claude (Anthropic, requiere clave)</option><option value="ollama">IA local (Ollama, sin enviar datos a terceros)</option></select></label>
+      <div id="keyBox">${S.aiConfigured ? "" : `<label class="f" style="max-width:480px">API key de Anthropic (solo se usa en esta sesión)<input type="password" id="key" placeholder="sk-ant-…" autocomplete="off"></label>`}</div>
+      <div id="olBox" hidden>
+        <label class="f" style="max-width:480px">Modelo instalado en Ollama<select id="omodel"></select></label>
+        <p class="muted" id="olInfo"></p></div>
       <div style="margin-top:12px"><button class="btn dark" id="runAi">${isAI ? "Volver a generar con IA" : "Generar análisis con IA"}</button></div>
       ${isAI ? `<div class="stat-line"><span>Citas verificadas: <b>${v.citas_verificadas ?? 0}</b></span><span>Citas descartadas: <b>${v.citas_descartadas ?? 0}</b></span><span>IPs descartadas: <b>${v.ips_descartadas ?? 0}</b></span><span>Hallazgos redactados por IA: <b>${v.hallazgos_con_ia ?? 0}</b> de ${v.hallazgos_total ?? S.a.findings.length}</span></div>` : ""}
       ${(A.errors || []).length ? `<div class="notice" style="margin-top:12px">${A.errors.map(esc).join("<br>")}</div>` : ""}
@@ -738,11 +743,26 @@ function bindReport() {
       toast("PDF descargado");
     } catch (e) { toast(e.message); } finally { busy(false); }
   };
+  let ol = null;
+  const syncProv = () => {
+    const isOl = $("#prov").value === "ollama";
+    $("#keyBox").hidden = isOl; $("#olBox").hidden = !isOl;
+    if (isOl && !ol) { $("#olInfo").textContent = "Buscando Ollama…"; api("/api/ai/providers").then((p) => { ol = p.ollama; fillOl(); }).catch(() => { ol = { available: false, models: [], error: "No se pudo consultar Ollama." }; fillOl(); }); }
+    else if (isOl) fillOl();
+  };
+  const fillOl = () => {
+    const sel = $("#omodel"); if (!sel) return;
+    sel.replaceChildren(...(ol.models || []).map((m) => { const o = document.createElement("option"); o.value = m; o.textContent = m; return o; }));
+    $("#olInfo").textContent = !ol.available || !(ol.models || []).length ? (ol.error || "Ollama no está disponible.")
+      : ol.local ? "Ollama corre en este equipo: los datos del análisis no salen de él." : `Ollama está en ${ol.host}: los datos del análisis se envían a ese equipo.`;
+  };
+  $("#prov").onchange = syncProv;
   $("#runAi").onclick = async () => {
-    meta(); busy(true, "La IA está analizando los incidentes. Puede tardar un minuto…");
+    meta(); busy(true, "La IA está analizando los incidentes. Un modelo local puede tardar varios minutos…");
     try {
       const h = {}; const k = $("#key"); if (k && k.value.trim()) h["X-Anthropic-Key"] = k.value.trim();
-      const r = await api(`/api/sessions/${S.sid}/ai`, { method: "POST", headers: h });
+      const q = $("#prov").value === "ollama" ? `?provider=ollama&model=${encodeURIComponent($("#omodel").value || "")}` : "";
+      const r = await api(`/api/sessions/${S.sid}/ai${q}`, { method: "POST", headers: h });
       S.ai = r.ai; toast("Análisis con IA aplicado"); render();
     } catch (e) { toast(e.message); } finally { busy(false); }
   };

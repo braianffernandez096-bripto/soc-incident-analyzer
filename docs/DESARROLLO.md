@@ -12,7 +12,7 @@ Contenido: [Cómo funciona](#cómo-funciona-detalle) · [Análisis de correos](#
 
 3. **Correlación**: los hallazgos se agrupan en incidentes cuando comparten IP externa o cuenta de actor. Compartir host o recurso no fusiona incidentes; queda como hipótesis de confianza baja.
 
-4. **IA (Claude)** (`backend/ai.py`): redacta la narrativa, la explicación técnica, el impacto y el plan de acción de cada incidente a partir de los hallazgos ya detectados. No puede cambiar la criticidad. Un verificador descarta cualquier `Log_ID` o IP que no exista en el archivo. Sin API key, o si la IA falla, el informe se genera con plantillas deterministas.
+4. **IA (Claude u Ollama local)** (`backend/ai.py` y `backend/ai_local.py`): redacta la narrativa, la explicación técnica, el impacto y el plan de acción de cada incidente a partir de los hallazgos ya detectados. No puede cambiar la criticidad. Un verificador descarta cualquier `Log_ID` o IP que no exista en el archivo. Sin API key, o si la IA falla, el informe se genera con plantillas deterministas. Con Ollama solo cambia la llamada al modelo (`ai_local.make_call`); la dirección de Ollama se define únicamente en el servidor (`OLLAMA_HOST`), el nombre del modelo debe estar instalado y no se siguen redirecciones ni se usan proxies del entorno.
 
 5. **PDF** (`backend/report.py`): resumen ejecutivo, hallazgos, evidencia, criticidad y justificación, impacto, plan de acción (investigar, contener, remediar) y recomendaciones generales.
 
@@ -84,6 +84,7 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 - `tests/integration/`: API con entradas hostiles (archivo falso, markup en celdas y portada, 413, 429, cabeceras), clave de acceso (401 en todas las rutas protegidas, fuerza bruta), capa de IA y consultas de reputación con servidores simulados (las pruebas no usan red ni claves) el botón de datos de ejemplo, el módulo de phishing (PDF, reputación y remitente esperado) y el captcha de imágenes y de rompecabezas.
 
 - `tests/e2e/`: arranca el servidor real; `test_smoke.py` recorre carga, análisis y PDF por API, y `test_ui.py` maneja un navegador real (Playwright + Chromium: `pip install playwright && playwright install chromium`; si falta, se salta) para el flujo de logs, el PDF, el phishing y una prueba de que un log con HTML/JS no se ejecuta.
+- `tests/integration/test_ai_ollama.py`: IA local contra un servidor Ollama simulado (estado y modelos, dirección válida, JSON roto y reintento, errores legibles, caída del servidor con respaldo por reglas, la API sin clave, y que el navegador no pueda cambiar la dirección ni el modelo).
 - `tests/integration/test_prompt_injection.py`: logs con instrucciones inyectadas y un modelo simulado que las obedece; comprueba que la criticidad sigue siendo la del motor, que lo inventado se descarta y que el PDF no genera enlaces activos.
 
 - `tests/unit/test_negativos.py`: 35 casos de actividad normal (30 sin ruido y 5 falsos positivos medidos y ya calibrados) que no deben alertar, cerca de los umbrales de cada regla, más pruebas de que la calibración no apaga la detección real.

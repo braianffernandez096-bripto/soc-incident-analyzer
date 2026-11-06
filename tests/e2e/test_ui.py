@@ -143,3 +143,18 @@ def test_phishing_detects_obfuscated_link_in_html(page, tmp_path):
     expect(main).to_contain_text("Haz clic en una fila para ver su detalle")
     expect(main).to_contain_text("entidades HTML numéricas")
     assert page.problems == []
+
+
+def test_report_offers_local_ai_and_explains_when_ollama_is_missing(page):
+    page.get_by_role("button", name="Probar con datos de ejemplo").click()
+    page.wait_for_url("**#/dashboard")
+    page.get_by_role("link", name="Ir al informe").click()
+    expect(page.get_by_text("Redacción con IA")).to_be_visible()
+    assert page.locator("#keyBox").is_visible() and page.locator("#olBox").is_hidden()
+    page.select_option("#prov", "ollama")
+    expect(page.locator("#olBox")).to_be_visible()
+    expect(page.locator("#olInfo")).to_contain_text("Ollama")                 # sin Ollama en el servidor de prueba: avisa cómo seguir
+    assert page.locator("#keyBox").is_hidden()
+    page.select_option("#prov", "anthropic")
+    expect(page.locator("#keyBox")).to_be_visible()
+    assert page.problems == []

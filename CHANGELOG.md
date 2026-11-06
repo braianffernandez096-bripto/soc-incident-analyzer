@@ -4,6 +4,11 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ## [Sin publicar]
 
+### Añadido: IA local con Ollama
+- En la pestaña Informe se puede elegir **IA local (Ollama)** además de Claude, con un modelo instalado en Ollama: sin clave, sin costo y, si Ollama corre en el mismo equipo, sin enviar datos a terceros. Claude funciona exactamente igual que antes.
+- Mismas garantías: la criticidad la decide el motor, el verificador descarta `Log_ID` e IP inventados y, si el modelo falla, el informe sale por reglas. La dirección de Ollama (`OLLAMA_HOST`) solo la define el servidor; se pide un contexto de 16.384 tokens (`OLLAMA_NUM_CTX`) para que no recorte la evidencia.
+- Nuevo `backend/ai_local.py`, endpoint `GET /api/ai/providers` y parámetros `provider` y `model` en `POST /api/sessions/{id}/ai`. 36 pruebas nuevas con un servidor Ollama simulado y una prueba de navegador. Sin dependencias nuevas.
+
 ### Cambiado: README más corto
 - El README pasa de 411 a unas 345 líneas (de 5.900 a 3.400 palabras): «Cómo funciona», el detalle del análisis de correos, «Si algo falla», «Pruebas», «Seguridad» y «Estructura» se resumen y su texto completo está en `docs/DESARROLLO.md`. No se eliminó información.
 

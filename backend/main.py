@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import ai as ai_mod
+from . import ai_local
 from . import attack as attack_mod
 from . import captcha as captcha_mod
 from . import detection as D
@@ -421,15 +422,44 @@ def set_meta(sid: str, client: str = Form(""), analyst: str = Form("")):
     return {"ok": True}
 
 
+def _ollama_http():
+    """Cliente HTTP para Ollama (None = el módulo crea el suyo, sin proxies ni redirecciones). Punto de inyección para las pruebas."""
+    return None
+
+
+@app.get("/api/ai/providers")
+def ai_providers(request: Request):
+    """Qué proveedores de IA hay disponibles. Consulta solo la dirección de Ollama definida en el servidor."""
+    _rate_limit(request, "/api/ai", *RATE_LIMITS["/api/ai"])
+    return {"anthropic": {"configured": bool(_api_key(None)), "model": os.environ.get("ANTHROPIC_MODEL") or ai_mod.DEFAULT_MODEL},
+            "ollama": ai_local.status(_ollama_http())}
+
+
 @app.post("/api/sessions/{sid}/ai")
-def run_ai(sid: str, request: Request, x_anthropic_key: str | None = Header(default=None)):
+def run_ai(sid: str, request: Request, x_anthropic_key: str | None = Header(default=None),
+           provider: str = "anthropic", model: str | None = None):
     _rate_limit(request, "/api/ai", *RATE_LIMITS["/api/ai"])
     s = _get(sid)
-    key = _api_key(x_anthropic_key)
-    if not key:
-        raise HTTPException(400, "No hay API key de Anthropic. Define ANTHROPIC_API_KEY en el archivo .env o pégala en el campo de la interfaz.")
+    if provider not in ("anthropic", "ollama"):
+        raise HTTPException(400, "Proveedor de IA no reconocido.")
+    kwargs: dict = {}
+    key = None
+    if provider == "ollama":
+        st = ai_local.status(_ollama_http())
+        if not st["available"] or not st["models"]:
+            raise HTTPException(400, st["error"] or "Ollama no está disponible.")
+        if not model or model not in st["models"]:
+            raise HTTPException(400, "Elige un modelo instalado en Ollama.")
+        try:
+            kwargs = {"model": model, "call": ai_local.make_call(model, _ollama_http()), "provider": "ollama", "workers": 1}
+        except ai_local.OllamaError as exc:
+            raise HTTPException(400, str(exc)) from exc
+    else:
+        key = _api_key(x_anthropic_key)
+        if not key:
+            raise HTTPException(400, "No hay API key de Anthropic. Define ANTHROPIC_API_KEY en el archivo .env o pégala en el campo de la interfaz.")
     try:
-        result = ai_mod.generate(s.analysis, s.df, key)
+        result = ai_mod.generate(s.analysis, s.df, key, **kwargs)
     except Exception as exc:  # error inesperado de la llamada global: detalle al log, mensaje genérico al usuario
         log.exception("ai_failed session=%s", sid)
         raise HTTPException(502, f"No se pudo completar el análisis con IA ({type(exc).__name__}). Revisa la clave y la conexión; se mantiene el informe por reglas.") from exc

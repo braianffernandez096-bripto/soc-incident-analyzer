@@ -11,7 +11,7 @@ Esta herramienta toma el export de un SIEM (Excel, CSV o JSON) y lo convierte en
 Cada hallazgo se mapea a MITRE ATT&CK y trae un plan de acción (investigar, contener, remediar) y un informe técnico en PDF.
 
 Está pensada para analistas SOC y estudiantes que practican triage, y para quien quiera ver cómo se correlacionan los eventos sin montar un SIEM completo.
-El análisis, los incidentes, MITRE ATT&CK y el informe en PDF funcionan sin Internet y sin costo, porque las reglas son deterministas y el informe usa plantillas. La redacción con IA es opcional: puedes usar tu propia clave de API de Anthropic (servicio de pago por uso) o un modelo local con Ollama, sin costo y sin enviar datos a terceros. Solo mejora la redacción, nunca cambia la criticidad.
+El análisis, los incidentes, MITRE ATT&CK y el informe en PDF funcionan sin Internet y sin costo, porque las reglas son deterministas y el informe usa plantillas. La redacción con IA es opcional: puedes usar tu propia clave de API de Anthropic, OpenAI o Gemini (servicios de pago por uso) o un modelo local con Ollama, sin costo y sin enviar datos a terceros. Solo mejora la redacción, nunca cambia la criticidad.
 
 ## Cómo se desarrolló
 
@@ -25,7 +25,7 @@ Proyecto personal, hecho para practicar el análisis de incidentes. Lo desarroll
 
 3. **Correlación**: los hallazgos se agrupan en incidentes cuando comparten IP externa o cuenta de actor.
 
-4. **IA (Claude u Ollama local)** (`backend/ai.py`, `backend/ai_local.py`, opcional): solo redacta; no puede cambiar la criticidad y un verificador descarta lo inventado. Se elige el proveedor en la pestaña Informe. Sin clave ni Ollama, el informe usa plantillas.
+4. **IA (Claude, OpenAI, Gemini u Ollama local)** (`backend/ai.py`, `backend/ai_cloud.py`, `backend/ai_local.py`, opcional): solo redacta; no puede cambiar la criticidad y un verificador descarta lo inventado. Se elige el proveedor en la pestaña Informe. Sin clave ni Ollama, el informe usa plantillas.
 
 5. **PDF** (`backend/report.py`): resumen ejecutivo, hallazgos, evidencia, impacto, plan de acción y recomendaciones.
 
@@ -147,6 +147,10 @@ Es análisis estático y determinista: no se abre ningún enlace ni se ejecuta n
 
 Cada incidente trae una recomendación (**Escalar**, **Probable falso positivo** o **Falta información**) con motivos, confianza y «qué me haría cambiar de opinión»; el analista registra su decisión y una nota, que va al PDF. La severidad la fija siempre el motor y, si la IA quiere ser menos exigente en un incidente Crítico o Alto, se conserva la del motor y se marca el conflicto. Incluye un script para medir modelos. Detalle y límites: [docs/TRIAGE.md](docs/TRIAGE.md).
 
+## Otros proveedores de IA: OpenAI y Gemini (opcional)
+
+Además de Claude, en las pestañas **Informe** e **Incidentes** puedes elegir **OpenAI** o **Gemini (Google)** con tu propia clave (`OPENAI_API_KEY`, `GEMINI_API_KEY` en `.env`, o pegada en el campo, que se usa solo en esa consulta y no se guarda). Las garantías son las mismas que con Claude: el motor fija la criticidad, el verificador descarta lo inventado y, si el proveedor falla, queda el informe por reglas. Las direcciones de los servicios están fijas en el servidor (el navegador no puede indicar otra URL) y los mensajes de error no repiten lo que responde el proveedor. Los nombres de modelo cambian seguido: hay uno por defecto y puedes escribir otro en el campo o fijarlo con `OPENAI_MODEL` / `GEMINI_MODEL`. Detalle en [docs/PROVEEDORES-IA.md](docs/PROVEEDORES-IA.md).
+
 ## IA local con Ollama (opcional)
 
 Alternativa a Claude para quien no quiere pagar ni enviar datos a un tercero: en la pestaña **Informe** eliges **IA local (Ollama)** y uno de los modelos instalados (`ollama pull llama3.1:8b`). Mismas garantías que con Claude: la criticidad y la prioridad del plan de acción las fija el motor y el verificador descarta lo inventado. **Recomendación:** un modelo local pequeño (como llama3.1:8b) sirve como apoyo y para practicar, pero puede equivocarse al redactar y al recomendar el triaje; para el informe formal y el triaje con IA se aconseja un modelo de mayor calidad, como Claude (ver [docs/IA-LOCAL.md](docs/IA-LOCAL.md#cuándo-usar-cada-uno)). Sin GPU, un modelo de 8B tarda minutos por consulta. Configuración (`OLLAMA_HOST`, `OLLAMA_NUM_CTX`, `OLLAMA_TIMEOUT`), Docker y tiempos medidos: [docs/IA-LOCAL.md](docs/IA-LOCAL.md).
@@ -195,7 +199,7 @@ La app corre en tu equipo y no envía telemetría. Solo salen datos si tú activ
 | **Consulta DNS** (Evaluar dominio, Dominios parecidos) | Solo nombres de dominio, por DNS sobre HTTPS; `DNS_LOOKUPS=off` la desactiva | Cloudflare (si falla, Google) |
 | **Reputación** (requiere clave) | Solo IP públicas, dominios y hash SHA-256 de adjuntos, que confirmas en pantalla | VirusTotal y AbuseIPDB |
 
-Con **Ollama** en tu propio equipo los datos no salen de él. Antes de activar la IA de Anthropic, asegúrate de tener permiso para compartir esos datos con un tercero. Detalle completo: [docs/PRIVACIDAD.md](docs/PRIVACIDAD.md).
+Con **Ollama** en tu propio equipo los datos no salen de él. Antes de activar la IA de un proveedor externo (Anthropic, OpenAI o Google), asegúrate de tener permiso para compartir esos datos con un tercero. Detalle completo: [docs/PRIVACIDAD.md](docs/PRIVACIDAD.md).
 
 ## Seguridad
 

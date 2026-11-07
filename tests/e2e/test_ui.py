@@ -174,4 +174,11 @@ def test_report_offers_local_ai_and_explains_when_ollama_is_missing(page):
     assert page.locator("#keyBox").is_hidden()
     page.select_option("#prov", "anthropic")
     expect(page.locator("#keyBox")).to_be_visible()
+    for prov, name in (("openai", "OpenAI"), ("gemini", "Gemini")):
+        page.select_option("#prov", prov)
+        expect(page.locator(f"#repCl-{prov}")).to_be_visible()
+        expect(page.locator(f"#repCl-{prov}")).to_contain_text(name)
+        assert page.locator("#keyBox").is_hidden() and page.locator("#olBox").is_hidden()
+    page.select_option("#prov", "anthropic")
+    assert page.locator("#repCl-openai").is_hidden() and page.locator("#repCl-gemini").is_hidden()
     assert page.problems == []

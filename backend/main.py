@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import ai as ai_mod
+from . import ai_cloud
 from . import ai_local
 from . import attack as attack_mod
 from . import captcha as captcha_mod
@@ -80,7 +81,7 @@ class SafeJSON(JSONResponse):
 
 
 _DOCS = os.environ.get("ENABLE_DOCS", "").strip().lower() in ("1", "true", "yes")      # API docs reveal the full surface: opt-in
-app = FastAPI(title="SOC Incident Analyzer", version="1.7.2", default_response_class=SafeJSON,
+app = FastAPI(title="SOC Incident Analyzer", version="1.8.0", default_response_class=SafeJSON,
               docs_url="/docs" if _DOCS else None, redoc_url="/redoc" if _DOCS else None, openapi_url="/openapi.json" if _DOCS else None)
 
 
@@ -203,6 +204,11 @@ def _api_key(header_key: str | None) -> str | None:
     return (header_key or "").strip() or os.environ.get("ANTHROPIC_API_KEY", "").strip() or None
 
 
+def _ai_keys() -> dict:
+    """Qué proveedores de nube tienen la clave definida en el servidor (nunca la clave en sí)."""
+    return {"anthropic": bool(_api_key(None)), **{p: bool(ai_cloud.env_key(p)) for p in ai_cloud.PROVIDERS}}
+
+
 def _intel_keys(vt_header: str | None = None, abuse_header: str | None = None) -> tuple[str | None, str | None]:
     vt = (vt_header or "").strip() or os.environ.get("VT_API_KEY", "").strip() or None
     ab = (abuse_header or "").strip() or os.environ.get("ABUSEIPDB_API_KEY", "").strip() or None
@@ -229,7 +235,7 @@ def auth_check():
 @app.get("/api/health")
 def health():
     return {"ok": True, "ai_configured": bool(os.environ.get("ANTHROPIC_API_KEY", "").strip()),
-            "model": os.environ.get("ANTHROPIC_MODEL") or ai_mod.DEFAULT_MODEL}
+            "model": os.environ.get("ANTHROPIC_MODEL") or ai_mod.DEFAULT_MODEL, "ai_keys": _ai_keys()}
 
 
 # ---- captcha local (opcional: CAPTCHA=on) ------------------------------------------------------------
@@ -296,7 +302,7 @@ def _create_session(data: bytes, name: str, client: str, analyst: str, warnings:
         SESSIONS.pop(min(SESSIONS, key=lambda k: SESSIONS[k].created))
     s = SESSIONS[sid]
     return {"session_id": sid, "filename": name, "client": s.client, "analyst": s.analyst,
-            "analysis": analysis, "ai": s.ai, "ai_configured": bool(_api_key(None))}
+            "analysis": analysis, "ai": s.ai, "ai_configured": bool(_api_key(None)), "ai_keys": _ai_keys()}
 
 
 @app.post("/api/upload")
@@ -430,18 +436,38 @@ def _ollama_http():
     return None
 
 
+def _cloud_http():
+    """Cliente HTTP para OpenAI/Gemini (None = el módulo crea el suyo, sin proxies ni redirecciones). Punto de inyección para las pruebas."""
+    return None
+
+
 @app.get("/api/ai/providers")
 def ai_providers(request: Request):
     """Qué proveedores de IA hay disponibles. Consulta solo la dirección de Ollama definida en el servidor."""
     _rate_limit(request, "/api/ai", *RATE_LIMITS["/api/ai"])
     return {"anthropic": {"configured": bool(_api_key(None)), "model": os.environ.get("ANTHROPIC_MODEL") or ai_mod.DEFAULT_MODEL},
-            "ollama": ai_local.status(_ollama_http())}
+            "ollama": ai_local.status(_ollama_http()),
+            **{p: {"configured": bool(ai_cloud.env_key(p)), "model": ai_cloud.default_model(p), "suggested": ai_cloud.SUGGESTED[p]}
+               for p in ai_cloud.PROVIDERS}}
 
 
-def _resolve_provider(provider: str, model: str | None, header_key: str | None) -> tuple[dict, str | None]:
+def _resolve_provider(provider: str, model: str | None, header_key: str | None,
+                      provider_key: str | None = None) -> tuple[dict, str | None]:
     """Valida el proveedor de IA y devuelve (kwargs para generate, clave de Anthropic). Lo comparten el informe y el triaje."""
-    if provider not in ("anthropic", "ollama"):
+    if provider not in ("anthropic", "ollama", *ai_cloud.PROVIDERS):
         raise HTTPException(400, "Proveedor de IA no reconocido.")
+    if provider in ai_cloud.PROVIDERS:
+        label = ai_cloud.LABELS[provider]
+        key = (provider_key or "").strip() or ai_cloud.env_key(provider)
+        if not key:
+            raise HTTPException(400, f"No hay clave de {label}. Define {ai_cloud.KEY_ENV[provider]} en el archivo .env o pégala en el campo de la interfaz.")
+        chosen = ai_cloud.valid_model(model) if (model or "").strip() else ai_cloud.default_model(provider)
+        if not chosen:
+            raise HTTPException(400, "El nombre del modelo no es válido (letras, números, punto, guion y guion bajo).")
+        try:
+            return {"model": chosen, "call": ai_cloud.make_call(provider, key, chosen, _cloud_http()), "provider": provider, "workers": 2}, None
+        except ai_cloud.CloudError as exc:
+            raise HTTPException(400, str(exc)) from exc
     if provider == "ollama":
         st = ai_local.status(_ollama_http())
         if not st["available"] or not st["models"]:
@@ -460,10 +486,10 @@ def _resolve_provider(provider: str, model: str | None, header_key: str | None) 
 
 @app.post("/api/sessions/{sid}/ai")
 def run_ai(sid: str, request: Request, x_anthropic_key: str | None = Header(default=None),
-           provider: str = "anthropic", model: str | None = None):
+           x_provider_key: str | None = Header(default=None), provider: str = "anthropic", model: str | None = None):
     _rate_limit(request, "/api/ai", *RATE_LIMITS["/api/ai"])
     s = _get(sid)
-    kwargs, key = _resolve_provider(provider, model, x_anthropic_key)
+    kwargs, key = _resolve_provider(provider, model, x_anthropic_key, x_provider_key)
     try:
         result = ai_mod.generate(s.analysis, s.df, key, **kwargs)
     except Exception as exc:  # error inesperado de la llamada global: detalle al log, mensaje genérico al usuario
@@ -487,12 +513,12 @@ def get_triage(sid: str):
 
 @app.post("/api/sessions/{sid}/triage/ai")
 def run_triage_ai(sid: str, request: Request, x_anthropic_key: str | None = Header(default=None),
-                  provider: str = "anthropic", model: str | None = None):
+                  x_provider_key: str | None = Header(default=None), provider: str = "anthropic", model: str | None = None):
     _rate_limit(request, "/api/ai", *RATE_LIMITS["/api/ai"])
     s = _get(sid)
     if not s.analysis["incidents"]:
         raise HTTPException(400, "No hay incidentes para evaluar.")
-    kwargs, key = _resolve_provider(provider, model, x_anthropic_key)
+    kwargs, key = _resolve_provider(provider, model, x_anthropic_key, x_provider_key)
     used = kwargs.get("model") or os.environ.get("ANTHROPIC_MODEL") or ai_mod.DEFAULT_MODEL
     call = kwargs.get("call") or ai_mod.make_anthropic_call(key, used)
     try:

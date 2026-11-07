@@ -2,6 +2,16 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [1.8.0] - 2026-11-07
+
+### Añadido: OpenAI y Gemini como proveedores de IA
+- Nuevo módulo `backend/ai_cloud.py`: adaptadores para OpenAI (Chat Completions con llamada a función) y Gemini (`generateContent`) con la misma interfaz que Claude y Ollama. Sirven para el informe y para el triaje.
+- Selector de proveedor en las pestañas Informe e Incidentes: clave propia (variable de entorno o campo de la interfaz, enviada por cabecera `X-Provider-Key`, sin guardarse) y modelo editable con sugerencias. `OPENAI_MODEL` y `GEMINI_MODEL` fijan el modelo por defecto.
+- Seguridad: direcciones fijas en el servidor (sin SSRF), nombre de modelo validado, sin proxies ni redirecciones, errores por código HTTP sin repetir la respuesta del proveedor, reintentos ante 429/5xx.
+- `/api/health` y la carga de archivos informan qué proveedores tienen clave en el servidor (`ai_keys`), nunca la clave. `GET /api/ai/providers` lista también OpenAI y Gemini.
+- Documentación: `docs/PROVEEDORES-IA.md`; README, `.env.example` y `docs/PRIVACIDAD.md` actualizados.
+- Probado con servidores simulados; no se contrastó con las APIs reales.
+
 ## [1.7.2] - 2026-11-07
 
 ### Cambiado: lectura del informe en modo reglas

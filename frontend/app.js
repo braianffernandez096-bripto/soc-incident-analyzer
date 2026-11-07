@@ -3,7 +3,7 @@
 
 const SEV = ["Crítico", "Alto", "Medio", "Bajo"];
 const SEV_COLOR = { "Crítico": "#b3261e", "Alto": "#e07b00", "Medio": "#d4b100", "Bajo": "#3f8f68" };
-const S = { needAuth: false, sid: null, filename: "", client: "", analyst: "", a: null, ai: null, aiConfigured: false, intel: null, intelConfirm: false, intelReserved: false,
+const S = { needAuth: false, sid: null, filename: "", client: "", analyst: "", a: null, ai: null, aiConfigured: false, aiKeys: {}, intel: null, intelConfirm: false, intelReserved: false,
             findingFilter: "Todos", findingCat: "", findingQ: "", logs: { page: 1, q: "", severity: "", flagged: "", host: "", user: "", event_id: "", finding: "" } };
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -158,10 +158,37 @@ async function api(path, opts = {}, retried = false) {
   return r.json();
 }
 
+/* ---------- proveedores de IA (Claude, OpenAI, Gemini, Ollama) ---------- */
+/* La clave se envía solo por cabecera y se usa en esa consulta; el servidor no la guarda. Las direcciones de los servicios están fijas en el servidor. */
+const CLOUD = { openai: { name: "OpenAI", ph: "sk-…", models: ["gpt-5.4-mini", "gpt-5"] },
+                gemini: { name: "Gemini (Google)", ph: "AIza…", models: ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-4-argon"] } };
+const AI_LABEL = { anthropic: "IA (", openai: "IA · OpenAI (", gemini: "IA · Gemini (", ollama: "IA local · Ollama (" };
+const aiBadge = (A) => (AI_LABEL[A.provider] || "IA (") + esc(A.model) + ")";
+const PROV_OPTIONS = '<option value="anthropic">Claude (Anthropic, requiere clave)</option><option value="openai">OpenAI (requiere clave)</option>'
+  + '<option value="gemini">Gemini · Google (requiere clave)</option><option value="ollama">IA local (Ollama, sin enviar datos a terceros)</option>';
+const cloudFields = (id) => Object.entries(CLOUD).map(([p, c]) => `<div id="${id}-${p}" hidden>
+  <label class="f" ${S.aiKeys[p] ? "hidden" : ""}>Clave de ${esc(c.name)} (solo esta sesión)<input type="password" data-pk="${p}" placeholder="${esc(c.ph)}" autocomplete="off"></label>
+  <label class="f">Modelo (puedes escribir otro)<input type="text" data-pm="${p}" list="${id}-${p}-dl" placeholder="${esc(c.models[0])}" maxlength="80" autocomplete="off"></label>
+  <datalist id="${id}-${p}-dl">${c.models.map((m) => `<option value="${esc(m)}">`).join("")}</datalist>
+  <p class="muted">Los datos del análisis se envían a ${esc(c.name)} para redactar. La severidad la sigue fijando el motor.</p></div>`).join("");
+/* cabeceras y query de la solicitud según el proveedor elegido; root = contenedor del panel */
+function aiRequest(root, prov, anthKey, ollamaModel) {
+  const h = {}; let q = "";
+  if (prov === "anthropic") { if (anthKey && anthKey.value.trim()) h["X-Anthropic-Key"] = anthKey.value.trim(); }
+  else if (prov === "ollama") q = `?provider=ollama&model=${encodeURIComponent(ollamaModel || "")}`;
+  else {
+    const k = root.querySelector(`[data-pk="${prov}"]`), m = root.querySelector(`[data-pm="${prov}"]`);
+    if (k && k.value.trim()) h["X-Provider-Key"] = k.value.trim();
+    q = `?provider=${prov}` + (m && m.value.trim() ? `&model=${encodeURIComponent(m.value.trim())}` : "");
+  }
+  return { h, q };
+}
+function showCloud(root, id, prov) { Object.keys(CLOUD).forEach((p) => { const el = root.querySelector(`#${id}-${p}`); if (el) el.hidden = p !== prov; }); }
+
 /* ---------- carga ---------- */
 function adopt(res) {
   S.sid = res.session_id; S.filename = res.filename; S.client = res.client || ""; S.analyst = res.analyst || "";
-  S.a = res.analysis; S.ai = res.ai; if (res.ai_configured !== undefined) S.aiConfigured = res.ai_configured;
+  S.a = res.analysis; S.ai = res.ai; if (res.ai_configured !== undefined) S.aiConfigured = res.ai_configured; if (res.ai_keys) S.aiKeys = res.ai_keys;
   S.logs = { page: 1, q: "", severity: "", flagged: "", host: "", user: "", event_id: "", finding: "" };
   S.findingFilter = "Todos"; S.findingCat = ""; S.findingQ = "";
   S.triage = null; S.intel = null; S.intelConfirm = false; S.intelReserved = false; clearInterval(S.intelTimer);   // S.ph (correos) es un análisis aparte: no se mezcla con el de logs
@@ -447,14 +474,14 @@ function triagePanel() {
   const isAI = T.mode === "ia", v = T.validation || {}, r = T.resumen || {};
   return `<div class="panel" id="triPanel"><h3>Triaje asistido por IA</h3>
     <p class="muted">Cada incidente tiene una recomendación (Escalar, Probable falso positivo o Falta información) con sus motivos y qué dato la cambiaría. La severidad la fija siempre el motor: la IA no la modifica y, si propone ser menos exigente en un incidente Crítico o Alto, se conserva la del motor y se marca el conflicto. La decisión final es tuya.</p>
-    <p>Recomendaciones: <span class="mode-badge ${isAI ? "ia" : "determinista"}">${isAI ? (T.provider === "ollama" ? "IA local · Ollama (" : "IA (") + esc(T.model) + ")" : "Reglas del motor"}</span>
+    <p>Recomendaciones: <span class="mode-badge ${isAI ? "ia" : "determinista"}">${isAI ? aiBadge(T) : "Reglas del motor"}</span>
       · Decididos: <b>${r.decididos ?? 0}</b> de ${r.total ?? 0}</p>
     ${isAI ? `<div class="stat-line"><span>Con IA: <b>${v.con_ia ?? 0}</b></span><span>Respaldo del motor: <b>${v.respaldo_motor ?? 0}</b></span><span>Conflictos con el motor: <b>${v.conflictos ?? 0}</b></span><span>Difieren del motor: <b>${v.difieren ?? 0}</b></span><span>Citas descartadas: <b>${v.citas_descartadas ?? 0}</b></span><span>IPs descartadas: <b>${v.ips_descartadas ?? 0}</b></span></div>` : ""}
     ${(T.errors || []).length ? `<div class="notice" style="margin-top:10px">${T.errors.map(esc).join("<br>")}</div>` : ""}
     <div class="fields" style="margin-top:10px">
-      <label class="f">Proveedor<select id="triProv"><option value="anthropic">Claude (Anthropic, requiere clave)</option><option value="ollama">IA local (Ollama)</option></select></label>
+      <label class="f">Proveedor<select id="triProv">${PROV_OPTIONS}</select></label>
       <label class="f" id="triKeyBox" ${S.aiConfigured ? "hidden" : ""}>API key de Anthropic (solo esta sesión)<input type="password" id="triKey" placeholder="sk-ant-…" autocomplete="off"></label>
-      <label class="f" id="triModelBox" hidden>Modelo de Ollama<select id="triModel"></select></label></div>
+      <label class="f" id="triModelBox" hidden>Modelo de Ollama<select id="triModel"></select></label>${cloudFields("triCl")}</div>
     <div class="notice" id="triOlHint" style="margin-top:10px" hidden>Recomendación: un modelo local pequeño (como llama3.1:8b) sirve como apoyo y para practicar, pero puede equivocarse al redactar y al recomendar. Para el informe formal y el triaje, usa un modelo de mayor calidad, como Claude.</div>
     <div style="margin-top:10px"><button class="btn dark" id="triRun">${isAI ? "Volver a generar con IA" : "Generar recomendaciones con IA"}</button></div></div>`;
 }
@@ -489,7 +516,8 @@ function bindTriage() {
   let ol = null;
   const sync = () => {
     const isOl = prov.value === "ollama";
-    $("#triKeyBox").hidden = isOl || S.aiConfigured; $("#triModelBox").hidden = !isOl; $("#triOlHint").hidden = !isOl;
+    $("#triKeyBox").hidden = prov.value !== "anthropic" || S.aiConfigured; $("#triModelBox").hidden = !isOl; $("#triOlHint").hidden = !isOl;
+    showCloud(document, "triCl", prov.value);
     if (isOl && !ol) api("/api/ai/providers").then((p) => { ol = p.ollama; fill(); }).catch(() => { ol = { models: [] }; fill(); });
     else if (isOl) fill();
   };
@@ -498,8 +526,7 @@ function bindTriage() {
   $("#triRun").onclick = async () => {
     busy(true, "La IA está evaluando cada incidente. Un modelo local puede tardar varios minutos…");
     try {
-      const h = {}; const k = $("#triKey"); if (k && k.value.trim()) h["X-Anthropic-Key"] = k.value.trim();
-      const q = prov.value === "ollama" ? `?provider=ollama&model=${encodeURIComponent($("#triModel").value || "")}` : "";
+      const { h, q } = aiRequest(document, prov.value, $("#triKey"), $("#triModel").value);
       S.triage = await api(`/api/sessions/${S.sid}/triage/ai${q}`, { method: "POST", headers: h });
       toast("Recomendaciones generadas"); S.keepScroll = true; render();
     } catch (e) { toast(e.message); } finally { busy(false); }
@@ -782,11 +809,12 @@ function report() {
       <div class="fields"><label class="f">Cliente<input type="text" id="rClient" value="${esc(S.client)}"></label><label class="f">Analista<input type="text" id="rAnalyst" value="${esc(S.analyst)}"></label></div>
       <div class="row" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" id="pdf">Descargar informe en PDF</button></div></div>
     <div class="panel"><h3>Redacción con IA</h3>
-      <p>Modo actual: <span class="mode-badge ${isAI ? "ia" : "determinista"}">${isAI ? (A.provider === "ollama" ? "IA local · Ollama (" : "IA (") + esc(A.model) + ")" : "Reglas deterministas"}</span></p>
+      <p>Modo actual: <span class="mode-badge ${isAI ? "ia" : "determinista"}">${isAI ? aiBadge(A) : "Reglas deterministas"}</span></p>
       <p class="muted">La IA redacta el análisis de cada incidente a partir de los hallazgos ya detectados. No puede cambiar la criticidad ni agregar eventos: toda cita a un Log_ID o IP que no exista en el archivo se descarta y se informa abajo.</p>
       <label class="f" style="max-width:480px">Proveedor de IA
-        <select id="prov"><option value="anthropic">Claude (Anthropic, requiere clave)</option><option value="ollama">IA local (Ollama, sin enviar datos a terceros)</option></select></label>
+        <select id="prov">${PROV_OPTIONS}</select></label>
       <div id="keyBox">${S.aiConfigured ? "" : `<label class="f" style="max-width:480px">API key de Anthropic (solo se usa en esta sesión)<input type="password" id="key" placeholder="sk-ant-…" autocomplete="off"></label>`}</div>
+      ${cloudFields("repCl")}
       <div id="olBox" hidden>
         <label class="f" style="max-width:480px">Modelo instalado en Ollama<select id="omodel"></select></label>
         <p class="muted" id="olInfo"></p>
@@ -815,7 +843,7 @@ function bindReport() {
   let ol = null;
   const syncProv = () => {
     const isOl = $("#prov").value === "ollama";
-    $("#keyBox").hidden = isOl; $("#olBox").hidden = !isOl;
+    $("#keyBox").hidden = $("#prov").value !== "anthropic"; $("#olBox").hidden = !isOl; showCloud(document, "repCl", $("#prov").value);
     if (isOl && !ol) { $("#olInfo").textContent = "Buscando Ollama…"; api("/api/ai/providers").then((p) => { ol = p.ollama; fillOl(); }).catch(() => { ol = { available: false, models: [], error: "No se pudo consultar Ollama." }; fillOl(); }); }
     else if (isOl) fillOl();
   };
@@ -829,8 +857,7 @@ function bindReport() {
   $("#runAi").onclick = async () => {
     meta(); busy(true, "La IA está analizando los incidentes. Un modelo local puede tardar varios minutos…");
     try {
-      const h = {}; const k = $("#key"); if (k && k.value.trim()) h["X-Anthropic-Key"] = k.value.trim();
-      const q = $("#prov").value === "ollama" ? `?provider=ollama&model=${encodeURIComponent($("#omodel").value || "")}` : "";
+      const { h, q } = aiRequest(document, $("#prov").value, $("#key"), $("#omodel").value);
       const r = await api(`/api/sessions/${S.sid}/ai${q}`, { method: "POST", headers: h });
       S.ai = r.ai; toast("Análisis con IA aplicado"); render();
     } catch (e) { toast(e.message); } finally { busy(false); }
@@ -1227,7 +1254,7 @@ function openPalette() {
 
 /* ---------- arranque ---------- */
 async function start() {
-  try { const h = await api("/api/health"); S.aiConfigured = h.ai_configured; } catch { /* servidor sin health */ }
+  try { const h = await api("/api/health"); S.aiConfigured = h.ai_configured; S.aiKeys = h.ai_keys || {}; } catch { /* servidor sin health */ }
   const sid = store.get("sid");
   if (sid) {
     try { const r = await api(`/api/sessions/${sid}`); adopt(r); if (!route()) location.hash = "#/dashboard"; } catch { store.set("sid", ""); }

@@ -141,6 +141,6 @@ Makefile      atajos: install, start, stop, test, test-cov, lint, audit, logs, b
 requirements*.lock  dependencias con versión exacta y hash (requirements*.txt son los rangos de origen)
 SECURITY.md, CHANGELOG.md  política de seguridad y registro de cambios
 examples/     informe técnico de ejemplo en PDF
-img/          capturas del README
+img/gif/      demostraciones en GIF del README
 Dockerfile, docker-compose.yml y .github/workflows/tests.yml (imagen y pruebas automáticas)
 ```

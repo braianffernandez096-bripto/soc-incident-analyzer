@@ -80,21 +80,15 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 ![Generación de variantes de un dominio y comprobación de registro en el DNS](img/gif/parecidos-demo.gif)
 
 <details>
-<summary>Ver los informes PDF generados (logs y phishing)</summary>
+<summary>Ver los informes HTML generados (logs y phishing)</summary>
 
-![Informe técnico en PDF del análisis de logs](img/gif/informe-logs.gif)
+![Descarga del informe HTML del análisis de logs y recorrido por sus secciones](img/gif/informe-logs.gif)
 
-![Informe en PDF del análisis de correos, con recorrido y puntaje](img/gif/informe-phishing.gif)
+![Descarga del informe HTML del análisis de correos y recorrido por sus secciones](img/gif/informe-phishing.gif)
 
 </details>
 
-## Capturas
-
-**Panel: resumen e incidentes detectados**
-
-![Panel con las tarjetas de incidentes y la línea de tiempo](img/Dashboard.png)
-
-Galería completa (incidentes, hallazgos, ATT&CK, eventos, IoC, informe, análisis de correos y captcha): [docs/CAPTURAS.md](docs/CAPTURAS.md). Informe técnico de ejemplo: [ver el PDF](examples/informe-ejemplo.pdf) (29 páginas; el nombre del cliente es ficticio).
+Informe técnico de ejemplo: [ver el PDF](examples/informe-ejemplo.pdf) (29 páginas; el nombre del cliente es ficticio).
 
 ## Instalación y ejecución (Ubuntu 24.04)
 
@@ -247,7 +241,7 @@ frontend/     interfaz web sin build (HTML, CSS y JS)
 tests/        unit, integration y e2e
 scripts/      validación con datasets públicos y regeneración de datos
 sample_data/  exports y correos .eml de ejemplo
-docs/         detalle: DESARROLLO, FORMATOS, CAPTURAS, IA-LOCAL, REPUTACION, PRIVACIDAD y VALIDACION
+docs/         detalle: DESARROLLO, FORMATOS, IA-LOCAL, REPUTACION, PRIVACIDAD y VALIDACION
 ```
 
 Árbol completo, con scripts y archivos de configuración: [docs/DESARROLLO.md](docs/DESARROLLO.md#estructura).

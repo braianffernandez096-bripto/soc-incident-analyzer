@@ -11,6 +11,10 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - El ensamblado del documento (CSS, JS con anime.js y CSP) pasó a una función común para ambos informes.
 - Pruebas: contenido, archivo sin recursos externos y CSP coincidente, campos hostiles, reputación, endpoint (404, solo POST, PDF intacto) y un e2e que lo descarga y lo abre sin errores.
 
+### Documentación: demostraciones nuevas en GIF
+- Los seis GIF del README se rehicieron con el diseño nuevo (glass y animaciones): análisis de logs, phishing, evaluar dominio, dominios parecidos y los informes HTML de logs y de phishing. Se recortaron la barra del navegador y la ventana de la VM, y se dejaron en bucle.
+- Se eliminaron las 22 capturas PNG de `img/` (eran del diseño anterior) y la galería `docs/CAPTURAS.md`; el README ya no tiene la sección «Capturas». El informe PDF de ejemplo sigue en `examples/`.
+
 ## [1.10.2] - 2026-11-07
 
 ### Cambiado: glass en toda la app y modo claro cómodo

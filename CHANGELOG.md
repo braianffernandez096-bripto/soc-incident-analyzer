@@ -2,6 +2,17 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [1.10.0] - 2026-11-07
+
+### Cambiado: Panel con estilo «glass» y animaciones (anime.js)
+- Pestañas de navegación en **negrita**; el encabezado se acomoda para que «Informe» no se corte.
+- Panel con paneles de vidrio esmerilado y fondo «aurora» (claro/oscuro), anillos de proporción en los indicadores y entrada animada de números, dona, barras, tarjetas y línea de tiempo.
+- La dona de criticidad filtra el panel: atenúa los casos sin hallazgos de esa criticidad y los de la línea de tiempo, y ofrece ir a Hallazgos con ese filtro.
+- Al hacer clic en una tarjeta de incidente o en una fila de la línea de tiempo se despliega el detalle del caso sin salir del Panel, con acceso a «Abrir en Incidentes».
+- Cursor de hora al pasar el mouse sobre la línea de tiempo.
+- anime.js 3.2.2 (MIT) se sirve desde `frontend/vendor/` (sin CDN, compatible con la CSP). Las animaciones son opcionales: con «reducir movimiento» o sin la librería todo se ve completo y de inmediato.
+- Pruebas e2e nuevas: pestañas en negrita, filtro de la dona, detalle desplegable, cursor de hora y panel sin movimiento. Corregido el conteo de pruebas en README y docs/DESARROLLO.md.
+
 ## [1.9.0] - 2026-11-07
 
 ### Añadido: informe HTML descargable

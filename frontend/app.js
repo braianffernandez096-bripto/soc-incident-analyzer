@@ -258,6 +258,7 @@ function bindAccess() {
 
 function render() {
   hideTip();
+  if (typeof anime === "function") anime.running.slice().forEach((a) => a.pause());
   const main = $("#main");
   const r = route();
   if (S.needAuth) { $("#nav").innerHTML = ""; $("#railFoot").innerHTML = ""; main.innerHTML = `<div class="view">${accessView()}</div>`; bindAccess(); return; }
@@ -329,9 +330,10 @@ function showTip(html, e) {
 function hideTip() { const t = $(".tip"); if (t) t.remove(); }
 
 /* Línea de tiempo de casos: un carril por incidente, un segmento por hallazgo. */
+const SW = { W: 1000, L: 210, R: 16 };
 function swimlane() {
   const incs = S.a.incidents; if (!incs.length) return "<p class='muted'>No se detectaron incidentes.</p>";
-  const W = 1000, L = 210, R = 16, laneH = 38, top = 26, H = top + incs.length * laneH + 8;
+  const { W, L, R } = SW, laneH = 38, top = 26, H = top + incs.length * laneH + 8;
   const t0 = ts(S.a.profile.time_start), t1 = ts(S.a.profile.time_end), span = Math.max(t1 - t0, 1);
   const x = (t) => L + ((ts(t) - t0) / span) * (W - L - R);
   let g = "";
@@ -373,9 +375,18 @@ function activityChart() {
     <div class="legend"><span><i style="background:#8a99b0"></i>Sin hallazgo</span>${SEV.map((s) => `<span><i style="background:${SEV_COLOR[s]}"></i>${s}</span>`).join("")}</div></div>`;
 }
 
-function sevBars() {
-  const c = S.a.stats.findings_by_severity, max = Math.max(...Object.values(c), 1);
-  return SEV.map((s) => `<button class="bar-row" data-sev="${s}" aria-label="Ver hallazgos ${s}"><span>${sevPill(s)}</span><span class="bar-track"><span class="bar-fill" style="display:block;width:${(c[s] || 0) / max * 100}%;background:${SEV_COLOR[s]}"></span></span><span class="n">${c[s] || 0}</span></button>`).join("");
+/* Dona de criticidad: cada color filtra el panel; los números y las barras se animan al entrar. */
+function donut() {
+  const fs = S.a.stats.findings_by_severity, tot = Math.max(S.a.stats.findings_total, 1), C = 2 * Math.PI * 54;
+  let cum = 0;
+  const segs = SEV.filter((s) => fs[s]).map((s) => {
+    const l = C * fs[s] / tot, d = `${l.toFixed(2)} ${(C - l).toFixed(2)}`;
+    const h = `<circle class="seg" data-s="${s}" style="--c:${SEV_COLOR[s]}" cx="80" cy="80" r="54" data-dash="${d}" stroke-dasharray="${d}" stroke-dashoffset="${(-cum).toFixed(2)}" tabindex="0" role="button" aria-label="${s}: ${plural(fs[s], "hallazgo", "hallazgos")}"/>`;
+    cum += l; return h;
+  }).join("");
+  return `<div class="donutbox"><svg class="donut" id="donut" viewBox="0 0 160 160" role="img" aria-label="Hallazgos por criticidad"><circle class="track" cx="80" cy="80" r="54"/><g transform="rotate(-90 80 80)">${segs}</g><text class="big" id="dTot" x="80" y="82" text-anchor="middle">${S.a.stats.findings_total}</text><text id="dLab" x="80" y="100" text-anchor="middle">hallazgos</text></svg>
+    <div class="chips">${SEV.map((s) => `<button class="sevchip" data-s="${s}" style="--c:${SEV_COLOR[s]}" type="button" aria-pressed="false"><i></i>${s}<b>${fs[s] || 0}</b></button>`).join("")}
+      <button class="btn" id="sevGo" type="button" hidden></button></div></div>`;
 }
 function catBars() {
   const c = S.a.stats.findings_by_category, max = Math.max(...Object.values(c), 1);
@@ -383,7 +394,7 @@ function catBars() {
 }
 function ipBars() {
   const rows = S.a.stats.top_ips.slice(0, 8), max = Math.max(...rows.map((r) => r.events), 1);
-  return rows.map((r) => `<button class="bar-row" data-ip="${esc(r.ip)}" style="grid-template-columns:150px 1fr 38px" aria-label="Buscar eventos de ${esc(r.ip)}"><span class="mono">${esc(r.ip)}${r.external ? "" : ""}</span><span class="bar-track"><span class="bar-fill" style="display:block;width:${r.events / max * 100}%;background:${r.external ? "#e07b00" : "#8794a6"}"></span></span><span class="n">${r.events}</span></button>`).join("")
+  return rows.map((r) => `<button class="bar-row" data-ip="${esc(r.ip)}" style="grid-template-columns:150px 1fr 38px" aria-label="Buscar eventos de ${esc(r.ip)}"><span class="mono"><i class="dot" style="background:${r.external ? "#e07b00" : "#8794a6"}"></i>${esc(r.ip)}</span><span class="bar-track"><span class="bar-fill" style="display:block;width:${r.events / max * 100}%;background:${r.external ? "#e07b00" : "#8794a6"}"></span></span><span class="n">${r.events}</span></button>`).join("")
     + `<div class="legend"><span><i style="background:#e07b00"></i>IP externa</span><span><i style="background:#8794a6"></i>IP interna</span></div>`;
 }
 
@@ -391,54 +402,171 @@ function ipBars() {
 function dashboard() {
   const st = S.a.stats, p = S.a.profile, fs = st.findings_by_severity, total = Math.max(st.findings_total, 1);
   const crit = st.incidents_by_severity["Crítico"] || 0;
+  const RC = 2 * Math.PI * 22;
+  const ring = (frac, color) => { const d = `${(RC * Math.min(Math.max(frac, 0), 1)).toFixed(2)} ${RC.toFixed(2)}`; return `<svg class="ring" width="54" height="54" viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="22" fill="none" class="rtrack" stroke-width="6"/><circle class="rfg" cx="27" cy="27" r="22" fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round" transform="rotate(-90 27 27)" data-dash="${d}" stroke-dasharray="${d}"/></svg>`; };
   const k = (n, label, extra = "") => `<div class="panel kpi"><b data-count="${n}">${num(n)}</b><span>${label}</span>${extra}</div>`;
-  return `<section class="panel hero">
+  const rows = Math.max(p.rows, 1);
+  return `<div class="dash"><div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+    <section class="panel hero"><i class="scan" aria-hidden="true"></i>
       <div class="page-head" style="margin:0">
         <div><h1>${S.client ? esc(S.client) : "Resultado del análisis"}</h1>
         <p>${esc(p.time_start)} a ${esc(p.time_end)} (${esc(p.duration)}) · ${plural(p.rows, "evento", "eventos")} · ${plural(p.hosts, "equipo", "equipos")} · ${plural(p.users, "cuenta", "cuentas")}</p></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" href="#/findings">Ver hallazgos</a><a class="btn primary" href="#/report">Ir al informe</a></div>
       </div></section>
     <div class="grid g4" style="margin-top:16px">
-      ${k(st.incidents_total, `Incidentes distintos${crit ? ` (${crit} críticos)` : ""}`)}
+      ${k(st.incidents_total, `Incidentes distintos${crit ? ` (${crit} críticos)` : ""}`, ring(crit / Math.max(st.incidents_total, 1), SEV_COLOR["Crítico"]))}
       ${k(st.findings_total, "Hallazgos con evidencia", `<div class="sevbar">${SEV.map((s) => `<span style="width:${(fs[s] || 0) / total * 100}%;background:${SEV_COLOR[s]}" title="${s}: ${fs[s] || 0}"></span>`).join("")}</div>`)}
-      ${k(st.flagged_events, "Eventos ligados a incidentes")}
+      ${k(st.flagged_events, `Eventos ligados a incidentes (${Math.round(st.flagged_events / rows * 100)} % del total)`, ring(st.flagged_events / rows, "var(--accent)"))}
       ${k(S.a.iocs.length, "Indicadores de compromiso")}
     </div>
-    <div class="inc-cards">${S.a.incidents.map((i) => `<button class="inc-card ${esc(i.severity)}" data-card="${esc(i.id)}">
-        <span class="top2"><span class="mono muted">${esc(i.id)}</span>${sevPill(i.severity)}</span>
+    <div class="inc-cards">${S.a.incidents.map((i) => `<button class="inc-card ${esc(i.severity)}" data-card="${esc(i.id)}" aria-expanded="false" aria-controls="drawer">
+        <span class="top2"><span class="mono muted">${esc(i.id)}</span>${i.severity === "Crítico" ? `<span class="pulse">${sevPill(i.severity)}</span>` : sevPill(i.severity)}</span>
         <b>${esc((S.ai.incidents[i.id] || {}).title || i.title)}</b>
         <small>${hhmm(i.time_start)}–${hhmm(i.time_end)} · ${plural(i.finding_ids.length, "hallazgo", "hallazgos")} · ${plural(i.evidence_count, "evento", "eventos")}</small></button>`).join("")}</div>
-    <div class="panel" style="margin-top:16px"><h3>Línea de tiempo de incidentes</h3>${swimlane()}</div>
+    <div class="drawer" id="drawer" aria-live="polite"><div class="panel dr-in" id="drawerIn"></div></div>
+    <div class="panel" style="margin-top:16px"><h3>Línea de tiempo de incidentes <small>pasa el mouse para ver la hora; haz clic en una fila para ver el caso</small></h3>${swimlane()}</div>
     <div class="grid g-wide" style="margin-top:16px">
       <div class="panel"><h3>Actividad de la ventana analizada</h3>${activityChart()}</div>
-      <div class="panel"><h3>Hallazgos por criticidad</h3>${sevBars()}<h3 style="margin-top:18px">Por categoría</h3>${catBars()}</div>
+      <div class="panel"><h3>Hallazgos por criticidad <small>haz clic en un color para filtrar</small></h3>${donut()}<h3 style="margin-top:18px">Por categoría</h3>${catBars()}</div>
     </div>
     <div class="panel" style="margin-top:16px"><h3>Direcciones IP con más actividad</h3>${ipBars()}</div>
-    ${S.a.limitations.length ? `<div class="panel" style="margin-top:16px"><h3>Límites del análisis</h3><ul>${S.a.limitations.map((l) => `<li>${esc(l)}</li>`).join("")}</ul></div>` : ""}`;
+    ${S.a.limitations.length ? `<div class="panel" style="margin-top:16px"><h3>Límites del análisis</h3><ul>${S.a.limitations.map((l) => `<li>${esc(l)}</li>`).join("")}</ul></div>` : ""}</div>`;
 }
 function bindDashboard() {
-  document.querySelectorAll("[data-card]").forEach((c) => {
-    const id = c.dataset.card, svg = $(".swim svg");
-    c.onclick = () => { S.openInc = id; location.hash = "#/incidents"; };
-    const on = () => { if (!svg) return; svg.classList.add("dim"); svg.querySelector(`.lane[data-inc="${id}"]`)?.classList.add("on"); };
-    const off = () => { if (!svg) return; svg.classList.remove("dim"); svg.querySelectorAll(".lane.on").forEach((l) => l.classList.remove("on")); };
-    c.onmouseenter = on; c.onmouseleave = off; c.onfocus = on; c.onblur = off;
+  const dash = $(".dash"); if (!dash) return;
+  const svg = $(".swim svg"), drawer = $("#drawer"), drawerIn = $("#drawerIn");
+  const fs = S.a.stats.findings_by_severity, ftot = S.a.stats.findings_total;
+  let filter = null, selected = null, hovered = null;
+  const lanesOn = (id) => {
+    if (!svg) return;
+    svg.classList.toggle("dim", !!id);
+    svg.querySelectorAll(".lane").forEach((l) => l.classList.toggle("on", !!id && l.dataset.inc === id));
+  };
+  const apply = () => {
+    document.querySelectorAll("[data-card]").forEach((c) => {
+      const id = c.dataset.card, has = !filter || S.a.findings.some((f) => f.incident_id === id && f.severity === filter);
+      c.classList.toggle("off", !has); c.classList.toggle("sel", selected === id); c.setAttribute("aria-expanded", String(selected === id));
+    });
+    document.querySelectorAll(".sevchip[data-s]").forEach((c) => { const on = c.dataset.s === filter; c.classList.toggle("on", on); c.setAttribute("aria-pressed", String(on)); });
+    document.querySelectorAll("#donut .seg").forEach((c) => c.classList.toggle("hot", c.dataset.s === filter));
+    $("#donut").classList.toggle("dim", !!filter);
+    $("#dTot").textContent = filter ? fs[filter] || 0 : ftot; $("#dLab").textContent = filter ? filter.toLowerCase() : "hallazgos";
+    document.querySelectorAll(".swim .seg").forEach((r) => {
+      const f = S.a.findings.find((x) => x.id === r.dataset.f);
+      r.style.opacity = filter && f && f.severity !== filter ? ".2" : "";
+    });
+    const go = $("#sevGo"); go.hidden = !filter;
+    if (filter) go.textContent = `Ver ${plural(fs[filter] || 0, "hallazgo", "hallazgos")} ${filter.toLowerCase()} →`;
+    lanesOn(hovered || selected);
+    drawerIn.querySelectorAll(".fnd").forEach((r) => { r.style.opacity = filter && r.dataset.sev !== filter ? ".35" : ""; });
+  };
+  const setFilter = (s) => { filter = filter === s ? null : s; apply(); };
+  document.querySelectorAll("#donut .seg").forEach((c) => {
+    c.onclick = () => setFilter(c.dataset.s); c.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setFilter(c.dataset.s); } };
+    c.onmousemove = (e) => showTip(`<b>${esc(c.dataset.s)}</b>: ${plural(fs[c.dataset.s], "hallazgo", "hallazgos")}`, e); c.onmouseleave = hideTip;
   });
-  document.querySelectorAll(".lane-label").forEach((t) => { t.style.cursor = "pointer"; t.onclick = () => { S.openInc = t.parentNode.dataset.inc; location.hash = "#/incidents"; }; });
-  document.querySelectorAll(".seg").forEach((el) => {
-    const f = S.a.findings.find((x) => x.id === el.dataset.f);
+  document.querySelectorAll(".sevchip[data-s]").forEach((c) => c.onclick = () => setFilter(c.dataset.s));
+  $("#sevGo").onclick = () => { S.findingFilter = filter; location.hash = "#/findings"; };
+
+  /* detalle del caso: se despliega debajo de las tarjetas sin salir del panel */
+  const fx = () => typeof anime === "function" && !reducedMotion();
+  const drawerHtml = (inc) => {
+    const g = (S.ai.incidents || {})[inc.id] || {}, fl = S.a.findings.filter((f) => f.incident_id === inc.id);
+    const meta = [`${hhmmss(inc.time_start)} a ${hhmmss(inc.time_end)}`, inc.hosts.length ? `Equipos: ${inc.hosts.join(", ")}` : "", inc.external_ips.length ? `IP externas: ${inc.external_ips.join(", ")}` : "", inc.actor_users.length ? `Cuentas: ${inc.actor_users.join(", ")}` : ""].filter(Boolean).map(esc).join(" · ");
+    return `<h3 style="margin:0 0 6px"><span class="mono muted">${esc(inc.id)}</span> ${esc(g.title || inc.title)} ${sevPill(inc.severity)}</h3><p class="muted" style="margin:0 0 8px;font-size:13.5px">${meta}</p>`
+      + fl.map((f) => `<div class="fnd" data-sev="${esc(f.severity)}">${sevPill(f.severity)}<span class="mono muted">${esc(f.id)}</span><span>${esc(f.title)}</span></div>`).join("")
+      + `<div style="margin-top:10px"><button class="btn primary" id="drGo" type="button">Abrir en Incidentes →</button></div>`;
+  };
+  const openInc = (id) => {
+    const first = selected !== id; selected = first ? id : null; apply();
+    if (!first) {
+      if (fx()) anime({ targets: drawer, height: 0, opacity: 0, duration: 260, easing: "easeInOutQuad", complete: () => drawer.classList.remove("open") });
+      else { drawer.classList.remove("open"); drawer.style.height = "0"; }
+      return;
+    }
+    const inc = S.a.incidents.find((x) => x.id === id); if (!inc) return;
+    drawerIn.innerHTML = drawerHtml(inc); apply();
+    $("#drGo").onclick = () => { S.openInc = id; location.hash = "#/incidents"; };
+    drawer.classList.add("open");
+    if (fx()) {
+      anime.remove(drawer); drawer.style.height = "0"; drawer.style.opacity = "0";
+      anime({ targets: drawer, height: [0, drawer.scrollHeight], opacity: [0, 1], duration: 380, easing: "easeOutCubic", complete: () => { drawer.style.height = "auto"; } });
+      anime({ targets: drawer.querySelectorAll(".fnd"), opacity: [0, 1], translateX: [-14, 0], delay: anime.stagger(55, { start: 150 }), duration: 380, easing: "easeOutQuad", complete: () => apply() });
+    } else { drawer.style.height = "auto"; drawer.style.opacity = "1"; }
+    drawer.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "nearest" });
+  };
+  document.querySelectorAll("[data-card]").forEach((c) => {
+    const id = c.dataset.card;
+    c.onclick = () => openInc(id);
+    c.onmouseenter = c.onfocus = () => { hovered = id; lanesOn(id); };
+    c.onmouseleave = c.onblur = () => { hovered = null; lanesOn(selected); };
+    c.onpointermove = (e) => { const r = c.getBoundingClientRect(); c.style.setProperty("--mx", e.clientX - r.left + "px"); c.style.setProperty("--my", e.clientY - r.top + "px"); };
+  });
+  document.querySelectorAll(".swim .lane").forEach((l) => {
+    l.onclick = (e) => { if (!e.target.classList.contains("seg")) openInc(l.dataset.inc); };
+  });
+  document.querySelectorAll(".lane-label").forEach((t) => { t.style.cursor = "pointer"; });
+  document.querySelectorAll(".swim .seg").forEach((el) => {
+    const f = S.a.findings.find((x) => x.id === el.dataset.f); if (!f) return;
     const go = () => { S.findingFilter = "Todos"; S.openFinding = f.id; location.hash = "#/findings"; };
     el.onclick = go; el.onkeydown = (e) => { if (e.key === "Enter") go(); };
     el.onmousemove = (e) => showTip(`<b>${esc(f.id)} · ${esc(f.title)}</b><br>${sevPill(f.severity)} <span class="mono">${hhmmss(f.time_start)}–${hhmmss(f.time_end)}</span>`, e);
     el.onmouseleave = hideTip;
   });
-  document.querySelectorAll("[data-sev]").forEach((b) => b.onclick = () => { S.findingFilter = b.dataset.sev; location.hash = "#/findings"; });
+  /* cursor de hora sobre la línea de tiempo */
+  const sw = $(".swim");
+  if (sw && svg) {
+    const cur = document.createElement("div"); cur.className = "cursor"; cur.setAttribute("aria-hidden", "true"); cur.appendChild(document.createElement("span")); sw.appendChild(cur);
+    const t0 = ts(S.a.profile.time_start), span = Math.max(ts(S.a.profile.time_end) - t0, 1);
+    svg.addEventListener("mousemove", (e) => {
+      const r = svg.getBoundingClientRect(), sr = sw.getBoundingClientRect(), vx = (e.clientX - r.left) / r.width * SW.W;
+      if (vx < SW.L || vx > SW.W - SW.R) { cur.style.opacity = "0"; return; }
+      const d = new Date(t0 + (vx - SW.L) / (SW.W - SW.L - SW.R) * span);
+      cur.style.left = e.clientX - sr.left + "px"; cur.style.top = r.top - sr.top + 22 + "px"; cur.style.height = Math.max(r.height - 22, 0) + "px"; cur.style.opacity = "1";
+      cur.firstElementChild.textContent = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    });
+    svg.addEventListener("mouseleave", () => { cur.style.opacity = "0"; });
+  }
   document.querySelectorAll("[data-ip]").forEach((b) => b.onclick = () => { S.logs = { ...S.logs, q: b.dataset.ip, page: 1 }; location.hash = "#/logs"; });
   document.querySelectorAll(".act g[data-i]").forEach((g) => {
     const d = S.a.stats.timeline[+g.dataset.i];
     g.onmousemove = (e) => showTip(`<b>${esc(d.t)}</b> · ${d.total} eventos<br>${SEV.filter((s) => d[s]).map((s) => `${s}: ${d[s]}`).join(" · ") || "Sin hallazgos asociados"}`, e);
     g.onmouseleave = hideTip;
   });
+  apply();
+  dashFx(dash);
+}
+
+/* Animaciones de entrada del Panel (anime.js). Son opcionales: sin la librería o con «reducir movimiento»
+   todo queda directamente en su estado final, y las animaciones solo tocan atributos y estilos por JavaScript (compatible con la CSP). */
+function dashFx(dash) {
+  if (typeof anime !== "function" || reducedMotion()) return;
+  anime.running.slice().forEach((a) => a.pause());          // sin animaciones en bucle de paneles anteriores
+  const q = (s) => [...dash.querySelectorAll(s)];
+  const clear = (els, props) => () => els.forEach((e) => props.forEach((p) => { e.style[p] = ""; }));
+  dash.classList.add("fx-run");
+  const cards = q("[data-card]"), lanes = q(".swim .lane"), kpis = q(".kpi");
+  anime.set([...cards, ...kpis, ...lanes, ...q(".hero")], { opacity: 0 });
+  anime({ targets: ".dash .hero", opacity: [0, 1], translateY: [16, 0], duration: 600, easing: "easeOutCubic", complete: clear(q(".hero"), ["transform", "opacity"]) });
+  anime({ targets: ".dash .hero .scan", translateX: ["-120%", "120%"], duration: 1400, delay: 350, easing: "easeInOutSine" });
+  anime({ targets: kpis, opacity: [0, 1], translateY: [20, 0], delay: anime.stagger(90, { start: 150 }), duration: 600, easing: "easeOutCubic", complete: clear(kpis, ["transform", "opacity"]) });
+  q(".rfg").forEach((c, i) => anime({ targets: c, "stroke-dasharray": ["0 139", c.dataset.dash], duration: 1100, delay: 400 + i * 100, easing: "easeOutCubic" }));
+  q(".donut .seg").forEach((c, i) => anime({ targets: c, "stroke-dasharray": ["0 339", c.dataset.dash], duration: 900, delay: 350 + i * 160, easing: "easeOutCubic" }));
+  anime({ targets: ".dash .sevchip", opacity: [0, 1], translateX: [16, 0], delay: anime.stagger(80, { start: 500 }), duration: 500, easing: "easeOutQuad", complete: clear(q(".sevchip"), ["transform", "opacity"]) });
+  anime({ targets: "#dTot", opacity: [0, 1], duration: 600, delay: 500, easing: "easeOutQuad" });
+  anime({ targets: ".dash .sevbar span", scaleX: [0, 1], delay: anime.stagger(110, { start: 500 }), duration: 700, easing: "easeOutCubic" });
+  q(".bar-fill").forEach((e, i) => anime({ targets: e, scaleX: [0, 1], duration: 800, delay: 500 + i * 70, easing: "easeOutCubic" }));
+  anime({ targets: cards, opacity: [0, 1], translateY: [26, 0], delay: anime.stagger(110, { start: 700 }), duration: 650, easing: "easeOutCubic", complete: () => { clear(cards, ["transform", "opacity"])(); } });
+  anime({ targets: lanes, opacity: [0, 1], delay: anime.stagger(70, { start: 900 }), duration: 400, easing: "linear", complete: clear(lanes, ["opacity"]) });
+  q(".swim rect.seg").forEach((r, i) => { const w = +r.getAttribute("width"); anime({ targets: r, width: [0, w], delay: 1000 + i * 40, duration: 600, easing: "easeOutQuad" }); });
+  q(".act g[data-i] rect").forEach((r, i) => {
+    const h = +r.getAttribute("height"), y = +r.getAttribute("y"); if (!h || r.getAttribute("fill") === "transparent") return;
+    anime({ targets: r, height: [0, h], y: [y + h, y], delay: 1100 + i * 8, duration: 600, easing: "easeOutQuad" });
+  });
+  anime({ targets: ".aurora i:nth-child(1)", translateX: [0, 90], translateY: [0, 60], duration: 14000, direction: "alternate", loop: true, easing: "easeInOutSine" });
+  anime({ targets: ".aurora i:nth-child(2)", translateX: [0, -80], translateY: [0, -50], duration: 17000, direction: "alternate", loop: true, easing: "easeInOutSine" });
+  anime({ targets: ".aurora i:nth-child(3)", translateX: [0, 70], translateY: [0, -40], duration: 20000, direction: "alternate", loop: true, easing: "easeInOutSine" });
+  setTimeout(() => dash.classList.remove("fx-run"), 2600);
 }
 
 /* ---------- incidentes ---------- */

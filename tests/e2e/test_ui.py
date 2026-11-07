@@ -215,3 +215,63 @@ def test_report_offers_local_ai_and_explains_when_ollama_is_missing(page):
     page.select_option("#prov", "anthropic")
     assert page.locator("#repCl-openai").is_hidden() and page.locator("#repCl-gemini").is_hidden()
     assert page.problems == []
+
+
+def _open_sample(page):
+    page.get_by_role("button", name="Probar con datos de ejemplo").click()
+    page.wait_for_url("**#/dashboard")
+
+
+def test_nav_tabs_are_bold(page):
+    _open_sample(page)
+    weights = page.evaluate("[...document.querySelectorAll('#nav a')].map(a => +getComputedStyle(a).fontWeight)")
+    assert len(weights) == 7 and all(w >= 700 for w in weights)
+    expect(page.locator("#nav")).to_contain_text("Informe")                  # en negrita sigue entrando completo
+    assert page.problems == []
+
+
+def test_dashboard_donut_filters_and_drawer_opens_incident(page):
+    _open_sample(page)
+    page.wait_for_timeout(2800)                                                # termina la animación de entrada
+    assert page.evaluate("typeof anime") == "function"
+    assert page.locator("#dTot").text_content() == "25"
+    page.locator(".sevchip[data-s='Crítico']").click()
+    assert page.locator("#dTot").text_content() == "10"
+    expect(page.locator("#sevGo")).to_be_visible()
+    assert page.locator("[data-card].off").count() >= 1                       # los casos sin críticos se atenúan
+    page.locator(".sevchip[data-s='Crítico']").click()                         # segundo clic: quita el filtro
+    assert page.locator("#dTot").text_content() == "25" and page.locator("[data-card].off").count() == 0
+    page.locator("[data-card='INC-002']").click()
+    expect(page.locator("#drawer.open")).to_contain_text("INC-002")
+    expect(page.locator("#drawer .fnd").first).to_be_visible()
+    page.locator("#drGo").click()
+    page.wait_for_url("**#/incidents")
+    expect(page.locator("#INC-002")).to_be_visible()
+    assert page.problems == []
+
+
+def test_dashboard_timeline_cursor_and_lane_click(page):
+    _open_sample(page)
+    page.wait_for_timeout(2800)
+    page.locator(".swim svg").hover(position={"x": 500, "y": 80})
+    assert page.locator(".cursor span").text_content()[2] == ":"
+    page.locator(".swim .lane-bg").first.click()
+    expect(page.locator("#drawer.open")).to_be_visible()
+    page.locator(".swim .seg").first.click()
+    page.wait_for_url("**#/findings")
+    assert page.problems == []
+
+
+def test_dashboard_without_motion_has_everything_visible_at_once(browser, server):
+    ctx = browser.new_context(reduced_motion="reduce")
+    pg = ctx.new_page()
+    errs = []
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    pg.set_default_timeout(WAIT)
+    pg.goto(server)
+    _open_sample(pg)
+    pg.mouse.move(0, 0)                                                        # sin el puntero sobre una tarjeta (atenuaría los carriles)
+    ops = pg.evaluate("[...document.querySelectorAll('[data-card], .kpi, .swim .lane')].map(e => getComputedStyle(e).opacity)")
+    assert ops and set(ops) == {"1"}
+    assert pg.locator("[data-card]").count() == 6 and errs == []
+    ctx.close()

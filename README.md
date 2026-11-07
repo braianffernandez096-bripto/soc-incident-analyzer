@@ -179,7 +179,7 @@ Los mensajes de error más comunes (formato no soportado, cabecera no reconocida
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 1.120 pruebas
+python -m pytest                                           # ~1.200 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
@@ -252,4 +252,4 @@ docs/         detalle: DESARROLLO, FORMATOS, CAPTURAS, IA-LOCAL, REPUTACION, PRI
 
 ## Licencia
 
-MIT. Las fuentes IBM Plex conservan su licencia (`frontend/vendor/fonts/LICENSE-IBM-Plex.txt`). anime.js 3.2.2 (MIT, © Julian Garnier) va incluido en el informe HTML: `backend/assets/ANIME-LICENSE.md`.
+MIT. Las fuentes IBM Plex conservan su licencia (`frontend/vendor/fonts/LICENSE-IBM-Plex.txt`). anime.js 3.2.2 (MIT, © Julian Garnier) va incluido en el informe HTML y en el Panel: `backend/assets/ANIME-LICENSE.md` y `frontend/vendor/ANIME-LICENSE.md`.

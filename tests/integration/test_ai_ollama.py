@@ -21,6 +21,13 @@ def ctx():
     return df, analyze(df, meta)
 
 
+@pytest.fixture(autouse=True)
+def _env_limpio(monkeypatch):
+    """La app carga el .env al importarse: si la persona definió OLLAMA_NUM_CTX u OLLAMA_TIMEOUT, las pruebas de valores por defecto no deben depender de eso."""
+    for v in ("OLLAMA_NUM_CTX", "OLLAMA_TIMEOUT", "OLLAMA_HOST"):
+        monkeypatch.delenv(v, raising=False)
+
+
 class FakeOllama:
     """Servidor Ollama simulado. `reply(body)` decide el contenido del mensaje; guarda las peticiones recibidas."""
 

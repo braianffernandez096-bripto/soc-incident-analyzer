@@ -2,7 +2,10 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
-## [Sin publicar]
+## [1.7.1] - 2026-11-06
+
+### Documentado: cuándo usar IA local y cuándo un modelo de mayor calidad
+- README, `docs/IA-LOCAL.md` y avisos en la interfaz (pestañas Informe e Incidentes) recomiendan un modelo de mayor calidad, como Claude, para el informe formal y el triaje; Ollama queda como apoyo, práctica y uso sin conexión. Se documenta lo medido con llama3.1:8b y que aún no se midió su capacidad de reconocer un falso positivo real.
 
 ### Cambiado: triaje con modelos pequeños
 - El prompt del triaje exige evidencia positiva para «Probable falso positivo» y aclara que lo que no aparece en el recorte de evidencia no prueba que no ocurrió. La evidencia enviada pasa de 10 a 14 eventos por incidente.

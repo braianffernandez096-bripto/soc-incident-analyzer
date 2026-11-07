@@ -4,6 +4,19 @@ Volver al [README](../README.md).
 
 Alternativa a Claude para quien no quiere pagar ni enviar datos a un tercero. En la pestaña **Informe**, elige **IA local (Ollama)** y uno de los modelos que tengas instalados.
 
+## Cuándo usar cada uno
+
+| | IA local (Ollama) | Claude (Anthropic) |
+|---|---|---|
+| Costo | Sin costo | De pago por uso, con tu propia clave |
+| Privacidad | Los datos no salen del equipo | Los datos del análisis se envían a un tercero |
+| Calidad de redacción y triaje | Depende del modelo; un 8B comete errores de redacción y tiende a restar gravedad con razonamientos débiles | Mejor y más consistente |
+| Tiempo | Minutos por incidente sin GPU | Segundos |
+
+Qué se midió con llama3.1:8b (CPU, 2 vCPU / 12 GB): las garantías del proyecto se cumplen (no cambia la criticidad, no se aceptan citas inventadas, el motor se conserva ante un conflicto), pero sin ajustes el modelo propuso bajar la gravedad de los 9 incidentes de una muestra, y con un prompt más estricto pasó a coincidir con el motor en los 9. Los datos de ejemplo son todos ataques, así que **no se ha medido** si distingue bien un falso positivo real. Ver [TRIAGE.md](TRIAGE.md).
+
+**Recomendación:** usa Ollama para practicar, para trabajar sin conexión o cuando los datos no puedan salir del equipo, y mira siempre la recomendación del motor. Para el informe formal y el triaje que vaya a leer un tercero, usa un modelo de mayor calidad como Claude. Si usas Ollama, prefiere un modelo más grande que tu equipo soporte.
+
 ```bash
 # Instala Ollama (https://ollama.com) y un modelo; el nombre es de ejemplo, usa el que prefieras y tu equipo aguante
 ollama pull llama3.1:8b

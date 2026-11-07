@@ -149,7 +149,7 @@ Cada incidente trae una recomendación (**Escalar**, **Probable falso positivo**
 
 ## IA local con Ollama (opcional)
 
-Alternativa a Claude para quien no quiere pagar ni enviar datos a un tercero: en la pestaña **Informe** eliges **IA local (Ollama)** y uno de los modelos instalados (`ollama pull llama3.1:8b`). Mismas garantías que con Claude: la criticidad y la prioridad del plan de acción las fija el motor y el verificador descarta lo inventado. Sin GPU, un modelo de 8B tarda minutos por consulta. Configuración (`OLLAMA_HOST`, `OLLAMA_NUM_CTX`, `OLLAMA_TIMEOUT`), Docker y tiempos medidos: [docs/IA-LOCAL.md](docs/IA-LOCAL.md).
+Alternativa a Claude para quien no quiere pagar ni enviar datos a un tercero: en la pestaña **Informe** eliges **IA local (Ollama)** y uno de los modelos instalados (`ollama pull llama3.1:8b`). Mismas garantías que con Claude: la criticidad y la prioridad del plan de acción las fija el motor y el verificador descarta lo inventado. **Recomendación:** un modelo local pequeño (como llama3.1:8b) sirve como apoyo y para practicar, pero puede equivocarse al redactar y al recomendar el triaje; para el informe formal y el triaje con IA se aconseja un modelo de mayor calidad, como Claude (ver [docs/IA-LOCAL.md](docs/IA-LOCAL.md#cuándo-usar-cada-uno)). Sin GPU, un modelo de 8B tarda minutos por consulta. Configuración (`OLLAMA_HOST`, `OLLAMA_NUM_CTX`, `OLLAMA_TIMEOUT`), Docker y tiempos medidos: [docs/IA-LOCAL.md](docs/IA-LOCAL.md).
 
 ## Reputación de IP y dominios (VirusTotal y AbuseIPDB)
 
@@ -163,7 +163,7 @@ Los mensajes de error más comunes (formato no soportado, cabecera no reconocida
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # 1.109 pruebas
+python -m pytest                                           # 1.114 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 

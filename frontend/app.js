@@ -455,6 +455,7 @@ function triagePanel() {
       <label class="f">Proveedor<select id="triProv"><option value="anthropic">Claude (Anthropic, requiere clave)</option><option value="ollama">IA local (Ollama)</option></select></label>
       <label class="f" id="triKeyBox" ${S.aiConfigured ? "hidden" : ""}>API key de Anthropic (solo esta sesión)<input type="password" id="triKey" placeholder="sk-ant-…" autocomplete="off"></label>
       <label class="f" id="triModelBox" hidden>Modelo de Ollama<select id="triModel"></select></label></div>
+    <div class="notice" id="triOlHint" style="margin-top:10px" hidden>Recomendación: un modelo local pequeño (como llama3.1:8b) sirve como apoyo y para practicar, pero puede equivocarse al redactar y al recomendar. Para el informe formal y el triaje, usa un modelo de mayor calidad, como Claude.</div>
     <div style="margin-top:10px"><button class="btn dark" id="triRun">${isAI ? "Volver a generar con IA" : "Generar recomendaciones con IA"}</button></div></div>`;
 }
 function triageBox(id) {
@@ -488,7 +489,7 @@ function bindTriage() {
   let ol = null;
   const sync = () => {
     const isOl = prov.value === "ollama";
-    $("#triKeyBox").hidden = isOl || S.aiConfigured; $("#triModelBox").hidden = !isOl;
+    $("#triKeyBox").hidden = isOl || S.aiConfigured; $("#triModelBox").hidden = !isOl; $("#triOlHint").hidden = !isOl;
     if (isOl && !ol) api("/api/ai/providers").then((p) => { ol = p.ollama; fill(); }).catch(() => { ol = { models: [] }; fill(); });
     else if (isOl) fill();
   };
@@ -788,7 +789,8 @@ function report() {
       <div id="keyBox">${S.aiConfigured ? "" : `<label class="f" style="max-width:480px">API key de Anthropic (solo se usa en esta sesión)<input type="password" id="key" placeholder="sk-ant-…" autocomplete="off"></label>`}</div>
       <div id="olBox" hidden>
         <label class="f" style="max-width:480px">Modelo instalado en Ollama<select id="omodel"></select></label>
-        <p class="muted" id="olInfo"></p></div>
+        <p class="muted" id="olInfo"></p>
+        <div class="notice" id="olHint">Recomendación: un modelo local pequeño (como llama3.1:8b) sirve como apoyo y para practicar, pero puede equivocarse al redactar y al recomendar. Para el informe formal y el triaje, usa un modelo de mayor calidad, como Claude.</div></div>
       <div style="margin-top:12px"><button class="btn dark" id="runAi">${isAI ? "Volver a generar con IA" : "Generar análisis con IA"}</button></div>
       ${isAI ? `<div class="stat-line"><span>Citas verificadas: <b>${v.citas_verificadas ?? 0}</b></span><span>Citas descartadas: <b>${v.citas_descartadas ?? 0}</b></span><span>IPs descartadas: <b>${v.ips_descartadas ?? 0}</b></span><span>Hallazgos redactados por IA: <b>${v.hallazgos_con_ia ?? 0}</b> de ${v.hallazgos_total ?? S.a.findings.length}</span></div>` : ""}
       ${(A.errors || []).length ? `<div class="notice" style="margin-top:12px">${A.errors.map(esc).join("<br>")}</div>` : ""}

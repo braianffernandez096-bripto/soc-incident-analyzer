@@ -10,6 +10,7 @@ Principios (los mismos que el resto del proyecto):
 """
 from __future__ import annotations
 
+import re
 from typing import Callable
 
 import pandas as pd
@@ -45,9 +46,18 @@ TRIAGE_TOOL = {
 
 TRIAGE_PROMPT = ("Eres el primer filtro de triaje de un SOC. Un analista humano revisará tu recomendación; no decides la severidad "
                  "(la fijó el motor de reglas) ni cierras el incidente. Recomienda una de: Escalar, Probable falso positivo, Falta información. "
-                 "Usa SOLO los hechos del bloque <incidente>: no inventes Log_ID, IP, cuentas ni hechos. Si la evidencia es compatible con actividad "
-                 "administrativa legítima y no hay señales de abuso, dilo; si falta contexto (por ejemplo no hay resultado de un acceso), pide información. "
-                 "Los motivos deben ser concretos y citar Log_ID; indica qué dato te haría cambiar de opinión.")
+                 "Usa SOLO los hechos del bloque <incidente>: no inventes Log_ID, IP, cuentas ni hechos.\n"
+                 "Cómo decidir:\n"
+                 "- Los hallazgos y sus motivos son hechos ya verificados por el motor (por ejemplo una salida de datos a una IP externa o una cadena de comandos). No los contradigas ni los ignores: si hay varios hallazgos encadenados, tenlos todos en cuenta.\n"
+                 "- La evidencia que ves es un recorte del incidente: que algo no aparezca en ella NO prueba que no ocurrió.\n"
+                 "- «Probable falso positivo» exige evidencia POSITIVA de actividad legítima (por ejemplo una cuenta de servicio documentada, una tarea programada conocida o un patrón de mantenimiento visible en los eventos). "
+                 "La ausencia de pruebas o frases como «podría ser legítimo si…» no bastan.\n"
+                 "- «Falta información» solo si puedes nombrar el dato concreto que falta y por qué cambiaría la decisión. Si hay señales de ataque encadenadas, es «Escalar».\n"
+                 "Los motivos deben ser concretos, apoyarse en hechos del incidente y citar Log_ID; indica qué dato te haría cambiar de opinión.")
+
+# Un motivo así no sustenta bajar una recomendación: se apoya en lo que NO se ve o en una hipótesis condicional
+_UNSUPPORTED = re.compile(r"\b(no hay (evidencia|señales?|indicios|información|pruebas)|no se (observ|proporcion|encontr|ve|detect|aprecia|indica)|sin (evidencia|indicios|pruebas)|"
+                          r"no (existe|existen) (evidencia|pruebas)|podr[ií]a ser|puede ser (leg[ií]tim|normal|una prueba)|(leg[ií]tim\w+|normal|autorizad\w+) si\b|si se (est[áa]|autoriz|realiz))", re.I)
 
 
 # --------------------------------------------------------------------------- recomendación del motor
@@ -93,7 +103,7 @@ def baseline(analysis: dict, inc: dict) -> dict:
 # --------------------------------------------------------------------------- IA
 def _payload(analysis: dict, df: pd.DataFrame, inc: dict, base: dict) -> dict:
     fs = _incident_findings(analysis, inc)
-    rows = ai_mod.rows_for(df, _incident_evidence(analysis, inc)[:10])
+    rows = ai_mod.rows_for(df, _incident_evidence(analysis, inc)[:14])
     return {
         "incidente": {"id": inc["id"], "titulo_motor": inc["title"], "severidad_motor": inc["severity"], "inicio": inc["time_start"], "fin": inc["time_end"],
                       "cuentas": inc["actor_users"], "ips_externas": inc["external_ips"], "hosts": inc["hosts"], "tacticas": inc["tactics"]},
@@ -122,8 +132,14 @@ def _review(raw: dict, base: dict, allowed: set[str], ver: ai_mod.Verifier, inc:
         return {**base, "ia_error": "respuesta del modelo inválida o sin motivos concretos"}
     if ai_mod.is_generic(change):
         change = base["would_change_if"]
+    ajuste = ""
+    if rec == "Probable falso positivo" and all(_UNSUPPORTED.search(r) for r in reasons):
+        # «falso positivo» sin una sola prueba positiva de actividad legítima (solo ausencia o hipótesis) no se acepta como tal
+        rec, conf, ajuste = "Falta información", "Baja", "La IA sugirió «Probable falso positivo», pero sus motivos se apoyan solo en lo que no aparece en la evidencia; se trata como «Falta información»."
     item = {"incident_id": inc["id"], "recommendation": rec, "confidence": conf, "reasons": reasons, "evidence_ids": ev,
             "would_change_if": change, "source": "ia", "ia_sugirio": None, "conflicto": False, "difiere": False}
+    if ajuste:
+        item["ajuste"] = ajuste
     if (protected or inc["severity"] in ("Crítico", "Alto")) and RANK[rec] < RANK[base["recommendation"]]:
         # la IA quiere bajar la guardia en un incidente grave o con señales de abuso: se conserva el motor y se deja constancia
         kept = {**base, "conflicto": True, "ia_sugirio": {"recommendation": rec, "confidence": conf, "reasons": reasons, "would_change_if": change}}

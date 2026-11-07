@@ -20,6 +20,7 @@ Sin IA, la recomendación sale del motor (Crítico → Escalar; Alto → Escalar
 | La IA baja la severidad | No puede: la severidad es del motor y el triaje es una opinión aparte. |
 | La IA quiere bajar la recomendación de un incidente Crítico o Alto, o con señales de abuso (varios hallazgos, IP externa, hallazgo Alto/Crítico) | Se **conserva la recomendación del motor**, se marca «Conflicto» y se muestra lo que sugirió la IA. Bajar la guardia es decisión humana. |
 | La IA inventa `Log_ID` o IP | El verificador los elimina (y solo se aceptan `Log_ID` del propio incidente). Se cuentan en el panel. |
+| «Probable falso positivo» apoyado solo en lo que no aparece o en una hipótesis («podría ser legítimo si…») | No se acepta: se trata como «Falta información» con confianza Baja y se deja constancia en el ajuste. Bajar una recomendación exige evidencia positiva de actividad legítima. |
 | Motivos vacíos o genéricos («revisar logs») | Se descartan; sin motivos concretos se usa la recomendación del motor. |
 | Respuesta inválida o fallo del modelo | Ese incidente queda con la recomendación del motor; el resto sigue. Si ninguno es válido, se informa el error y no se guarda nada. |
 | Log hostil con instrucciones | Los datos viajan escapados dentro de un bloque delimitado; la nota del analista y todo el texto se escapan al mostrarlo. |
@@ -44,6 +45,10 @@ Métricas: aciertos (coincide con la esperada o una aceptable) y exactos (solo l
 - Todos los ejemplos son ataques: la mayoría esperada es `Escalar`, y los casos ambiguos (persistencia de una cuenta de soporte, túnel DNS, password spraying sin acceso) aceptan también `Escalar`. Por eso el motor solo ya puntúa alto. El script **no mide** si la IA distingue bien un falso positivo real; para eso hace falta sumar casos benignos etiquetados.
 - Sirve para comparar versiones del motor o modelos entre sí (por ejemplo, cuántos «subescalado» produce un modelo de 8B frente a Claude), no para prometer una tasa de acierto en producción.
 - Con un modelo local de 8B en CPU, esperá varios minutos para evaluar todos los incidentes.
+
+## Lo observado con llama3.1:8b (CPU, 2 vCPU / 12 GB)
+
+En una primera medición con `logs_multifuente.json` (9 incidentes), el modelo propuso una recomendación **menos grave que la del motor en los 9**, incluso en cadenas con exfiltración, y casi siempre con razonamientos del tipo «no hay evidencia de…» o «podría ser legítimo si…». Las garantías funcionaron (subescalado 0, ninguna cita inventada, el motor se conservó en los 9), pero el resultado práctico fue que el triaje quedó igual al del motor. Por eso el prompt pide evidencia positiva para «Probable falso positivo» y el código descarta los motivos basados solo en ausencias. Lo razonable con un modelo de este tamaño es usarlo como apoyo y mirar siempre la recomendación del motor; para el triaje con IA se recomienda Claude. Un equipo con poca memoria puede quedarse sin RAM: baja `OLLAMA_NUM_CTX` (8192 alcanza para el triaje).
 
 ## API
 

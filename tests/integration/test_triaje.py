@@ -233,3 +233,29 @@ def test_nota_se_trunca(api):
     inc = a["incidents"][0]["id"]
     d = c.post(f"/api/sessions/{sid}/triage/{inc}/decision", data={"decision": "Descartado", "note": "a" * 2000}).json()
     assert len(d["items"][0]["decision"]["note"]) == T.NOTE_MAX
+
+
+@pytest.mark.parametrize("motivo", ["No hay evidencia de acceso exitoso en los eventos revisados.", "La minería puede ser legítima si se autoriza explícitamente.",
+                                     "No se observaron transferencias de datos hacia el exterior del equipo."])
+def test_falso_positivo_solo_por_ausencia_se_trata_como_falta_informacion(ctx, motivo):
+    df, a = ctx
+    inc = {**a["incidents"][0], "severity": "Bajo", "external_ips": [], "finding_ids": a["incidents"][0]["finding_ids"][:1]}
+    base = {**T.baseline(a, inc), "recommendation": "Falta información"}
+    allowed = set(T._incident_evidence(a, inc))
+    ver = __import__("backend.ai", fromlist=["x"]).Verifier(df)
+    raw = {"recommendation": "Probable falso positivo", "confidence": "Alta", "reasons": [motivo],
+           "evidence_ids": sorted(allowed)[:1], "would_change_if": "Aparece un acceso exitoso desde la misma IP externa."}
+    it = T._review(raw, base, allowed, ver, inc)
+    assert it["recommendation"] == "Falta información" and it["confidence"] == "Baja" and "ajuste" in it
+
+
+def test_falso_positivo_con_prueba_positiva_se_acepta(ctx):
+    df, a = ctx
+    inc = {**a["incidents"][0], "severity": "Bajo", "external_ips": [], "finding_ids": a["incidents"][0]["finding_ids"][:1]}
+    base = T.baseline(a, inc)
+    allowed = set(T._incident_evidence(a, inc))
+    ver = __import__("backend.ai", fromlist=["x"]).Verifier(df)
+    raw = {"recommendation": "Probable falso positivo", "confidence": "Media",
+           "reasons": [f"El evento {sorted(allowed)[0]} lo ejecuta la cuenta de servicio de respaldos en su horario habitual de mantenimiento."],
+           "evidence_ids": sorted(allowed)[:1], "would_change_if": "La cuenta aparece además activa fuera de su ventana de mantenimiento."}
+    assert T._review(raw, base, allowed, ver, inc)["recommendation"] == "Probable falso positivo"

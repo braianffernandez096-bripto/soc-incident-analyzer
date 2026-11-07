@@ -2,6 +2,14 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [Sin publicar]
+
+### Cambiado: triaje con modelos pequeños
+- El prompt del triaje exige evidencia positiva para «Probable falso positivo» y aclara que lo que no aparece en el recorte de evidencia no prueba que no ocurrió. La evidencia enviada pasa de 10 a 14 eventos por incidente.
+- Si los motivos de un «Probable falso positivo» se apoyan solo en ausencias o hipótesis, se trata como «Falta información» (confianza Baja).
+- Si el proveedor de IA falla 3 veces seguidas, se omiten los incidentes restantes (usan la recomendación del motor) en lugar de esperar el tiempo de espera de cada uno.
+- `scripts/evaluar_triage.py` muestra qué sugirió la IA en cada conflicto, guarda los motivos en el `.json` y acepta `--archivos`.
+
 ## [1.7.0] - 2026-11-06
 
 ### Añadido: higiene del repositorio

@@ -2,6 +2,16 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [1.10.2] - 2026-11-07
+
+### Cambiado: glass en toda la app y modo claro cómodo
+- El estilo glass y las animaciones (anime.js) se aplican a **todas** las pantallas: Panel, Incidentes, Hallazgos, ATT&CK, Eventos, Indicadores, Informe, inicio y Phishing. Encabezado translúcido, entrada escalonada al cambiar de pestaña y filas de tabla en cascada (no se repite al filtrar).
+- El fondo «aurora» pasa a ser un único elemento fijo a **pantalla completa** (antes se recortaba al contenido). En los inicios se muestra el radar, con un vidrio suave que no lo tapa.
+- **Modo claro cómodo**: fondo gris azulado en lugar de blanco puro, texto de alto contraste (principal 14:1, secundario 7:1), bordes y sombras definidos, tablas casi opacas con filas alternadas.
+- Corregidos dos problemas de contraste: el filtro seleccionado de Hallazgos y la etiqueta «Reglas del motor» en oscuro.
+- «Reducir movimiento» también quita el desenfoque del encabezado y de las tablas.
+- Pruebas e2e: aurora a pantalla completa en las 7 pestañas, filtro legible, y contraste/blanco puro del tema claro.
+
 ## [1.10.1] - 2026-11-07
 
 ### Cambiado: pantalla de inicio y Phishing con el mismo estilo glass

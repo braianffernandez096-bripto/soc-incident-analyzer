@@ -261,20 +261,24 @@ function render() {
   stopLoops();
   const main = $("#main");
   const r = route();
-  if (S.needAuth) { $("#nav").innerHTML = ""; $("#railFoot").innerHTML = ""; main.innerHTML = `<div class="view">${accessView()}</div>`; bindAccess(); return; }
+  if (S.needAuth) { setAurora(false); $("#nav").innerHTML = ""; $("#railFoot").innerHTML = ""; main.innerHTML = `<div class="view">${accessView()}</div>`; bindAccess(); return; }
   if (inPh(r) && S.a) { location.replace("#/dashboard"); return; }   // con un análisis de logs abierto no hay pestaña Phishing
   if (inPh(r)) {
     renderRail();
     const v = { "phishing/dominio": [domainView, bindDomain], "phishing/parecidos": [lookView, bindLook] }[r] || [phishingView, bindPhishing];
-    main.innerHTML = `<div class="view glassv">${AURORA_HTML}${phTabs(r)}${v[0]()}</div>`; v[1](); viewFx(main.firstElementChild, `ph:${r}:${S.ph ? "res" : "up"}`, true); if (!S.keepScroll) window.scrollTo(0, 0); S.keepScroll = false; return;
+    const upload = r === "phishing" && !S.ph;       // sin resultados: se ve el radar de fondo, con vidrio muy suave
+    main.innerHTML = `<div class="view glassv${upload ? " soft" : ""}">${phTabs(r)}${v[0]()}</div>`; setAurora(!upload); v[1](); viewFx(main.firstElementChild, `ph:${r}:${S.ph ? "res" : "up"}`, !upload); if (!S.keepScroll) window.scrollTo(0, 0); S.keepScroll = false; return;
   }
-  if (!S.a) { renderRail(); main.innerHTML = `<div class="view glassv">${landing()}</div>`; bindLanding(); bindHero(); viewFx(main.firstElementChild, "landing", false); return; }
+  if (!S.a) { renderRail(); main.innerHTML = `<div class="view glassv soft">${landing()}</div>`; setAurora(false); bindLanding(); bindHero(); viewFx(main.firstElementChild, "landing", false); return; }
   renderRail();
   const views = { dashboard, incidents, findings, attack, logs, iocs, report };
   const v = views[r] || dashboard;
-  main.innerHTML = `<div class="view">${v()}</div>`; bindHero(); countUp();
+  const rr = views[r] ? r : "dashboard";
+  main.innerHTML = `<div class="view glassv">${v()}</div>`; setAurora(true); bindHero(); countUp();
   const bind = { dashboard: bindDashboard, incidents: bindIncidents, findings: bindFindings, attack: bindAttack, logs: bindLogs, iocs: bindIocs, report: bindReport }[views[r] ? r : "dashboard"];
   bind();
+  if (rr !== "dashboard") viewFx(main.firstElementChild, `v:${rr}`, true);       // el Panel tiene su propia entrada (dashFx)
+  else auroraFx(main.firstElementChild);
   if (!S.keepScroll) window.scrollTo(0, 0);
   S.keepScroll = false;
 }
@@ -406,7 +410,7 @@ function dashboard() {
   const ring = (frac, color) => { const d = `${(RC * Math.min(Math.max(frac, 0), 1)).toFixed(2)} ${RC.toFixed(2)}`; return `<svg class="ring" width="54" height="54" viewBox="0 0 54 54" aria-hidden="true"><circle cx="27" cy="27" r="22" fill="none" class="rtrack" stroke-width="6"/><circle class="rfg" cx="27" cy="27" r="22" fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round" transform="rotate(-90 27 27)" data-dash="${d}" stroke-dasharray="${d}"/></svg>`; };
   const k = (n, label, extra = "") => `<div class="panel kpi"><b data-count="${n}">${num(n)}</b><span>${label}</span>${extra}</div>`;
   const rows = Math.max(p.rows, 1);
-  return `<div class="dash"><div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+  return `<div class="dash">
     <section class="panel hero"><i class="scan" aria-hidden="true"></i>
       <div class="page-head" style="margin:0">
         <div><h1>${S.client ? esc(S.client) : "Resultado del análisis"}</h1>
@@ -539,7 +543,12 @@ function bindDashboard() {
 
 /* Animaciones de entrada del Panel (anime.js). Son opcionales: sin la librería o con «reducir movimiento»
    todo queda directamente en su estado final, y las animaciones solo tocan atributos y estilos por JavaScript (compatible con la CSP). */
-const AURORA_HTML = '<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>';
+/* Fondo «aurora»: un único elemento fijo a pantalla completa, fuera del contenido, que se muestra solo en las vistas con vidrio. */
+function setAurora(on) {
+  let el = document.getElementById("aurora");
+  if (!el) { el = document.createElement("div"); el.id = "aurora"; el.className = "aurora"; el.setAttribute("aria-hidden", "true"); el.innerHTML = "<i></i><i></i><i></i>"; document.body.appendChild(el); }
+  document.body.classList.toggle("aur-on", !!on);
+}
 let AURORA = [];
 function stopLoops() {
   AURORA.forEach((a) => a.pause()); AURORA = [];
@@ -549,7 +558,7 @@ function stopLoops() {
 function auroraFx(root) {
   if (typeof anime !== "function" || reducedMotion()) return;
   [[1, 90, 60, 14000], [2, -80, -50, 17000], [3, 70, -40, 20000]].forEach(([n, x, y, d]) => {
-    const el = root.querySelector(`.aurora i:nth-child(${n})`);
+    const el = document.querySelector(`#aurora i:nth-child(${n})`);
     if (el) AURORA.push(anime({ targets: el, translateX: [0, x], translateY: [0, y], duration: d, direction: "alternate", loop: true, easing: "easeInOutSine" }));
   });
 }
@@ -561,10 +570,13 @@ function viewFx(root, key, withAurora) {
   const first = S.fxKey !== key; S.fxKey = key;
   if (!first || typeof anime !== "function" || reducedMotion()) return;
   const host = root.querySelector(":scope > .landing");
-  const kids = [...(host || root).querySelectorAll(":scope > *:not(.aurora)")];
-  anime.set(kids, { opacity: 0 });
-  anime({ targets: kids, opacity: [0, 1], translateY: [18, 0], delay: anime.stagger(70), duration: 550, easing: "easeOutCubic",
-    complete: () => kids.forEach((e) => { e.style.opacity = ""; e.style.transform = ""; }) });
+  const kids = [...(host || root).querySelectorAll(":scope > *")].slice(0, 14);
+  const rows = [...root.querySelectorAll("tbody tr")].slice(0, 24);
+  const clearAll = (els) => () => els.forEach((e) => { e.style.opacity = ""; e.style.transform = ""; });
+  anime.set([...kids, ...rows], { opacity: 0 });
+  if (host) { anime.set(host, { opacity: 0 }); anime({ targets: host, opacity: [0, 1], translateY: [24, 0], scale: [0.985, 1], duration: 650, easing: "easeOutCubic", complete: clearAll([host]) }); }
+  anime({ targets: kids, opacity: [0, 1], translateY: [18, 0], delay: anime.stagger(70, { start: host ? 200 : 0 }), duration: 550, easing: "easeOutCubic", complete: clearAll(kids) });
+  if (rows.length) anime({ targets: rows, opacity: [0, 1], delay: anime.stagger(20, { start: 350 }), duration: 400, easing: "linear", complete: clearAll(rows) });
 }
 
 function dashFx(dash) {

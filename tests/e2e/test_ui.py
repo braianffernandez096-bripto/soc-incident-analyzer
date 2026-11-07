@@ -281,9 +281,11 @@ def test_landing_and_phishing_share_glass_style_and_animate_in(page):
     page.wait_for_timeout(1500)                                                # termina la entrada escalonada
     assert page.locator(".view.glassv .landing").count() == 1
     assert set(page.evaluate("[...document.querySelectorAll('.landing > *')].map(e => getComputedStyle(e).opacity)")) == {"1"}
+    assert "aur-on" not in (page.evaluate("document.body.className") or "")      # el inicio muestra el radar, sin aurora
     page.get_by_role("link", name="Phishing").click()
-    expect(page.locator(".view.glassv .aurora")).to_have_count(1)
+    assert "aur-on" not in (page.evaluate("document.body.className") or "")
     page.locator("#psample").click()
+    expect(page.locator("body.aur-on")).to_have_count(1)
     expect(page.locator(".view.glassv")).to_contain_text("Correos sospechosos")
     page.get_by_role("link", name="Evaluar dominio").click()
     expect(page.locator(".view.glassv .ph-tabs")).to_be_visible()
@@ -298,6 +300,45 @@ def test_landing_without_motion_is_complete_at_once(browser, server):
     errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)))
     pg.goto(server)
+    pg.wait_for_selector(".landing")                                           # espera a que la app dibuje el inicio
     ops = pg.evaluate("[...document.querySelectorAll('.landing > *')].map(e => getComputedStyle(e).opacity)")
     assert ops and set(ops) == {"1"} and errs == []
+    ctx.close()
+
+
+def test_every_analysis_view_uses_glass_and_full_screen_aurora(page):
+    _open_sample(page)
+    vp = page.viewport_size
+    for i in range(7):
+        page.locator("#nav a").nth(i).click()
+        page.wait_for_timeout(300)
+        expect(page.locator(".view.glassv")).to_have_count(1)
+        expect(page.locator("body.aur-on")).to_have_count(1)
+        box = page.locator("#aurora").bounding_box()
+        assert box["width"] >= vp["width"] - 1 and box["height"] >= vp["height"] - 1     # cubre toda la ventana, no un recuadro
+    assert page.problems == []
+
+
+def test_filter_chip_pressed_stays_legible_on_findings(page):
+    _open_sample(page)
+    page.locator("#nav a").nth(2).click()
+    chip = page.get_by_role("button", name="Crítico (10)")
+    chip.click()
+    fg, bg = page.evaluate("""() => { const c = [...document.querySelectorAll('.chip[aria-pressed=true]')][0], s = getComputedStyle(c); return [s.color, s.backgroundColor]; }""")
+    assert fg != bg
+    assert page.problems == []
+
+
+def test_light_theme_is_comfortable_not_pure_white_and_high_contrast(browser, server):
+    ctx = browser.new_context(color_scheme="light")
+    pg = ctx.new_page()
+    pg.goto(server)
+    res = pg.evaluate("""() => {
+      const cs = getComputedStyle(document.documentElement), hex = (n) => cs.getPropertyValue(n).trim();
+      const lum = (h) => { const v = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((c) => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+      const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+      return { bg: hex('--bg'), panel: hex('--panel'), muted: ratio(hex('--muted'), hex('--bg')), ink: ratio(hex('--ink'), hex('--bg')) };
+    }""")
+    assert res["bg"].lower() != "#ffffff" and res["panel"].lower() != "#ffffff"        # sin blanco puro (cansa la vista)
+    assert res["muted"] >= 4.5 and res["ink"] >= 7                                      # contraste accesible (WCAG AA / AAA)
     ctx.close()

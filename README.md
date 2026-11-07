@@ -28,6 +28,7 @@ Proyecto personal, hecho para practicar el análisis de incidentes. Lo desarroll
 4. **IA (Claude, OpenAI, Gemini u Ollama local)** (`backend/ai.py`, `backend/ai_cloud.py`, `backend/ai_local.py`, opcional): solo redacta; no puede cambiar la criticidad y un verificador descarta lo inventado. Se elige el proveedor en la pestaña Informe. Sin clave ni Ollama, el informe usa plantillas.
 
 5. **PDF** (`backend/report.py`): resumen ejecutivo, hallazgos, evidencia, impacto, plan de acción y recomendaciones.
+6. **Informe HTML** (`backend/report_html.py`): el mismo contenido en un solo archivo que se abre sin conexión, con gráficos y animaciones (ver [Informe HTML](#informe-html)).
 
 6. **Reputación (opcional)** (`backend/intel.py`): VirusTotal y AbuseIPDB, solo con tu confirmación. Ver [más abajo](#reputación-de-ip-y-dominios-virustotal-y-abuseipdb) y [docs/REPUTACION.md](docs/REPUTACION.md).
 
@@ -147,6 +148,17 @@ Es análisis estático y determinista: no se abre ningún enlace ni se ejecuta n
 
 Cada incidente trae una recomendación (**Escalar**, **Probable falso positivo** o **Falta información**) con motivos, confianza y «qué me haría cambiar de opinión»; el analista registra su decisión y una nota, que va al PDF. La severidad la fija siempre el motor y, si la IA quiere ser menos exigente en un incidente Crítico o Alto, se conserva la del motor y se marca el conflicto. Incluye un script para medir modelos. Detalle y límites: [docs/TRIAGE.md](docs/TRIAGE.md).
 
+## Informe HTML
+
+Junto al PDF, en la pestaña **Informe** está **Descargar informe HTML**: un único archivo que se abre con doble clic en cualquier navegador, sin conexión y sin instalar nada. Trae el mismo contenido que el PDF (resumen, incidentes con evidencia y plan de acción, IoC, reputación, triaje y decisiones del analista, correos sospechosos) más:
+
+- gráficos SVG (criticidad, eventos por ventana de 10 minutos con cada criticidad) y animaciones con [anime.js](https://animejs.com/) 3.2.2 incluido dentro del archivo (sin CDN);
+- diseño «glass» con modo claro y oscuro (sigue al sistema y se puede cambiar), adaptado al celular;
+- incidentes y hallazgos desplegables, filtro de indicadores y versión imprimible (botón «Imprimir / PDF»: se abre todo y se quitan los efectos);
+- las animaciones son opcionales: sin JavaScript o con «reducir movimiento» activado el informe se ve completo y quieto.
+
+Seguridad: todo dato del archivo analizado, de la IA o de un correo se escapa al generar el HTML, y el propio informe lleva una política CSP que solo permite su script y su estilo (por hash) y ninguna conexión: aunque algo se escapara mal, el navegador no ejecutaría código. Como cualquier informe con datos del cliente, compártelo solo con quien corresponda.
+
 ## Otros proveedores de IA: OpenAI y Gemini (opcional)
 
 Además de Claude, en las pestañas **Informe** e **Incidentes** puedes elegir **OpenAI** o **Gemini (Google)** con tu propia clave (`OPENAI_API_KEY`, `GEMINI_API_KEY` en `.env`, o pegada en el campo, que se usa solo en esa consulta y no se guarda). Las garantías son las mismas que con Claude: el motor fija la criticidad, el verificador descarta lo inventado y, si el proveedor falla, queda el informe por reglas. Las direcciones de los servicios están fijas en el servidor (el navegador no puede indicar otra URL) y los mensajes de error no repiten lo que responde el proveedor. Los nombres de modelo cambian seguido: hay uno por defecto y puedes escribir otro en el campo o fijarlo con `OPENAI_MODEL` / `GEMINI_MODEL`. Detalle en [docs/PROVEEDORES-IA.md](docs/PROVEEDORES-IA.md).
@@ -240,4 +252,4 @@ docs/         detalle: DESARROLLO, FORMATOS, CAPTURAS, IA-LOCAL, REPUTACION, PRI
 
 ## Licencia
 
-MIT. Las fuentes IBM Plex conservan su licencia (`frontend/vendor/fonts/LICENSE-IBM-Plex.txt`).
+MIT. Las fuentes IBM Plex conservan su licencia (`frontend/vendor/fonts/LICENSE-IBM-Plex.txt`). anime.js 3.2.2 (MIT, © Julian Garnier) va incluido en el informe HTML: `backend/assets/ANIME-LICENSE.md`.

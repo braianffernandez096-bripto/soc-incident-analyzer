@@ -807,7 +807,8 @@ function report() {
   return `<div class="page-head"><div><h1>Informe técnico</h1><p>El PDF incluye resumen ejecutivo, hallazgos con evidencia, criticidad, impacto, plan de acción y recomendaciones.</p></div></div>
     <div class="panel"><h3>Datos de portada</h3>
       <div class="fields"><label class="f">Cliente<input type="text" id="rClient" value="${esc(S.client)}"></label><label class="f">Analista<input type="text" id="rAnalyst" value="${esc(S.analyst)}"></label></div>
-      <div class="row" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" id="pdf">Descargar informe en PDF</button></div></div>
+      <div class="row" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" id="pdf">Descargar informe en PDF</button><button class="btn" id="htmlrep">Descargar informe HTML</button></div>
+      <p class="muted">El informe HTML es un solo archivo que se abre sin conexión en cualquier navegador: gráficos interactivos, modo claro y oscuro, y versión imprimible.</p></div>
     <div class="panel"><h3>Redacción con IA</h3>
       <p>Modo actual: <span class="mode-badge ${isAI ? "ia" : "determinista"}">${isAI ? aiBadge(A) : "Reglas deterministas"}</span></p>
       <p class="muted">La IA redacta el análisis de cada incidente a partir de los hallazgos ya detectados. No puede cambiar la criticidad ni agregar eventos: toda cita a un Log_ID o IP que no exista en el archivo se descarta y se informa abajo.</p>
@@ -829,17 +830,19 @@ function report() {
 }
 function bindReport() {
   const meta = () => { S.client = $("#rClient").value.trim(); S.analyst = $("#rAnalyst").value.trim(); return { client: S.client, analyst: S.analyst }; };
-  $("#pdf").onclick = async () => {
-    const m = meta(); busy(true, "Generando PDF…");
+  const download = (btnId, ext, mime, label) => async () => {
+    const m = meta(); busy(true, `Generando ${label}…`);
     try {
       const fd = new FormData(); fd.append("client", m.client); fd.append("analyst", m.analyst);      // POST: names stay out of the URL and the access logs
-      const r = await fetch(`/api/sessions/${S.sid}/report.pdf`, { method: "POST", body: fd, headers: authHeaders() });
-      if (!r.ok) throw new Error("No se pudo generar el PDF.");
-      const url = URL.createObjectURL(await r.blob()), a = document.createElement("a");
-      a.href = url; a.download = "informe_incidentes_seguridad.pdf"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);
-      toast("PDF descargado");
+      const r = await fetch(`/api/sessions/${S.sid}/report.${ext}`, { method: "POST", body: fd, headers: authHeaders() });
+      if (!r.ok) throw new Error(`No se pudo generar el ${label}.`);
+      const url = URL.createObjectURL(new Blob([await r.arrayBuffer()], { type: mime })), a = document.createElement("a");
+      a.href = url; a.download = `informe_incidentes_seguridad.${ext}`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast(`${label} descargado`);
     } catch (e) { toast(e.message); } finally { busy(false); }
   };
+  $("#pdf").onclick = download("pdf", "pdf", "application/pdf", "PDF");
+  $("#htmlrep").onclick = download("htmlrep", "html", "text/html", "informe HTML");
   let ol = null;
   const syncProv = () => {
     const isOl = $("#prov").value === "ollama";

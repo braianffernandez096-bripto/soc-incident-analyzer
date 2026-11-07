@@ -99,6 +99,39 @@ def test_sample_button_and_pdf_download(page):
     assert page.problems == []
 
 
+def test_html_report_downloads_and_opens_offline_without_errors(page, tmp_path):
+    """El informe HTML se descarga, se abre desde un archivo (sin servidor) y su propia política de seguridad no bloquea nada de lo suyo."""
+    page.get_by_role("button", name="Probar con datos de ejemplo").click()
+    page.wait_for_url("**#/dashboard")
+    page.get_by_role("link", name="Ir al informe").click()
+    with page.expect_download() as d:
+        page.get_by_role("button", name="Descargar informe HTML").click()
+    path = tmp_path / "informe.html"
+    d.value.save_as(path)
+    assert d.value.suggested_filename == "informe_incidentes_seguridad.html" and path.read_bytes().startswith(b"<!doctype html>")
+    rep = page.context.new_page()
+    problems = []
+    rep.on("console", lambda m: problems.append(m.text) if m.type in ("error", "warning") else None)
+    rep.on("pageerror", lambda e: problems.append(str(e)))
+    rep.on("request", lambda r: problems.append("red: " + r.url) if not r.url.startswith(("file:", "data:")) else None)
+    rep.goto(path.as_uri())
+    expect(rep.get_by_role("heading", name="1. Resumen ejecutivo")).to_be_visible()
+    rep.wait_for_timeout(1500)
+    assert rep.evaluate("[...document.querySelectorAll('.kpi .n')].map(n => n.textContent)")[0] == "715"            # la animación termina en el valor real
+    before = rep.evaluate("getComputedStyle(document.body).backgroundImage")
+    rep.get_by_role("button", name="Cambiar entre tema claro y oscuro").click()
+    assert rep.evaluate("document.documentElement.getAttribute('data-theme')") in ("dark", "light")
+    rep.fill("#ioc-q", "203.0.113")
+    assert rep.locator("#ioc-body tr:not(.hidden-row)").count() < rep.locator("#ioc-body tr").count()
+    rep.get_by_role("button", name="Contraer todo").click()
+    assert rep.locator("details[open]").count() == 0
+    rep.get_by_role("button", name="Expandir todo").click()
+    assert rep.locator("details:not([open])").count() == 0
+    assert problems == [] and before
+    rep.close()
+    assert page.problems == []
+
+
 def test_hostile_log_content_is_shown_as_text_and_never_executed(page, tmp_path):
     """Un log con HTML/JS en sus campos se muestra como texto: no se ejecuta (XSS almacenado vía el export del SIEM)."""
     bad = "<img src=x onerror=window.__pwned=1><script>window.__pwned=1</script>"

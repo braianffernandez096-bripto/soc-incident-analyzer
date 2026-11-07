@@ -2,6 +2,16 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [1.9.0] - 2026-11-07
+
+### Añadido: informe HTML descargable
+- Botón **Descargar informe HTML** junto al del PDF (`POST /api/sessions/{id}/report.html`; los nombres de cliente y analista van en el cuerpo, no en la URL).
+- Un único archivo que se abre sin conexión, con el mismo contenido que el PDF: resumen, metodología, incidentes con cronología, evidencia y plan de acción, observaciones, IoC con filtro, reputación, triaje y decisiones del analista, y correos sospechosos.
+- Gráficos SVG (criticidad y eventos por ventana, apilados por criticidad), diseño «glass» claro/oscuro adaptado al celular, secciones desplegables y versión imprimible.
+- Animaciones con anime.js 3.2.2 (MIT) incluido en el archivo, sin CDN. Son opcionales: respeta «reducir movimiento» y el informe se ve completo sin JavaScript.
+- Seguridad: todo dato de logs, IA o correos se escapa; sin estilos ni manejadores en línea; el informe lleva su propia CSP (script y estilo por hash, sin red).
+- Pruebas: contenido igual al PDF, archivo sin recursos externos, CSP coincidente con el script real, logs/IA/correos/cliente hostiles y un e2e que descarga el archivo y lo abre sin errores.
+
 ## [1.8.0] - 2026-11-07
 
 ### Añadido: OpenAI y Gemini como proveedores de IA

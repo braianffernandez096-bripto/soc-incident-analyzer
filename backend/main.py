@@ -34,6 +34,7 @@ from . import filecheck
 from . import intel as intel_mod
 from . import lookalikes as lookalikes_mod
 from . import phishing as phishing_mod
+from . import report_html as report_html_mod
 from . import senderreview
 from . import triage as triage_mod
 from . import siemqueries
@@ -81,7 +82,7 @@ class SafeJSON(JSONResponse):
 
 
 _DOCS = os.environ.get("ENABLE_DOCS", "").strip().lower() in ("1", "true", "yes")      # API docs reveal the full surface: opt-in
-app = FastAPI(title="SOC Incident Analyzer", version="1.8.0", default_response_class=SafeJSON,
+app = FastAPI(title="SOC Incident Analyzer", version="1.9.0", default_response_class=SafeJSON,
               docs_url="/docs" if _DOCS else None, redoc_url="/redoc" if _DOCS else None, openapi_url="/openapi.json" if _DOCS else None)
 
 
@@ -808,6 +809,25 @@ def _pdf_response(s: Session) -> Response:
                     phishing=ph.items if ph else None, triage=tv)
     return Response(pdf, media_type="application/pdf",
                     headers={"Content-Disposition": 'attachment; filename="informe_incidentes_seguridad.pdf"'})
+
+
+def _html_response(s: Session) -> Response:
+    """Informe en un único archivo HTML (se abre sin conexión). Mismo contenido que el PDF; todo dato se escapa al generarlo."""
+    intel = s.intel if s.intel and s.intel.get("results") else None
+    ph = PHISH.get(s.phish_id)
+    tv = triage_mod.view(s.analysis, s.triage, s.decisions) if (s.triage or s.decisions) else None
+    doc = report_html_mod.build_html(s.analysis, s.ai, s.df, {"client": s.client, "analyst": s.analyst, "filename": s.filename}, intel=intel,
+                                     phishing=ph.items if ph else None, triage=tv)
+    return Response(doc, media_type="text/html; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="informe_incidentes_seguridad.html"'})
+
+
+@app.post("/api/sessions/{sid}/report.html")
+def report_html_post(sid: str, client: str = Form(""), analyst: str = Form("")):
+    """Los nombres de cliente y analista viajan en el cuerpo, no en la URL (igual que el PDF)."""
+    s = _get(sid)
+    s.client, s.analyst = client.strip(), analyst.strip()
+    return _html_response(s)
 
 
 @app.post("/api/sessions/{sid}/report.pdf")

@@ -149,6 +149,18 @@ def test_fallo_de_un_incidente_no_tumba_el_resto(ctx):
     assert srcs[1] == "motor" and srcs.count("ia") == len(srcs) - 1 and any("timeout" in e for e in r["errors"])
 
 
+def test_proveedor_caido_no_espera_incidente_por_incidente(ctx):
+    df, a = ctx
+    llamadas = []
+
+    def call(tool, text, mt):
+        llamadas.append(1)
+        raise RuntimeError("sin conexión")
+    r = T.generate(a, df, call)
+    assert len(llamadas) == T.MAX_CONSECUTIVE_FAILS and r["mode"] == "motor"
+    assert sum("omitido" in e for e in r["errors"]) == len(a["incidents"]) - T.MAX_CONSECUTIVE_FAILS
+
+
 def test_log_hostil_no_puede_cerrar_el_bloque(ctx):
     df, a = ctx
     seen = []

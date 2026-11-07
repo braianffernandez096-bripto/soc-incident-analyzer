@@ -22,6 +22,7 @@ CONFIDENCE = ("Alta", "Media", "Baja")
 DECISIONS = ("Escalado", "Descartado", "En investigación")
 RANK = {"Escalar": 2, "Falta información": 1, "Probable falso positivo": 0}
 NOTE_MAX = 500
+MAX_CONSECUTIVE_FAILS = 3
 
 TRIAGE_TOOL = {
     "name": "submit_triage",
@@ -147,18 +148,24 @@ def _stats(items: list[dict], ver: ai_mod.Verifier | None) -> dict:
 def generate(analysis: dict, df: pd.DataFrame, call: Callable, provider: str = "", model: str = "") -> dict:
     """Pide una recomendación por incidente. Un fallo del modelo en un incidente deja la del motor para ese incidente."""
     ver = ai_mod.Verifier(df)
-    items, errors = [], []
+    items, errors, fails = [], [], 0
     for inc in analysis["incidents"]:
         base = baseline(analysis, inc)
+        if fails >= MAX_CONSECUTIVE_FAILS:   # el proveedor dejó de responder: no esperar un tiempo de espera por cada incidente restante
+            errors.append(f"{inc['id']}: omitido, el proveedor de IA dejó de responder")
+            items.append(base)
+            continue
         allowed = set(_incident_evidence(analysis, inc))
         text = ("Evalúa el siguiente incidente y entrega la recomendación con la herramienta indicada.\n" + TRIAGE_PROMPT
                 + "\n\n<incidente>\n" + ai_mod._as_data(_payload(analysis, df, inc, base)) + "\n</incidente>")
         try:
             raw = call(TRIAGE_TOOL, text, 1500)
+            fails = 0
             item = _review(raw, base, allowed, ver, inc, has_abuse_signals(analysis, inc))
             if item.get("ia_error"):
                 errors.append(f"{inc['id']}: {item.pop('ia_error')}")
         except Exception as exc:   # un incidente fallido no tumba el triaje
+            fails += 1
             errors.append(f"{inc['id']}: {type(exc).__name__}: {exc}")
             item = base
         items.append(item)

@@ -15,7 +15,9 @@ Métricas por modelo:
 - sobreescalado: se esperaba «Falta información» o «Probable falso positivo» y se entregó «Escalar»;
 - conflictos: la IA quiso bajar la guardia en un incidente Crítico/Alto y se conservó la del motor;
 - citas descartadas: Log_ID o IP inventados por el modelo que el verificador eliminó;
-- respaldo del motor: incidentes en los que la respuesta del modelo no fue válida.
+- respaldo del motor: incidentes en los que la respuesta del modelo no fue válida o el proveedor falló (tras 3 fallos seguidos se omiten los restantes).
+
+Si Ollama se queda sin memoria, baja el contexto: `OLLAMA_NUM_CTX=8192 python scripts/evaluar_triage.py ...`.
 """
 from __future__ import annotations
 
@@ -60,6 +62,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--provider", choices=("ninguno", "ollama", "anthropic"), default="ninguno")
     ap.add_argument("--model", default="")
+    ap.add_argument("--archivos", nargs="*", default=[], help="evalúa solo estos archivos de sample_data (por defecto, todos los etiquetados)")
     ap.add_argument("--json", default="", help="guarda el resultado completo en este archivo")
     args = ap.parse_args()
 
@@ -80,7 +83,7 @@ def main() -> int:
     tot_motor = {"casos": 0, "aciertos": 0, "exactos": 0, "subescalado": 0, "sobreescalado": 0}
     out = {}
     for fname, lab in labels.items():
-        if fname.startswith("_"):
+        if fname.startswith("_") or (args.archivos and fname not in args.archivos):
             continue
         df, meta = load_events(str(ROOT / "sample_data" / fname))
         a = analyze(df, meta)
@@ -96,10 +99,16 @@ def main() -> int:
             tot[k] += r[k]
         for k, src in (("conflictos", "conflictos"), ("citas_descartadas", "citas_descartadas"), ("ips_descartadas", "ips_descartadas"), ("respaldo_motor", "respaldo_motor")):
             tot[k] += v[src]
-        out[fname] = {"motor": rm, "evaluado": r, "validacion": v, "errores": res["errors"]}
+        out[fname] = {"motor": rm, "evaluado": r, "validacion": v, "errores": res["errors"],
+                      "ia": [{"incidente": i["incident_id"], "fuente": i["source"], "recomendacion": i["recommendation"], "confianza": i["confidence"],
+                              "motivos": i["reasons"], "cambiaria_si": i["would_change_if"], "conflicto": i["conflicto"], "ia_sugirio": i["ia_sugirio"]} for i in res["items"]]}
         print(f"\n{fname}: {r['aciertos']}/{r['casos']} aciertos")
         for d in r["detalle"]:
             print(f"  {d['incidente']} {d['severidad']:<8} esperado={d['esperado']:<18} obtenido={d['obtenido']:<24} [{d['fuente']}]{' CONFLICTO' if d['conflicto'] else ''}{'' if d['acierto'] else '  <-- no coincide'}")
+        for i in res["items"]:   # qué quiso hacer el modelo cuando el motor lo frenó o cuando discrepó
+            sug = i["ia_sugirio"] or ({"recommendation": i["recommendation"], "reasons": i["reasons"]} if i["difiere"] else None)
+            if sug:
+                print(f"    {i['incident_id']}: la IA sugirió «{sug['recommendation']}» — {(sug['reasons'] or [''])[0][:160]}")
         for e in res["errors"]:
             print(f"  aviso: {e}")
     print("\n== Resumen ==")

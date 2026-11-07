@@ -2,6 +2,13 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [1.10.1] - 2026-11-07
+
+### Cambiado: pantalla de inicio y Phishing con el mismo estilo glass
+- La pantalla de inicio y las tres herramientas de Phishing (Correos, Evaluar dominio, Dominios parecidos) usan vidrio esmerilado, entrada escalonada con anime.js y pestañas en negrita; Phishing suma el fondo «aurora».
+- Rendimiento: desenfoque más liviano, el fondo animado se pausa cuando la pestaña está oculta y con «reducir movimiento» se quitan el desenfoque y la aurora (útil en equipos o máquinas virtuales sin aceleración gráfica). La entrada animada solo se repite al cambiar de pantalla, no en cada redibujado.
+- Pruebas e2e nuevas para el inicio y Phishing, con y sin movimiento.
+
 ## [1.10.0] - 2026-11-07
 
 ### Cambiado: Panel con estilo «glass» y animaciones (anime.js)

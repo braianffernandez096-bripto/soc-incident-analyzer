@@ -366,16 +366,17 @@ details.panel summary{cursor:pointer}
 
 /* ---------- Panel «glass» (v1.10): pestañas en negrita, vidrio esmerilado y movimiento con anime.js ---------- */
 .tabs a,.tabs a .count{font-weight:700}
-.dash{--glass:rgba(255,255,255,.62);--edge:rgba(255,255,255,.9);--b1:#8fb4ff;--b2:#ffb98a;--b3:#b6a4ff;--aop:.4;position:relative}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .dash{--glass:rgba(15,25,45,.58);--edge:rgba(255,255,255,.13);--b1:#2447d4;--b2:#c2410c;--b3:#6d28d9;--aop:.5}}
-:root[data-theme="dark"] .dash{--glass:rgba(15,25,45,.58);--edge:rgba(255,255,255,.13);--b1:#2447d4;--b2:#c2410c;--b3:#6d28d9;--aop:.5}
+.dash,.glassv{--glass:rgba(255,255,255,.62);--edge:rgba(255,255,255,.9);--b1:#8fb4ff;--b2:#ffb98a;--b3:#b6a4ff;--aop:.4;position:relative}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) :is(.dash,.glassv){--glass:rgba(15,25,45,.58);--edge:rgba(255,255,255,.13);--b1:#2447d4;--b2:#c2410c;--b3:#6d28d9;--aop:.5}}
+:root[data-theme="dark"] :is(.dash,.glassv){--glass:rgba(15,25,45,.58);--edge:rgba(255,255,255,.13);--b1:#2447d4;--b2:#c2410c;--b3:#6d28d9;--aop:.5}
 .aurora{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
-.aurora i{position:absolute;border-radius:50%;filter:blur(90px);opacity:var(--aop)}
+.aurora i{position:absolute;border-radius:50%;filter:blur(90px);opacity:var(--aop);will-change:transform}
 .aurora i:nth-child(1){width:560px;height:560px;background:var(--b1);left:-140px;top:-160px}
 .aurora i:nth-child(2){width:500px;height:500px;background:var(--b2);right:-120px;top:25%;opacity:calc(var(--aop) * .8)}
 .aurora i:nth-child(3){width:520px;height:520px;background:var(--b3);left:30%;bottom:-240px;opacity:calc(var(--aop) * .75)}
-.dash .panel,.dash .inc-card{background:var(--glass);border-color:var(--edge);-webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%)}
-@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.dash .panel,.dash .inc-card{background:var(--panel)}}
+.dash .panel,.dash .inc-card,.glassv .panel,.glassv .drop,.glassv .notice,.glassv .ph-tabs a{background:var(--glass);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.dash .panel,.dash .inc-card,.glassv .panel,.glassv .notice,.glassv .ph-tabs a{border-color:var(--edge)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.dash .panel,.dash .inc-card,.glassv .panel,.glassv .drop,.glassv .notice,.glassv .ph-tabs a{background:var(--panel)}}
 .dash .panel>h3 small{font-weight:400;color:var(--muted);font-size:12.5px;margin-left:6px}
 .dash .hero>.scan{position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.18) 50%,transparent 70%);transform:translateX(-120%);pointer-events:none}
 .dash .kpi{position:relative;overflow:hidden}
@@ -430,3 +431,15 @@ details.panel summary{cursor:pointer}
 .dash .kpi .sevbar span{padding:0}
 .tabs-row{flex-wrap:wrap;row-gap:8px}
 .tabs{flex:1 1 auto}
+/* inicio y phishing con el mismo vidrio */
+.glassv .ph-tabs a{font-weight:700}
+.glassv .ph-tabs a[aria-current=page]{border-color:var(--accent)}
+.glassv input[type=text],.glassv input[type=search],.glassv input[type=password],.glassv select,.glassv textarea{background:var(--glass);border-color:var(--edge)}
+.glassv .drop{transition:border-color .15s,background .15s,transform .2s,box-shadow .2s}
+.glassv .drop:hover,.glassv .drop.over{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent);transform:translateY(-2px)}
+.glassv .landing h1{font-weight:700}
+.glassv .checks li{transition:transform .15s}
+.glassv .checks li:hover{transform:translateX(4px)}
+/* modo liviano (Ajustes → reducir movimiento): sin desenfoque, para equipos sin aceleración gráfica */
+:root[data-motion="reduced"] :is(.dash,.glassv) :is(.panel,.inc-card,.drop,.notice,.ph-tabs a){-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--panel)}
+:root[data-motion="reduced"] .aurora{display:none}

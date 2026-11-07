@@ -258,7 +258,7 @@ function bindAccess() {
 
 function render() {
   hideTip();
-  if (typeof anime === "function") anime.running.slice().forEach((a) => a.pause());
+  stopLoops();
   const main = $("#main");
   const r = route();
   if (S.needAuth) { $("#nav").innerHTML = ""; $("#railFoot").innerHTML = ""; main.innerHTML = `<div class="view">${accessView()}</div>`; bindAccess(); return; }
@@ -266,9 +266,9 @@ function render() {
   if (inPh(r)) {
     renderRail();
     const v = { "phishing/dominio": [domainView, bindDomain], "phishing/parecidos": [lookView, bindLook] }[r] || [phishingView, bindPhishing];
-    main.innerHTML = `<div class="view">${phTabs(r)}${v[0]()}</div>`; v[1](); if (!S.keepScroll) window.scrollTo(0, 0); S.keepScroll = false; return;
+    main.innerHTML = `<div class="view glassv">${AURORA_HTML}${phTabs(r)}${v[0]()}</div>`; v[1](); viewFx(main.firstElementChild, `ph:${r}:${S.ph ? "res" : "up"}`, true); if (!S.keepScroll) window.scrollTo(0, 0); S.keepScroll = false; return;
   }
-  if (!S.a) { renderRail(); main.innerHTML = `<div class="view">${landing()}</div>`; bindLanding(); bindHero(); return; }
+  if (!S.a) { renderRail(); main.innerHTML = `<div class="view glassv">${landing()}</div>`; bindLanding(); bindHero(); viewFx(main.firstElementChild, "landing", false); return; }
   renderRail();
   const views = { dashboard, incidents, findings, attack, logs, iocs, report };
   const v = views[r] || dashboard;
@@ -539,9 +539,37 @@ function bindDashboard() {
 
 /* Animaciones de entrada del Panel (anime.js). Son opcionales: sin la librería o con «reducir movimiento»
    todo queda directamente en su estado final, y las animaciones solo tocan atributos y estilos por JavaScript (compatible con la CSP). */
+const AURORA_HTML = '<div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>';
+let AURORA = [];
+function stopLoops() {
+  AURORA.forEach((a) => a.pause()); AURORA = [];
+  if (typeof anime === "function") anime.running.slice().forEach((a) => a.pause());          // sin animaciones en bucle de paneles anteriores
+}
+/* Aurora de fondo: tres manchas que derivan despacio; se detienen con la pestaña oculta para no gastar equipo. */
+function auroraFx(root) {
+  if (typeof anime !== "function" || reducedMotion()) return;
+  [[1, 90, 60, 14000], [2, -80, -50, 17000], [3, 70, -40, 20000]].forEach(([n, x, y, d]) => {
+    const el = root.querySelector(`.aurora i:nth-child(${n})`);
+    if (el) AURORA.push(anime({ targets: el, translateX: [0, x], translateY: [0, y], duration: d, direction: "alternate", loop: true, easing: "easeInOutSine" }));
+  });
+}
+document.addEventListener("visibilitychange", () => AURORA.forEach((a) => (document.hidden ? a.pause() : a.play())));
+/* Entrada escalonada de las vistas de inicio y phishing; solo cuando cambia de pantalla (no en cada redibujado). */
+function viewFx(root, key, withAurora) {
+  if (!root) return;
+  if (withAurora) auroraFx(root);
+  const first = S.fxKey !== key; S.fxKey = key;
+  if (!first || typeof anime !== "function" || reducedMotion()) return;
+  const host = root.querySelector(":scope > .landing");
+  const kids = [...(host || root).querySelectorAll(":scope > *:not(.aurora)")];
+  anime.set(kids, { opacity: 0 });
+  anime({ targets: kids, opacity: [0, 1], translateY: [18, 0], delay: anime.stagger(70), duration: 550, easing: "easeOutCubic",
+    complete: () => kids.forEach((e) => { e.style.opacity = ""; e.style.transform = ""; }) });
+}
+
 function dashFx(dash) {
   if (typeof anime !== "function" || reducedMotion()) return;
-  anime.running.slice().forEach((a) => a.pause());          // sin animaciones en bucle de paneles anteriores
+  stopLoops();
   const q = (s) => [...dash.querySelectorAll(s)];
   const clear = (els, props) => () => els.forEach((e) => props.forEach((p) => { e.style[p] = ""; }));
   dash.classList.add("fx-run");
@@ -563,9 +591,7 @@ function dashFx(dash) {
     const h = +r.getAttribute("height"), y = +r.getAttribute("y"); if (!h || r.getAttribute("fill") === "transparent") return;
     anime({ targets: r, height: [0, h], y: [y + h, y], delay: 1100 + i * 8, duration: 600, easing: "easeOutQuad" });
   });
-  anime({ targets: ".aurora i:nth-child(1)", translateX: [0, 90], translateY: [0, 60], duration: 14000, direction: "alternate", loop: true, easing: "easeInOutSine" });
-  anime({ targets: ".aurora i:nth-child(2)", translateX: [0, -80], translateY: [0, -50], duration: 17000, direction: "alternate", loop: true, easing: "easeInOutSine" });
-  anime({ targets: ".aurora i:nth-child(3)", translateX: [0, 70], translateY: [0, -40], duration: 20000, direction: "alternate", loop: true, easing: "easeInOutSine" });
+  auroraFx(dash);
   setTimeout(() => dash.classList.remove("fx-run"), 2600);
 }
 

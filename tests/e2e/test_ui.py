@@ -275,3 +275,29 @@ def test_dashboard_without_motion_has_everything_visible_at_once(browser, server
     assert ops and set(ops) == {"1"}
     assert pg.locator("[data-card]").count() == 6 and errs == []
     ctx.close()
+
+
+def test_landing_and_phishing_share_glass_style_and_animate_in(page):
+    page.wait_for_timeout(1500)                                                # termina la entrada escalonada
+    assert page.locator(".view.glassv .landing").count() == 1
+    assert set(page.evaluate("[...document.querySelectorAll('.landing > *')].map(e => getComputedStyle(e).opacity)")) == {"1"}
+    page.get_by_role("link", name="Phishing").click()
+    expect(page.locator(".view.glassv .aurora")).to_have_count(1)
+    page.locator("#psample").click()
+    expect(page.locator(".view.glassv")).to_contain_text("Correos sospechosos")
+    page.get_by_role("link", name="Evaluar dominio").click()
+    expect(page.locator(".view.glassv .ph-tabs")).to_be_visible()
+    weights = page.evaluate("[...document.querySelectorAll('.ph-tabs a')].map(a => +getComputedStyle(a).fontWeight)")
+    assert weights and all(w >= 700 for w in weights)
+    assert page.problems == []
+
+
+def test_landing_without_motion_is_complete_at_once(browser, server):
+    ctx = browser.new_context(reduced_motion="reduce")
+    pg = ctx.new_page()
+    errs = []
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    pg.goto(server)
+    ops = pg.evaluate("[...document.querySelectorAll('.landing > *')].map(e => getComputedStyle(e).opacity)")
+    assert ops and set(ops) == {"1"} and errs == []
+    ctx.close()

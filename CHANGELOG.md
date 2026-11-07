@@ -11,9 +11,13 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - El ensamblado del documento (CSS, JS con anime.js y CSP) pasó a una función común para ambos informes.
 - Pruebas: contenido, archivo sin recursos externos y CSP coincidente, campos hostiles, reputación, endpoint (404, solo POST, PDF intacto) y un e2e que lo descarga y lo abre sin errores.
 
+### Documentación: README más corto
+- El README pasa de unas 250 a unas 145 líneas: cada función (phishing, informe HTML, triaje, IA, reputación, privacidad, seguridad, validación) queda en una o dos oraciones con enlace al detalle. No se quitó información.
+- Nuevo `docs/INFORME-HTML.md` (texto completo de la sección) y la sección «Límites» pasó a `docs/DESARROLLO.md`.
+
 ### Documentación: demostraciones nuevas en GIF
-- Los seis GIF del README se rehicieron con el diseño nuevo (glass y animaciones): análisis de logs, phishing, evaluar dominio, dominios parecidos y los informes HTML de logs y de phishing. Se recortaron la barra del navegador y la ventana de la VM, y se dejaron en bucle.
-- Se eliminaron las 22 capturas PNG de `img/` (eran del diseño anterior) y la galería `docs/CAPTURAS.md`; el README ya no tiene la sección «Capturas». El informe PDF de ejemplo sigue en `examples/`.
+- Los GIF del README se rehicieron con el diseño nuevo (glass y animaciones): análisis de logs, phishing (con la descarga y vista del informe HTML), evaluar dominio, dominios parecidos y el informe HTML de logs. Se recortaron la barra del navegador y la ventana de la VM, y se dejaron en bucle.
+- Se eliminaron las capturas PNG de `img/` (eran del diseño anterior) y la galería `docs/CAPTURAS.md`; el README ya no tiene la sección «Capturas». Se conservaron las dos del captcha (rehechas con el diseño nuevo), ahora enlazadas desde `docs/DESARROLLO.md`. El informe PDF de ejemplo sigue en `examples/`.
 
 ## [1.10.2] - 2026-11-07
 

@@ -19,32 +19,9 @@ Proyecto personal, hecho para practicar el análisis de incidentes. Lo desarroll
 
 ## Cómo funciona
 
-1. **Motor de reglas determinista** (`backend/detection.py`, `detection_generic.py`): fuerza bruta y password spraying, movimiento lateral, escalamiento de privilegios, persistencia, LSASS, DCSync, Kerberoasting, exfiltración, evasión de defensas, ataques web y más; para Windows (por Event ID) y para otras fuentes (SSH, web, DNS, cloud).
+Un motor de reglas determinista detecta fuerza bruta, movimiento lateral, escalamiento de privilegios, persistencia, exfiltración, ataques web y más (Windows, SSH, web, DNS y nube). Cada hallazgo cita los `Log_ID` que lo sustentan, se agrupa en incidentes y se mapea a MITRE ATT&CK, con consultas para tu SIEM (Splunk, Sentinel, Sigma) y un informe en PDF o HTML. La IA y la reputación son opcionales y nunca cambian la criticidad. Detalle de cada parte: [docs/DESARROLLO.md](docs/DESARROLLO.md#cómo-funciona-detalle).
 
-2. Cada hallazgo cita los `Log_ID` que lo sustentan y explica por qué tiene esa criticidad.
-
-3. **Correlación**: los hallazgos se agrupan en incidentes cuando comparten IP externa o cuenta de actor.
-
-4. **IA (Claude, OpenAI, Gemini u Ollama local)** (`backend/ai.py`, `backend/ai_cloud.py`, `backend/ai_local.py`, opcional): solo redacta; no puede cambiar la criticidad y un verificador descarta lo inventado. Se elige el proveedor en la pestaña Informe. Sin clave ni Ollama, el informe usa plantillas.
-
-5. **PDF** (`backend/report.py`): resumen ejecutivo, hallazgos, evidencia, impacto, plan de acción y recomendaciones.
-6. **Informe HTML** (`backend/report_html.py`): el mismo contenido en un solo archivo que se abre sin conexión, con gráficos y animaciones (ver [Informe HTML](#informe-html)).
-
-6. **Reputación (opcional)** (`backend/intel.py`): VirusTotal y AbuseIPDB, solo con tu confirmación. Ver [más abajo](#reputación-de-ip-y-dominios-virustotal-y-abuseipdb) y [docs/REPUTACION.md](docs/REPUTACION.md).
-
-7. **MITRE ATT&CK** (`backend/attack.py`): técnicas con nombre oficial, matriz por táctica y capa para ATT&CK Navigator. Sin Internet.
-
-8. **Consultas para tu SIEM** (`backend/siemqueries.py`): Splunk (SPL), Sentinel (KQL) y reglas Sigma para los hallazgos de Windows; para SSH, web, DNS, Linux y nube, reglas Sigma.
-
-9. **Phishing** (`backend/phishing.py`): análisis estático de `.eml` (remitente, SPF/DKIM/DMARC, enlaces, homógrafos, adjuntos, ClickFix) con veredicto y puntaje.
-
-10. **Verificar el remitente en DNS** (opcional): comprueba SPF, clave DKIM y política DMARC con el DNS de hoy y lo compara con las cabeceras.
-
-Detalle de cada punto en [docs/DESARROLLO.md](docs/DESARROLLO.md#cómo-funciona-detalle).
-
-## Formatos de entrada
-
-Acepta Excel (`.xlsx`, `.xlsm`), CSV/TSV, JSON, NDJSON (también el formato de Splunk y las respuestas de Elasticsearch/OpenSearch) y `auth.log` de Linux en texto. Reconoce las columnas por nombre aunque cambie el idioma o el esquema (incluido Elastic ECS), y solo exige `Timestamp` y `Event_ID`. Tabla de formatos, columnas, marcas de tiempo y cada ejemplo de `sample_data/`: [docs/FORMATOS.md](docs/FORMATOS.md).
+Acepta Excel, CSV/TSV, JSON/NDJSON y `auth.log` de Linux; solo exige `Timestamp` y `Event_ID`. Formatos y ejemplos: [docs/FORMATOS.md](docs/FORMATOS.md).
 
 ## Resultado con el Excel de ejemplo
 
@@ -67,9 +44,9 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 
 ![Recorrido por el análisis de logs: panel, incidentes, hallazgos, eventos, indicadores e informe](img/gif/logs-demo.gif)
 
-**Phishing: análisis de correos de ejemplo, detalle con homógrafos y descarga del informe**
+**Phishing: análisis de correos de ejemplo, detalle con homógrafos y descarga del informe HTML**
 
-![Recorrido por el análisis de phishing: carga, tabla de correos, detalle del correo y desglose de caracteres](img/gif/phishing-demo.gif)
+![Recorrido por el análisis de phishing: carga, tabla de correos, detalle, desglose de caracteres y descarga del informe HTML](img/gif/phishing-demo.gif)
 
 **Evaluar dominio: nota de A a F con lo que resta cada comprobación (SPF, DKIM y DMARC)**
 
@@ -80,11 +57,9 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 ![Generación de variantes de un dominio y comprobación de registro en el DNS](img/gif/parecidos-demo.gif)
 
 <details>
-<summary>Ver los informes HTML generados (logs y phishing)</summary>
+<summary>Ver el informe HTML del análisis de logs</summary>
 
 ![Descarga del informe HTML del análisis de logs y recorrido por sus secciones](img/gif/informe-logs.gif)
-
-![Descarga del informe HTML del análisis de correos y recorrido por sus secciones](img/gif/informe-phishing.gif)
 
 </details>
 
@@ -107,7 +82,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install --require-hashes -r requirements.lock      # versiones exactas, verificadas por hash
 
-# 4. (Opcional) claves: Anthropic para la redacción con IA (de pago); VirusTotal y AbuseIPDB para reputación. Para IA local sin clave, instala Ollama y un modelo (ver [IA local](#ia-local-con-ollama-opcional))
+# 4. (Opcional) claves: Anthropic para la redacción con IA (de pago); VirusTotal y AbuseIPDB para reputación. Para IA local sin clave, instala Ollama y un modelo (ver [IA local](docs/IA-LOCAL.md))
 cp .env.example .env
 nano .env                       # ANTHROPIC_API_KEY=...  VT_API_KEY=...  ABUSEIPDB_API_KEY=...
 
@@ -132,119 +107,33 @@ docker compose up --build
 
 Abre http://127.0.0.1:8000. El puerto queda publicado solo en tu equipo (`127.0.0.1`) porque la app no tiene login. La imagen corre con un usuario sin privilegios y no incluye tu `.env`: las claves se pasan como variables de entorno.
 
-## Análisis de correos (phishing)
+## Más funciones
 
-En la pestaña **Phishing** (disponible desde el inicio, sin cargar logs) sube uno o varios `.eml`, o pulsa **Probar con correos de ejemplo** (`sample_data/correos/`: 8 maliciosos, entre ellos 4 con homógrafos, 1 con un recorrido anómalo y 2 legítimos que no deben alertar). Para obtener un `.eml`: en Outlook, Thunderbird o Gmail guarda el correo como `.eml` o usa «Descargar mensaje». Los `.msg` no se admiten. Si no puedes exportarlo, **pega las cabeceras** (el «origen del mensaje») en el cuadro de la pantalla de carga.
+- **Phishing:** análisis estático de `.eml` (SPF/DKIM/DMARC, enlaces, homógrafos, adjuntos) con veredicto y puntaje; evaluación de dominio y dominios parecidos. Nunca abre enlaces ni ejecuta adjuntos. [Detalle](docs/DESARROLLO.md#análisis-de-correos-phishing-detalle).
+- **Informe HTML:** un solo archivo que se abre sin conexión, con gráficos, modo claro/oscuro y versión imprimible, para logs y para phishing. [Detalle](docs/INFORME-HTML.md).
+- **Triaje asistido por IA:** recomienda Escalar, Probable falso positivo o Falta información; la severidad la fija siempre el motor. [Detalle](docs/TRIAGE.md).
+- **IA opcional:** Claude, OpenAI o Gemini con tu clave ([docs/PROVEEDORES-IA.md](docs/PROVEEDORES-IA.md)), o un modelo local con Ollama sin costo y sin enviar datos ([docs/IA-LOCAL.md](docs/IA-LOCAL.md)). Un modelo local pequeño sirve para practicar; para el informe formal se aconseja uno de mayor calidad.
+- **Reputación de IP y dominios:** VirusTotal y AbuseIPDB, solo con tu confirmación y sin enviar datos internos. [Detalle](docs/REPUTACION.md).
 
-Es análisis estático y determinista: no se abre ningún enlace ni se ejecuta ningún adjunto, y las URL se muestran «defangeadas». Incluye ataques homógrafos con desglose carácter por carácter, remitente esperado, recorrido `Received`, puntaje con factores visibles, evaluación de dominio (SPF/DKIM/DMARC) y dominios parecidos. Todo el detalle, con sus límites, está en [docs/DESARROLLO.md](docs/DESARROLLO.md#análisis-de-correos-phishing-detalle).
-
-## Triaje asistido por IA (opcional)
-
-Cada incidente trae una recomendación (**Escalar**, **Probable falso positivo** o **Falta información**) con motivos, confianza y «qué me haría cambiar de opinión»; el analista registra su decisión y una nota, que va al PDF. La severidad la fija siempre el motor y, si la IA quiere ser menos exigente en un incidente Crítico o Alto, se conserva la del motor y se marca el conflicto. Incluye un script para medir modelos. Detalle y límites: [docs/TRIAGE.md](docs/TRIAGE.md).
-
-## Informe HTML
-
-Junto al PDF, en la pestaña **Informe** está **Descargar informe HTML**: un único archivo que se abre con doble clic en cualquier navegador, sin conexión y sin instalar nada. Trae el mismo contenido que el PDF (resumen, incidentes con evidencia y plan de acción, IoC, reputación, triaje y decisiones del analista, correos sospechosos) más:
-
-- gráficos SVG (criticidad, eventos por ventana de 10 minutos con cada criticidad) y animaciones con [anime.js](https://animejs.com/) 3.2.2 incluido dentro del archivo (sin CDN);
-- diseño «glass» con modo claro y oscuro (sigue al sistema y se puede cambiar), adaptado al celular;
-- incidentes y hallazgos desplegables, filtro de indicadores y versión imprimible (botón «Imprimir / PDF»: se abre todo y se quitan los efectos);
-- las animaciones son opcionales: sin JavaScript o con «reducir movimiento» activado el informe se ve completo y quieto.
-
-El análisis de **Phishing** tiene su propio **Descargar informe HTML** (junto al PDF, en Phishing → Correos): el mismo contenido que su PDF, con el mismo diseño y las mismas garantías de seguridad.
-
-Seguridad: todo dato del archivo analizado, de la IA o de un correo se escapa al generar el HTML, y el propio informe lleva una política CSP que solo permite su script y su estilo (por hash) y ninguna conexión: aunque algo se escapara mal, el navegador no ejecutaría código. Como cualquier informe con datos del cliente, compártelo solo con quien corresponda.
-
-## Otros proveedores de IA: OpenAI y Gemini (opcional)
-
-Además de Claude, en las pestañas **Informe** e **Incidentes** puedes elegir **OpenAI** o **Gemini (Google)** con tu propia clave (`OPENAI_API_KEY`, `GEMINI_API_KEY` en `.env`, o pegada en el campo, que se usa solo en esa consulta y no se guarda). Las garantías son las mismas que con Claude: el motor fija la criticidad, el verificador descarta lo inventado y, si el proveedor falla, queda el informe por reglas. Las direcciones de los servicios están fijas en el servidor (el navegador no puede indicar otra URL) y los mensajes de error no repiten lo que responde el proveedor. Los nombres de modelo cambian seguido: hay uno por defecto y puedes escribir otro en el campo o fijarlo con `OPENAI_MODEL` / `GEMINI_MODEL`. Detalle en [docs/PROVEEDORES-IA.md](docs/PROVEEDORES-IA.md).
-
-## IA local con Ollama (opcional)
-
-Alternativa a Claude para quien no quiere pagar ni enviar datos a un tercero: en la pestaña **Informe** eliges **IA local (Ollama)** y uno de los modelos instalados (`ollama pull llama3.1:8b`). Mismas garantías que con Claude: la criticidad y la prioridad del plan de acción las fija el motor y el verificador descarta lo inventado. **Recomendación:** un modelo local pequeño (como llama3.1:8b) sirve como apoyo y para practicar, pero puede equivocarse al redactar y al recomendar el triaje; para el informe formal y el triaje con IA se aconseja un modelo de mayor calidad, como Claude (ver [docs/IA-LOCAL.md](docs/IA-LOCAL.md#cuándo-usar-cada-uno)). Sin GPU, un modelo de 8B tarda minutos por consulta. Configuración (`OLLAMA_HOST`, `OLLAMA_NUM_CTX`, `OLLAMA_TIMEOUT`), Docker y tiempos medidos: [docs/IA-LOCAL.md](docs/IA-LOCAL.md).
-
-## Reputación de IP y dominios (VirusTotal y AbuseIPDB)
-
-Opcional. El botón **Consultar reputación** enriquece los indicadores externos con VirusTotal y AbuseIPDB. Antes de consultar ves la lista exacta de lo que se enviará: solo IP públicas y dominios, nunca IP internas, cuentas ni contenido de los logs. No cambia la criticidad. Claves gratuitas, límites y detalle: [docs/REPUTACION.md](docs/REPUTACION.md).
-
-## Si algo falla
-
-Los mensajes de error más comunes (formato no soportado, cabecera no reconocida, archivo renombrado, límites de tamaño, claves rechazadas, Python anterior a 3.11, puerto ocupado) están con su causa y solución en [docs/DESARROLLO.md](docs/DESARROLLO.md#si-algo-falla). Si usas Ubuntu 22.04, necesitas Python 3.12: la tabla explica cómo instalarlo.
-
-## Pruebas
+## Pruebas y validación
 
 ```bash
-pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
+pip install --require-hashes -r requirements-dev.lock
 python -m pytest                                           # ~1.200 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
-Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov`, `make lint`, `make audit` (bandit + pip-audit), `make start`, `make stop`, `make logs`. Con `make help` ves la lista completa.
+Hay pruebas unitarias, de integración, de extremo a extremo con navegador real y casos de actividad normal que no deben alertar; atajos con `make` (`make help`). Las reglas se midieron con datos que no escribí yo: las 11 IPs de fuerza bruta de un SSH real (Loghub) sin falsos positivos, la técnica correcta en 41 de 107 ataques de Windows (antes de calibrar: 13) y 86,4 % de 12.864 correos de phishing reales con criticidad Medio o más. Método y límites: [docs/VALIDACION.md](docs/VALIDACION.md); pruebas: [docs/DESARROLLO.md](docs/DESARROLLO.md#pruebas).
 
-Hay pruebas unitarias, de integración (API con entradas hostiles, capa de IA con modelo simulado, inyección de prompts) y de extremo a extremo con un navegador real (Playwright), además de casos de actividad normal que no deben alertar. Qué cubre cada archivo: [docs/DESARROLLO.md](docs/DESARROLLO.md#pruebas).
+## Privacidad y seguridad
 
-## Validación de las reglas
+La app corre en tu equipo y no envía telemetría; solo salen datos si activas la IA de un proveedor, la consulta DNS o la reputación ([docs/PRIVACIDAD.md](docs/PRIVACIDAD.md)). Los datos del archivo se tratan como no confiables (escape, CSP estricta, tipo por contenido), las claves nunca se guardan y la IA no puede cambiar la criticidad. Contenedor sin privilegios y CI con `bandit`, `pip-audit` y Trivy: [detalle](docs/DESARROLLO.md#seguridad-detalle) y [SECURITY.md](SECURITY.md). Para colaborar: [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Las reglas se midieron con datos que no escribí yo. Método, resultados y límites en [docs/VALIDACION.md](docs/VALIDACION.md):
+## Si algo falla, límites y estructura
 
-- **SSH real (Loghub):** de 11 IPs que atacaron con fuerza bruta, la app detectó las 11, sin falsos positivos.
-
-- **107 ataques de Windows (OTRF Security-Datasets):** la técnica correcta en 41 (antes de calibrar: 13), otra técnica en 26 y ninguna en 37; la cobertura es limitada y está documentada.
-
-- **Phishing real (12.864 correos de phishing_pot):** 86,4 % con criticidad Medio o más y 62,5 % Alto o más (86,3 % y 62,4 % en los 11.362 correos no usados para ajustar). Correo legítimo: 0 falsos positivos en 39 correos reales (muestra pequeña).
-
-- **Tráfico normal:** 35 casos de actividad corriente sin hallazgos.
-
-Se pueden repetir con `scripts/validar_datasets.py`.
-
-## Privacidad: qué datos salen de tu equipo
-
-La app corre en tu equipo y no envía telemetría. Solo salen datos si tú activas una de estas funciones:
-
-| Función | Qué se envía | A quién |
-|---|---|---|
-| **Redacción con IA de Anthropic** (requiere clave) | Título, criticidad, métricas y filas de evidencia de cada hallazgo (puede incluir usuarios, equipos e IP reales); no el nombre del cliente ni el archivo completo | Anthropic |
-| **Consulta DNS** (Evaluar dominio, Dominios parecidos) | Solo nombres de dominio, por DNS sobre HTTPS; `DNS_LOOKUPS=off` la desactiva | Cloudflare (si falla, Google) |
-| **Reputación** (requiere clave) | Solo IP públicas, dominios y hash SHA-256 de adjuntos, que confirmas en pantalla | VirusTotal y AbuseIPDB |
-
-Con **Ollama** en tu propio equipo los datos no salen de él. Antes de activar la IA de un proveedor externo (Anthropic, OpenAI o Google), asegúrate de tener permiso para compartir esos datos con un tercero. Detalle completo: [docs/PRIVACIDAD.md](docs/PRIVACIDAD.md).
-
-## Seguridad
-
-- Las claves (Anthropic, VirusTotal, AbuseIPDB) viven en `.env` (excluido de Git) o se pegan en la interfaz; nunca se guardan, se registran ni se devuelven al navegador.
-
-- **Datos del archivo no confiables:** se escapan antes de mostrarse y de entrar al PDF, la CSP es estricta (`script-src 'self'`), el tipo del archivo se decide por su contenido y la app nunca ejecuta lo que sube el usuario.
-
-- **Capa de IA:** los logs viajan como datos no confiables; aunque un modelo obedeciera una instrucción escondida, no puede cambiar la criticidad y lo inventado se descarta (lo comprueban pruebas automáticas).
-
-- **Opcionales:** clave de acceso (`APP_ACCESS_TOKEN`), captcha local (`CAPTCHA=on`) y documentación de la API desactivada por defecto.
-
-- **Contenedor y CI:** imagen sin privilegios, de solo lectura y con dependencias verificadas por hash; el CI corre pruebas, navegador, `bandit`, `pip-audit` y Trivy, y publica un SBOM (CycloneDX) de la imagen.
-
-- Detalle: [docs/DESARROLLO.md](docs/DESARROLLO.md#seguridad-detalle). Alcance, límites y cómo reportar una vulnerabilidad: [SECURITY.md](SECURITY.md). Para colaborar: [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Límites
-
-- Si las marcas de tiempo no traen zona horaria, se usan tal cual; si la traen, se convierten a UTC.
-
-- Los rangos 192.0.2.0/24, 198.51.100.0/24 y 203.0.113.0/24 (documentación) se tratan como externos.
-
-- El mapeo MITRE ATT&CK es orientativo: indica técnicas consistentes con la evidencia, no prueba su uso, y no cambia la criticidad. La reputación de IP es opcional y orientativa; no hay geolocalización propia.
-
-- Los archivos de sesión viven en memoria (máx. 10) y se pierden al reiniciar el servidor.
-
-## Estructura
-
-```
-backend/      parser, reglas de detección, correlación, phishing, IA, reputación, MITRE ATT&CK, informe PDF y API (FastAPI)
-frontend/     interfaz web sin build (HTML, CSS y JS)
-tests/        unit, integration y e2e
-scripts/      validación con datasets públicos y regeneración de datos
-sample_data/  exports y correos .eml de ejemplo
-docs/         detalle: DESARROLLO, FORMATOS, IA-LOCAL, REPUTACION, PRIVACIDAD y VALIDACION
-```
-
-Árbol completo, con scripts y archivos de configuración: [docs/DESARROLLO.md](docs/DESARROLLO.md#estructura).
+- **Errores comunes** (formato, claves, Python 3.12, puerto ocupado): [docs/DESARROLLO.md](docs/DESARROLLO.md#si-algo-falla).
+- **Límites** (zona horaria, rangos de documentación, MITRE orientativo, sesiones en memoria): [docs/DESARROLLO.md](docs/DESARROLLO.md#límites).
+- **Estructura:** `backend/` (API FastAPI y motor), `frontend/` (interfaz sin build), `tests/`, `scripts/`, `sample_data/` y `docs/`. Árbol completo: [docs/DESARROLLO.md](docs/DESARROLLO.md#estructura).
 
 ## Licencia
 

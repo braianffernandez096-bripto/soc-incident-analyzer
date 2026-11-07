@@ -2,7 +2,7 @@
 
 Material que estaba en el README y se movió acá para que la portada sea corta. No se quitó nada: el README enlaza a cada parte.
 
-Contenido: [Cómo funciona](#cómo-funciona-detalle) · [Análisis de correos](#análisis-de-correos-phishing-detalle) · [Si algo falla](#si-algo-falla) · [Pruebas](#pruebas) · [Seguridad](#seguridad-detalle) · [Estructura](#estructura)
+Contenido: [Cómo funciona](#cómo-funciona-detalle) · [Análisis de correos](#análisis-de-correos-phishing-detalle) · [Si algo falla](#si-algo-falla) · [Pruebas](#pruebas) · [Seguridad](#seguridad-detalle) · [Límites](#límites) · [Estructura](#estructura)
 
 ## Cómo funciona (detalle)
 
@@ -116,6 +116,10 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 
 - **Captcha opcional (`CAPTCHA=on`):** antes de analizar un archivo de logs o un `.eml`, la persona resuelve un captcha **local**: no usa servicios de terceros, no necesita internet ni claves. Hay dos tipos y el servidor sortea uno en cada desafío (`CAPTCHA_TYPE=imagenes`, `rompecabezas` o `aleatorio`, el valor por defecto). **Imágenes:** marcar las 3 de 6 que muestran la misma figura (dispositivos de red y animales, giradas y con color, fondo y ruido al azar).
 
+  ![Captcha de imágenes: marcar las 3 que muestran la misma figura](../img/Captcha-imagenes.png)
+
+  ![Captcha de rompecabezas: deslizar la pieza hasta el hueco](../img/Captcha-rompecabezas.png)
+
 - **Rompecabezas:** deslizar una pieza hasta el hueco de la imagen (ratón, dedo o flechas del teclado); se acepta con unos píxeles de tolerancia y se comprueba, de forma básica, que el arrastre sea un movimiento y no un salto. La respuesta solo vive en el servidor, cada desafío admite un intento y caduca, y cada análisis pide su propio captcha (el pase es de un solo uso y dura segundos; ver los resultados no depende de ningún tiempo). Está apagado por defecto (en tu VM no estorba) y no protege los datos de ejemplo. Frena bots genéricos, no a un atacante dirigido: no sustituye a la clave de acceso. Las figuras son originales y se regeneran con `python scripts/build_captcha_assets.py`.
 
 - **Clave de acceso opcional:** define `APP_ACCESS_TOKEN` (se recomiendan 16 caracteres o más) y toda la API exige `Authorization: Bearer <clave>`; la interfaz la pide al entrar. Es una sola clave compartida, no un sistema de usuarios, y debe servirse detrás de HTTPS. Sin ella, la app no tiene login: úsala en local.
@@ -127,6 +131,16 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 - Integración continua: pruebas con cobertura mínima, pruebas de navegador (Playwright), `bandit`, `pip-audit` y Trivy sobre la imagen.
 
 - Alcance, límites y cómo reportar una vulnerabilidad: [SECURITY.md](../SECURITY.md).
+
+## Límites
+
+- Si las marcas de tiempo no traen zona horaria, se usan tal cual; si la traen, se convierten a UTC.
+
+- Los rangos 192.0.2.0/24, 198.51.100.0/24 y 203.0.113.0/24 (documentación) se tratan como externos.
+
+- El mapeo MITRE ATT&CK es orientativo: indica técnicas consistentes con la evidencia, no prueba su uso, y no cambia la criticidad. La reputación de IP es opcional y orientativa; no hay geolocalización propia.
+
+- Los archivos de sesión viven en memoria (máx. 10) y se pierden al reiniciar el servidor.
 
 ## Estructura
 

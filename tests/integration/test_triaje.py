@@ -259,3 +259,17 @@ def test_falso_positivo_con_prueba_positiva_se_acepta(ctx):
            "reasons": [f"El evento {sorted(allowed)[0]} lo ejecuta la cuenta de servicio de respaldos en su horario habitual de mantenimiento."],
            "evidence_ids": sorted(allowed)[:1], "would_change_if": "La cuenta aparece además activa fuera de su ventana de mantenimiento."}
     assert T._review(raw, base, allowed, ver, inc)["recommendation"] == "Probable falso positivo"
+
+
+def test_hora_de_la_decision_en_la_zona_del_analista():
+    assert T.local_stamp(1794017409, 180) == "2026-11-06 23:10 (UTC-03:00)"
+    assert T.local_stamp(1794017409, 0) == "2026-11-07 02:10 (UTC)"
+    assert T.local_stamp(1794017409, -330).endswith("(UTC+05:30)")
+    assert T.local_stamp(1794017409, 99999).endswith("(UTC-14:00)")   # un valor absurdo se acota
+
+
+def test_api_decision_guarda_la_zona(api):
+    c, sid, a = api
+    inc = a["incidents"][0]["id"]
+    d = c.post(f"/api/sessions/{sid}/triage/{inc}/decision", data={"decision": "Escalado", "tz": "180"}).json()
+    assert "(UTC-03:00)" in d["items"][0]["decision"]["at"]

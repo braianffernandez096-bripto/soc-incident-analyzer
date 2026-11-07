@@ -146,7 +146,8 @@ def chart_timeline(stats: dict) -> Drawing:
     flagged = [sum(b[s] for s in SEV_ORDER) for b in tl]
     normal = [b["normal"] for b in tl]
     ch.data = [normal, flagged]
-    ch.categoryAxis.categoryNames = [b["t"] if i % 6 == 0 else "" for i, b in enumerate(tl)]
+    step = max(1, -(-len(tl) // 6))   # a lo sumo ~6 etiquetas de hora
+    ch.categoryAxis.categoryNames = [b["t"] if i % step == 0 else "" for i, b in enumerate(tl)]
     ch.categoryAxis.labels.fontSize = 6.5
     ch.categoryAxis.labels.angle = 0
     ch.valueAxis.labels.fontSize = 6.5
@@ -465,7 +466,7 @@ def triage_block(t: dict | None) -> list:
     d = t.get("decision")
     if d:
         out.append(PR(f"<b>Decisión del analista:</b> {escape(d['decision'])}" + (f" — {escape(d['note'])}" if d["note"] else "")
-                      + f" <font color='#6b7280'>({escape(d['at'])})</font>", "small"))
+                      + f" <font color='#6b7280'>· {escape(d['at'])}</font>", "small"))
     return out
 
 
@@ -537,7 +538,7 @@ def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: dic
 
     # ---- 2. alcance y metodología -------------------------------------------
     story.append(P("2. Alcance y metodología", "h1"))
-    story.append(P(f"Se analizó el export del SIEM «{meta['filename']}» ({D.fmt_int(p['rows'])} eventos, {D.pl(p['hosts'], 'host', 'hosts')}, {D.pl(p['users'], 'cuenta', 'cuentas')}, "
+    story.append(P(f"Se analizó el export del SIEM «{meta['filename']}» ({D.fmt_int(p['rows'])} eventos, {D.pl(p['hosts'], 'host', 'hosts') if p['hosts'] else 'sin dato de host'}, {D.pl(p['users'], 'cuenta', 'cuentas')}, "
                    f"{p['time_start']} a {p['time_end']}, {p['duration']}). El análisis combina tres pasos:"))
     story += bullets([
         "Detección determinista: reglas explícitas sobre los campos del archivo (fuerza bruta, inicios de sesión sospechosos, escalamiento, comandos y "
@@ -548,9 +549,11 @@ def build_pdf(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: dic
          "un validador descarta Log_ID o IP inexistentes." if ai_mode else "Redacción determinista a partir de plantillas y de los datos de cada hallazgo."),
     ])
     rr = [[hcell("Regla"), hcell("Descripción"), hcell("Hallazgos")]]
-    for r in analysis["rules"]:
+    fired = [r for r in analysis["rules"] if r["hits"]]
+    for r in fired:
         rr.append([Paragraph(escape(r["key"]), S["cellb"]), Paragraph(escape(r["description"]), S["cell"]), Paragraph(str(r["hits"]), S["cell"])])
-    story += [Spacer(1, 4), table(rr, [30 * mm, CONTENT_W - 30 * mm - 18 * mm, 18 * mm])]
+    story += [Spacer(1, 4), P(f"Se evaluaron {len(analysis['rules'])} reglas; en este archivo generaron hallazgos {len(fired)}. Solo se listan esas.", "small"),
+              Spacer(1, 3), table(rr, [30 * mm, CONTENT_W - 30 * mm - 18 * mm, 18 * mm])]
 
     # ---- 3. relación entre incidentes ----------------------------------------
     story.append(P("3. Relación entre incidentes", "h1"))

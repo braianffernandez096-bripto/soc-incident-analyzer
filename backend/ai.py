@@ -220,7 +220,7 @@ def deterministic_group(inc: dict, findings: list[dict]) -> dict:
     return {
         "title": inc["title"], "narrative": narrative, "kill_chain": steps,
         "confidence": "Alta" if len(fs) >= 3 else "Media",
-        "confidence_reason": (f"{len(fs)} hallazgos enlazados por {' y '.join(shared)}; {n_crit} de severidad crítica." if shared
+        "confidence_reason": (f"{pl_(len(fs), 'hallazgo enlazado', 'hallazgos enlazados')} por {' y '.join(shared)}; {n_crit} de severidad crítica." if shared
                               else f"{len(fs)} hallazgo(s) agrupados por proximidad."),
         "source": "determinista",
     }
@@ -233,13 +233,23 @@ def deterministic_report(analysis: dict) -> dict:
     by_id = {f["id"]: f for f in analysis["findings"]}
     under = next((f for f in analysis["findings"] if f["rule"] == "siem_underclass"), None)
     n_crit = sum(1 for i in incs if i["severity"] == "Crítico")
+    n_hi = sum(1 for i in incs if i["severity"] == "Alto")
+    verbo = (f"{pl_(n_crit, 'incidente es crítico y requiere', 'incidentes son críticos y requieren')} contención inmediata de las cuentas y equipos involucrados. "
+             if n_crit else "No hay incidentes críticos; los incidentes de criticidad alta deben atenderse en el corto plazo. " if n_hi else "")
     summary = (f"Se analizaron {D.fmt_int(p['rows'])} eventos del SIEM entre {p['time_start']} y {p['time_end']} ({p['duration']}). "
-               f"El análisis identificó {pl_(len(incs), 'incidente independiente', 'incidentes independientes')} y {st['findings_total']} hallazgos "
-               f"({sev['Crítico']} críticos, {sev['Alto']} altos, {sev['Medio']} medios, {sev['Bajo']} bajos); "
-               f"{pl_(n_crit, 'incidente es crítico', 'incidentes son críticos')} y requiere(n) contención inmediata de las cuentas y equipos involucrados. "
+               f"El análisis identificó {pl_(len(incs), 'incidente independiente', 'incidentes independientes')} y {pl_(st['findings_total'], 'hallazgo', 'hallazgos')} "
+               f"({pl_(sev['Crítico'], 'crítico', 'críticos')}, {pl_(sev['Alto'], 'alto', 'altos')}, {pl_(sev['Medio'], 'medio', 'medios')}, {pl_(sev['Bajo'], 'bajo', 'bajos')}); "
+               + verbo
                + (f"Además, el SIEM clasificó como Informational {under['metrics']['eventos_informational']} eventos que sustentan los incidentes, "
                   f"por lo que parte de esta actividad no habría generado una alerta prioritaria. " if under else "")
                + "El detalle de cada incidente figura en la tabla siguiente.")
+    top = sorted(incs, key=lambda i: (D.SEV_ORDER[i["severity"]], len(i["finding_ids"])), reverse=True)[:3]
+    if top:
+        lines = []
+        for i in top:
+            ents = ([f"la IP externa {x}" for x in i["external_ips"][:2]] + [f"la cuenta {D.short_user(u)}" for u in i["actor_users"][:2]]) or [f"el equipo {h}" for h in i["hosts"][:1]]
+            lines.append(f"{i['id']} ({i['severity']}): {i['title']}; contener {' y '.join(ents)}." if ents else f"{i['id']} ({i['severity']}): {i['title']}.")
+        summary += "\n\nQué atender primero:" + "".join("\n\n• " + x for x in lines)
     hyp = analysis.get("hypotheses", [])
     cross = (f"Los registros sustentan {len(incs)} incidentes diferenciados: cada uno tiene actores (IP de origen o cuenta), hosts y ventanas de tiempo "
              f"propios, y ningún evento enlaza directamente a uno con otro. "

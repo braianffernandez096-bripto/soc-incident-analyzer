@@ -481,7 +481,7 @@ function bindTriage() {
   if (S.triage === null) { S.triage = false; loadTriage(); return; }
   document.querySelectorAll("[data-dec]").forEach((b) => b.onclick = async () => {
     const box = b.closest(".tri"), fd = new FormData();
-    fd.append("decision", b.dataset.dec); fd.append("note", box.querySelector("textarea").value);
+    fd.append("decision", b.dataset.dec); fd.append("tz", String(new Date().getTimezoneOffset())); fd.append("note", box.querySelector("textarea").value);
     try { S.triage = { ...S.triage, ...(await api(`/api/sessions/${S.sid}/triage/${encodeURIComponent(box.dataset.tri)}/decision`, { method: "POST", body: fd })) }; S.keepScroll = true; render(); toast("Decisión registrada"); }
     catch (e) { toast(e.message); }
   });

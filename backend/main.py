@@ -80,7 +80,7 @@ class SafeJSON(JSONResponse):
 
 
 _DOCS = os.environ.get("ENABLE_DOCS", "").strip().lower() in ("1", "true", "yes")      # API docs reveal the full surface: opt-in
-app = FastAPI(title="SOC Incident Analyzer", version="1.7.1", default_response_class=SafeJSON,
+app = FastAPI(title="SOC Incident Analyzer", version="1.7.2", default_response_class=SafeJSON,
               docs_url="/docs" if _DOCS else None, redoc_url="/redoc" if _DOCS else None, openapi_url="/openapi.json" if _DOCS else None)
 
 
@@ -509,7 +509,7 @@ def run_triage_ai(sid: str, request: Request, x_anthropic_key: str | None = Head
 
 
 @app.post("/api/sessions/{sid}/triage/{incident_id}/decision")
-def set_decision(sid: str, incident_id: str, decision: str = Form(...), note: str = Form("")):
+def set_decision(sid: str, incident_id: str, decision: str = Form(...), note: str = Form(""), tz: int = Form(0)):
     """Decisión del analista sobre un incidente. La IA no la toma ni la cambia; no modifica la severidad del motor."""
     s = _get(sid)
     if incident_id not in {i["id"] for i in s.analysis["incidents"]}:
@@ -517,7 +517,7 @@ def set_decision(sid: str, incident_id: str, decision: str = Form(...), note: st
     if decision not in triage_mod.DECISIONS:
         raise HTTPException(400, "Decisión no válida.")
     s.decisions[incident_id] = {"decision": decision, "note": triage_mod.clean_note(note),
-                                "by": s.analyst or "", "at": time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()) + " UTC"}
+                                "by": s.analyst or "", "at": triage_mod.local_stamp(time.time(), tz)}
     return triage_mod.view(s.analysis, s.triage, s.decisions)
 
 

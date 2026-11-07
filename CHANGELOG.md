@@ -2,6 +2,16 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [1.7.2] - 2026-11-07
+
+### Cambiado: lectura del informe en modo reglas
+- El resumen ejecutivo agrega «Qué atender primero» con los tres incidentes más graves y qué contener en cada uno (IP externas, cuentas o equipo).
+- Plurales corregidos («1 medio», «1 hallazgo enlazado», «requiere» / «requieren»).
+- La sección «Alcance y metodología» lista solo las reglas que generaron hallazgos e indica cuántas se evaluaron.
+- Si el archivo no trae nombre de host, el informe dice «sin dato de host» en lugar de contar un equipo vacío.
+- El gráfico de eventos por ventana muestra varias etiquetas de hora aunque haya pocas ventanas.
+- La hora de la decisión del analista se guarda en la zona horaria de su navegador (por ejemplo `2026-11-06 23:10 (UTC-03:00)`) y no en UTC.
+
 ## [1.7.1] - 2026-11-06
 
 ### Documentado: cuándo usar IA local y cuándo un modelo de mayor calidad

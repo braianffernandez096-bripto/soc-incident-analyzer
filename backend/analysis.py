@@ -26,7 +26,7 @@ def _profile(df: pd.DataFrame, meta: dict) -> dict:
         "rows": int(len(df)),
         "time_start": D.fts(t0), "time_end": D.fts(t1),
         "duration": D.fmt_dur((t1 - t0).total_seconds()),
-        "hosts": int(df["Hostname"].nunique()), "users": int(df[~df["User"].isin(["", "-"])]["User"].nunique()),
+        "hosts": int(df[~df["Hostname"].isin(["", "-"])]["Hostname"].nunique()), "users": int(df[~df["User"].isin(["", "-"])]["User"].nunique()),
         "event_ids": dict(Counter(df["Event_ID"]).most_common()),
         "siem_severity": dict(Counter(df["Severity"])),
         "log_sources": dict(Counter(df["Log_Source"])),

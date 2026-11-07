@@ -11,6 +11,7 @@ Principios (los mismos que el resto del proyecto):
 from __future__ import annotations
 
 import re
+import time
 from typing import Callable
 
 import pandas as pd
@@ -190,6 +191,14 @@ def generate(analysis: dict, df: pd.DataFrame, call: Callable, provider: str = "
 
 
 # --------------------------------------------------------------------------- decisión del analista
+def local_stamp(epoch: float, tz_minutes: int = 0) -> str:
+    """Fecha y hora en la zona del navegador del analista. `tz_minutes` es lo que devuelve JavaScript (`getTimezoneOffset`: positivo al oeste de UTC)."""
+    tz = max(-840, min(840, int(tz_minutes)))
+    local = time.gmtime(epoch - tz * 60)
+    sign, mins = ("-" if tz > 0 else "+"), abs(tz)
+    return time.strftime("%Y-%m-%d %H:%M", local) + f" (UTC{sign}{mins // 60:02d}:{mins % 60:02d})" if tz else time.strftime("%Y-%m-%d %H:%M", local) + " (UTC)"
+
+
 def clean_note(note: str) -> str:
     return " ".join((note or "").split())[:NOTE_MAX]
 

@@ -157,6 +157,8 @@ Junto al PDF, en la pestaña **Informe** está **Descargar informe HTML**: un ú
 - incidentes y hallazgos desplegables, filtro de indicadores y versión imprimible (botón «Imprimir / PDF»: se abre todo y se quitan los efectos);
 - las animaciones son opcionales: sin JavaScript o con «reducir movimiento» activado el informe se ve completo y quieto.
 
+El análisis de **Phishing** tiene su propio **Descargar informe HTML** (junto al PDF, en Phishing → Correos): el mismo contenido que su PDF, con el mismo diseño y las mismas garantías de seguridad.
+
 Seguridad: todo dato del archivo analizado, de la IA o de un correo se escapa al generar el HTML, y el propio informe lleva una política CSP que solo permite su script y su estilo (por hash) y ninguna conexión: aunque algo se escapara mal, el navegador no ejecutaría código. Como cualquier informe con datos del cliente, compártelo solo con quien corresponda.
 
 ## Otros proveedores de IA: OpenAI y Gemini (opcional)

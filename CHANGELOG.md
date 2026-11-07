@@ -2,6 +2,15 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [1.10.3] - 2026-11-07
+
+### Añadido: informe HTML en el análisis de phishing
+- Botón **Descargar informe HTML** junto al del PDF en Phishing → Correos (`POST /api/phishing/{id}/report.html`; cliente y analista van en el cuerpo, no en la URL).
+- Un único archivo que se abre sin conexión, con el mismo contenido que el PDF de phishing (resumen por criticidad, señales, autenticación, recorrido, verificación DNS, cálculo del puntaje, homógrafos, enlaces defangeados, adjuntos, qué verificar, acciones y reputación si se consultó), con el diseño glass, tema claro/oscuro, secciones desplegables y versión imprimible.
+- Mismas garantías que el informe de logs: todo dato del correo se escapa, sin estilos ni manejadores en línea y con su propia CSP por hash (sin red).
+- El ensamblado del documento (CSS, JS con anime.js y CSP) pasó a una función común para ambos informes.
+- Pruebas: contenido, archivo sin recursos externos y CSP coincidente, campos hostiles, reputación, endpoint (404, solo POST, PDF intacto) y un e2e que lo descarga y lo abre sin errores.
+
 ## [1.10.2] - 2026-11-07
 
 ### Cambiado: glass en toda la app y modo claro cómodo

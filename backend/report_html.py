@@ -411,6 +411,11 @@ def build_html(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: di
            + '<span class="sp"></span><button class="btn" id="theme" type="button" aria-label="Cambiar entre tema claro y oscuro">Tema</button>'
            '<button class="btn" id="print" type="button">Imprimir / PDF</button></div></nav>')
 
+    return _wrap(f"Informe técnico de investigación de incidente — {client}", nav, f"{hero}{s1}{s2}{s3}{s4}{s5}{s6}{s7}{s8}{s9}", FOOTER)
+
+
+def _wrap(title: str, nav: str, main_html: str, footer: str) -> bytes:
+    """Documento completo: CSS y JS (con anime.js) dentro del archivo y una CSP propia por hash, sin red."""
     css = _asset("report.css")
     script = _asset("anime.min.js").replace("</script", "<\\/script") + "\n" + _asset("report.js")
     h_css = base64.b64encode(hashlib.sha256(css.encode("utf-8")).digest()).decode()
@@ -418,7 +423,29 @@ def build_html(analysis: dict, ai: dict, df: pd.DataFrame, meta: dict, intel: di
     csp = (f"default-src 'none'; style-src 'sha256-{h_css}'; script-src 'sha256-{h_js}'; img-src data:; base-uri 'none'; form-action 'none'")
     doc = (f'<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
            f'<meta http-equiv="Content-Security-Policy" content="{csp}"><meta name="color-scheme" content="light dark"><meta name="robots" content="noindex">'
-           f'<meta name="generator" content="SOC Incident Analyzer"><title>Informe técnico de investigación de incidente — {e(client)}</title>'
-           f'<style>{css}</style></head><body><div class="blob b1"></div><div class="blob b2"></div><div class="wrap">{nav}<main>{hero}{s1}{s2}{s3}{s4}{s5}{s6}{s7}{s8}{s9}</main>'
-           f'<footer>{e(FOOTER)}</footer></div><script>{script}</script></body></html>')
+           f'<meta name="generator" content="SOC Incident Analyzer"><title>{e(title)}</title>'
+           f'<style>{css}</style></head><body><div class="blob b1"></div><div class="blob b2"></div><div class="wrap">{nav}<main>{main_html}</main>'
+           f'<footer>{e(footer)}</footer></div><script>{script}</script></body></html>')
     return doc.encode("utf-8")
+
+
+PHISHING_FOOTER = "Confidencial · Uso exclusivo del cliente · Análisis estático generado automáticamente a partir de archivos .eml"
+
+
+def build_phishing_html(items: list[dict], meta: dict, intel: dict | None = None) -> bytes:
+    """Informe HTML del análisis de correos sospechosos (mismo contenido que el PDF de phishing), en un único archivo sin conexión."""
+    client = meta.get("client") or "Cliente"
+    analyst = meta.get("analyst") or "Analista SOC"
+    today = datetime.now().strftime("%d/%m/%Y")
+    sev = {k: sum(1 for i in items if i["severity"] == k) for k in SEV_ORDER}
+    kpis = "".join(f'<div class="kpi {c}"><div class="n">{e(v)}</div><div class="l">{e(k)}</div></div>' for k, v, c in (
+        ("Correos", len(items), ""), ("Críticos", sev["Crítico"], "crit"), ("Altos", sev["Alto"], "alto"), ("Medios", sev["Medio"], "medio"), ("Bajos", sev["Bajo"], "bajo")))
+    hero = (f'<header class="hero glass reveal"><div class="k">Análisis de correos sospechosos</div><h1>Informe de análisis de phishing</h1>'
+            f'<div class="meta"><span><b>Cliente:</b> {e(client)}</span><span><b>Analista:</b> {e(analyst)}</span><span><b>Fecha del informe:</b> {today}</span>'
+            f'<span><b>Correos analizados:</b> {e(len(items))}</span></div><div class="kpis">{kpis}</div>'
+            '<p class="note">Análisis estático de archivos .eml: no se abrieron enlaces ni se ejecutaron adjuntos. La criticidad la fijan reglas con pesos fijos y es una ayuda '
+            'para el triage, no una prueba.</p></header>')
+    nav = ('<nav class="bar noprint" aria-label="Secciones"><div class="glass"><a href="#sec-1">Correos</a>'
+           '<span class="sp"></span><button class="btn" id="theme" type="button" aria-label="Cambiar entre tema claro y oscuro">Tema</button>'
+           '<button class="btn" id="print" type="button">Imprimir / PDF</button></div></nav>')
+    return _wrap(f"Informe de análisis de correos sospechosos — {client}", nav, hero + phishing_html(items, "1", intel), PHISHING_FOOTER)

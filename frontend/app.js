@@ -1235,7 +1235,7 @@ function phishingResults() {
       `<tr><td class="mono" style="word-break:break-all">${esc(r.indicator)}</td><td>${esc(r.kind === "hash" ? "SHA-256" : r.kind === "ip" ? "IP" : "Dominio")}</td><td>${repCell(r)}</td></tr>`).join("")}</tbody></table></div>` : ""}
     <div class="panel" style="margin-top:16px"><h3>Informe en PDF</h3>
       <div class="fields"><label class="f">Cliente<input type="text" id="pClient" value="${esc(S.client)}"></label><label class="f">Analista<input type="text" id="pAnalyst" value="${esc(S.analyst)}"></label></div>
-      <div class="row" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" id="ppdf">Descargar informe de phishing</button></div>
+      <div class="row" style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn primary" id="ppdf">Descargar informe de phishing (PDF)</button><button class="btn" id="phtml">Descargar informe HTML</button></div>
 </div>`;
 }
 function phishingView() { return S.ph ? phishingResults() : phishingUpload(); }
@@ -1285,17 +1285,19 @@ function bindPhishing() {
   });
   if (!P.intel) loadIntel(P, base, "phishing");
   bindIntel(P, base, "phishing");
-  $("#ppdf").onclick = async () => {
-    busy(true, "Generando PDF…");
+  const pdl = (ext, mime, label) => async () => {
+    busy(true, `Generando ${label}…`);
     try {
       const fd = new FormData(); fd.append("client", $("#pClient").value.trim()); fd.append("analyst", $("#pAnalyst").value.trim());
-      const r = await fetch(`${base}/report.pdf`, { method: "POST", body: fd, headers: authHeaders() });
-      if (!r.ok) throw new Error("No se pudo generar el PDF.");
-      const url = URL.createObjectURL(await r.blob()), a = document.createElement("a");
-      a.href = url; a.download = "informe_phishing.pdf"; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);
-      toast("PDF descargado");
+      const r = await fetch(`${base}/report.${ext}`, { method: "POST", body: fd, headers: authHeaders() });
+      if (!r.ok) throw new Error(`No se pudo generar el ${label}.`);
+      const url = URL.createObjectURL(new Blob([await r.arrayBuffer()], { type: mime })), a = document.createElement("a");
+      a.href = url; a.download = `informe_phishing.${ext}`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast(`${label} descargado`);
     } catch (e) { toast(e.message); } finally { busy(false); }
   };
+  $("#ppdf").onclick = pdl("pdf", "application/pdf", "PDF");
+  $("#phtml").onclick = pdl("html", "text/html", "informe HTML");
 }
 
 /* ---------- efectos ---------- */

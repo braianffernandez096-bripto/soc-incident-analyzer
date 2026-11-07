@@ -342,3 +342,30 @@ def test_light_theme_is_comfortable_not_pure_white_and_high_contrast(browser, se
     assert res["bg"].lower() != "#ffffff" and res["panel"].lower() != "#ffffff"        # sin blanco puro (cansa la vista)
     assert res["muted"] >= 4.5 and res["ink"] >= 7                                      # contraste accesible (WCAG AA / AAA)
     ctx.close()
+
+
+def test_phishing_html_report_downloads_and_opens_offline_without_errors(page, tmp_path):
+    page.get_by_role("link", name="Phishing").click()
+    page.locator("#psample").click()
+    expect(page.locator("#phtml")).to_be_visible()
+    page.fill("#pClient", "ACME S.A.")
+    with page.expect_download() as d:
+        page.locator("#phtml").click()
+    path = tmp_path / "phishing.html"
+    d.value.save_as(path)
+    assert d.value.suggested_filename == "informe_phishing.html" and path.read_bytes().startswith(b"<!doctype html>")
+    rep = page.context.new_page()
+    problems = []
+    rep.on("console", lambda m: problems.append(m.text) if m.type in ("error", "warning") else None)
+    rep.on("pageerror", lambda e: problems.append(str(e)))
+    rep.on("request", lambda r: problems.append("red: " + r.url) if not r.url.startswith(("file:", "data:")) else None)
+    rep.goto(path.as_uri())
+    expect(rep.get_by_role("heading", name="Informe de análisis de phishing")).to_be_visible()
+    expect(rep.locator("body")).to_contain_text("ACME S.A.")
+    rep.wait_for_timeout(1200)
+    assert rep.evaluate("[...document.querySelectorAll('.kpi .n')].map(n => n.textContent)")[0] == "11"
+    rep.locator("details.inc summary").first.click()
+    rep.get_by_role("button", name="Cambiar entre tema claro y oscuro").click()
+    assert rep.evaluate("document.documentElement.getAttribute('data-theme')") in ("dark", "light")
+    assert problems == [], problems
+    assert page.problems == []

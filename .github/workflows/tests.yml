@@ -105,7 +105,7 @@ jobs:
             aquasec/trivy:0.69.3 image --format cyclonedx --output /out/sbom.cdx.json soc-incident-analyzer:ci
       - name: Comprobar que el SBOM tiene componentes
         run: python -c "import json,sys; d=json.load(open('sbom.cdx.json')); n=len(d.get('components',[])); print(n,'componentes'); sys.exit(0 if n>20 else 1)"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom-cyclonedx
           path: sbom.cdx.json

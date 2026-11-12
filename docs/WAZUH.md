@@ -5,7 +5,7 @@ Volver al [README](../README.md).
 Opcional y **apagado por defecto**. Conecta Wazuh con el analizador: cada alerta que Wazuh genera llega a la app, el motor de siempre las analiza y, si lo configuras, te avisa por Telegram. Sin la variable `WAZUH_INGEST=on` el endpoint ni existe, y el resto de la app funciona exactamente igual.
 
 ```
-Wazuh (alerta nivel ≥ 7) → integración custom-soc-analyzer → POST /api/wazuh/alerts → motor de reglas → aviso mínimo a Telegram
+Wazuh (alerta nivel ≥ 5) → integración custom-soc-analyzer → POST /api/wazuh/alerts → motor de reglas → aviso mínimo a Telegram
                                                                                           └→ panel web (instantánea para revisar y decidir)
 ```
 
@@ -51,14 +51,33 @@ Wazuh (alerta nivel ≥ 7) → integración custom-soc-analyzer → POST /api/wa
      <name>custom-soc-analyzer</name>
      <hook_url>http://soc-analyzer:8000/api/wazuh/alerts</hook_url>
      <api_key>la-misma-clave-de-WAZUH_INGEST_TOKEN</api_key>
-     <level>7</level>
+     <level>5</level>
      <alert_format>json</alert_format>
    </integration>
    ```
 
-   Reinicia el manager (`/var/ossec/bin/wazuh-control restart`). El `level` es el nivel mínimo de la alerta de Wazuh: súbelo si llegan demasiadas.
+   Reinicia el manager (`/var/ossec/bin/wazuh-control restart`, o `docker restart <contenedor>` si corre en Docker).
+
+   **Por qué `level` 5 y no más alto.** El analizador detecta patrones (fuerza bruta, escalamiento, movimiento lateral…) **correlacionando varios eventos**, así que necesita ver los eventos sueltos y no solo el resumen que genera Wazuh. Cada fallo de inicio de sesión de Windows o de SSH es una alerta de nivel 5; con un `level` de 7 o más solo llegaría la alerta agregada (nivel 10), que es una única fila, y el motor no encontraría nada que correlacionar. Si llegan demasiadas alertas, súbelo de a poco (6, 7…) sabiendo que se pierde esa correlación, o filtra por grupo de reglas con `<group>`.
+
+   **Si el manager corre en Docker** (compose oficial de un solo nodo), edita el `ossec.conf` de **dentro del contenedor** (`docker exec -it <contenedor> vi /var/ossec/etc/ossec.conf`, o con `sed`). `/var/ossec/etc` es un volumen y el archivo de tu carpeta `config/wazuh_cluster/` no se vuelve a copiar al reiniciar, así que un cambio hecho solo ahí no se aplica. Para comprobar que Wazuh lo tomó, mira que el registro diga `Enabling integration for: 'custom-soc-analyzer'` (`grep -i integrator /var/ossec/logs/ossec.log | tail`); si dice `Remote integrations not configured`, la integración no está cargada.
 
 4. Abre la app. Si el modo está activo y ya llegaron alertas, en el inicio aparece **Abrir alertas de Wazuh (N)**. Abre una **instantánea** del último análisis: una sesión normal, con triaje, consultas para el SIEM e informes. Las alertas que lleguen después aparecen al volver a abrirla, y las decisiones que tomes viven en esa foto.
+
+## Probar la integración
+
+Con un agente de Windows conectado y su canal de Seguridad activo (lo es por defecto), desde **cmd** en ese equipo:
+
+```
+for /L %i in (1,1,12) do @net use \\127.0.0.1\ipc$ Mala%i /user:usuariofalso
+```
+
+Son 12 inicios de sesión fallidos con un usuario que no existe (no bloquea ninguna cuenta). En uno o dos minutos el estado (`GET /api/wazuh/status`) muestra las alertas recibidas y, si configuraste Telegram, llega el aviso **Escalar · Alto**. En el panel, **Abrir alertas de Wazuh** muestra el hallazgo de fuerza bruta con el origen de la ráfaga.
+
+Dos cosas que conviene saber al leer el panel:
+
+- **Las horas están en UTC**, como en el resto de la app: en Argentina son 3 horas menos.
+- Si Wazuh etiquetó los eventos con severidad baja, el motor suma la observación **«El SIEM clasificó como Informational…»**: avisa de que la clasificación del SIEM se quedó corta frente a lo que el motor detectó. No es una amenaza más, es una brecha de calidad, y por eso no genera aviso en Telegram.
 
 ## Telegram (opcional)
 

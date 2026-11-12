@@ -286,3 +286,53 @@ def test_wazuh_compose_override_joins_the_external_network_with_alias():
     assert data["networks"]["wazuh"]["external"] is True
     assert "soc-analyzer" in data["services"]["analyzer"]["networks"]["wazuh"]["aliases"]
     assert "ports" not in data["services"]["analyzer"]      # el puerto sigue solo en 127.0.0.1
+
+
+# ------------------------------------------------------------------ una ráfaga que llega a medias
+
+def _ssh_burst(first, last, ip="127.0.0.1"):
+    return [{"id": f"2.{i}", "timestamp": f"2026-11-12T21:41:{i:02d}.100+0000", "rule": {"level": 5, "description": "x", "id": "5710"},
+             "agent": {"id": "002", "name": "linux-1"}, "decoder": {"name": "sshd"},
+             "full_log": f"Nov 12 21:41:{i:02d} linux-1 sshd[2411]: Failed password for invalid user falso from {ip} port {49000 + i} ssh2"}
+            for i in range(first, last)]
+
+
+class _Sink:
+    def __init__(self):
+        self.sent = []
+
+    def format(self, findings, title):
+        return title + " | " + ",".join(f["severity"] for f in findings)
+
+    def send(self, text):
+        self.sent.append(text)
+        return True
+
+
+def test_burst_that_arrives_in_two_parts_alerts_when_severity_rises():
+    """Primero llegan 6 intentos (Medio, va al resumen) y después los 6 restantes (Alto): el Alto debe avisar de inmediato, una sola vez."""
+    sink, t = _Sink(), [0.0]
+    live = wazuh_live.LiveState(notifier=sink, clock=lambda: t[0])
+    live.ingest(_ssh_burst(0, 6))
+    live.run_cycle(main.analyze)
+    assert sink.sent == [] and len(live._digest) == 1                      # Medio: espera al resumen
+    t[0] += 60
+    live.ingest(_ssh_burst(6, 12))
+    live.run_cycle(main.analyze)
+    assert len(sink.sent) == 1 and "mayor severidad" in sink.sent[0] and "Alto" in sink.sent[0]
+    assert live._digest == []                                              # ya no va también en el resumen
+    t[0] += 60
+    live.ingest(_ssh_burst(12, 14))
+    live.run_cycle(main.analyze)
+    assert len(sink.sent) == 1                                             # misma severidad: no repite
+
+
+def test_same_severity_finding_is_not_repeated_and_lower_severity_does_not_realert():
+    sink = _Sink()
+    live = wazuh_live.LiveState(notifier=sink)
+    live.ingest(_ssh_burst(0, 12))
+    live.run_cycle(main.analyze)
+    assert len(sink.sent) == 1 and "nuevo(s) para revisar" in sink.sent[0]
+    live._dirty = True
+    live.run_cycle(main.analyze)
+    assert len(sink.sent) == 1

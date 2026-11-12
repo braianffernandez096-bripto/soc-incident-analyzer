@@ -7,6 +7,7 @@ Se activa con ``WAZUH_INGEST=on`` y una clave ``WAZUH_INGEST_TOKEN`` de 16 carac
 * Un ciclo de análisis corre cada ``WAZUH_ANALYZE_SECONDS`` (60 por defecto) **solo si llegaron alertas nuevas**. Es el mismo motor de siempre: la criticidad
   la fijan las reglas y no interviene ninguna IA.
 * Cada hallazgo nuevo se avisa una sola vez. Crítico y Alto salen en el ciclo; Medio y Bajo se juntan en un resumen cada ``WAZUH_DIGEST_MINUTES`` (60).
+  Si un hallazgo ya avisado **sube de severidad** (una ráfaga que llegó a medias y luego se completó), se avisa de nuevo una vez por cada subida.
 """
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ from . import wazuh as W
 log = logging.getLogger("soc.wazuh")
 
 IMMEDIATE = {"Crítico", "Alto"}
+RANK = {"Bajo": 1, "Medio": 2, "Alto": 3, "Crítico": 4}
 SKIP_RULES = {"siem_underclass", "dq_host_alias", "dq_logsource", "dq_account_lookalike"}   # observaciones sobre la calidad de los datos, no amenazas
 MAX_SEEN = 5000
 MIN_TOKEN = 16
@@ -66,8 +68,8 @@ class LiveState:
         self._rows: deque = deque()            # (llegada, fila)
         self._ids: set[str] = set()
         self._dirty = False
-        self._seen: dict[str, float] = {}
-        self._digest: list[dict] = []
+        self._seen: dict[str, tuple[float, int]] = {}      # huella -> (cuándo, severidad avisada)
+        self._digest: list[tuple[str, dict]] = []
         self._last_digest = clock()
         self.received = 0
         self.stats = {"windows": 0, "linux_auth": 0, "otro": 0, "descartadas": 0}
@@ -138,23 +140,30 @@ class LiveState:
     # -- avisos ---------------------------------------------------------------------------------
     def _notify(self, analysis: dict) -> None:
         now = self.clock()
-        fresh = []
+        fresh: list[tuple[str, dict]] = []
+        raised = False
         for f in analysis.get("findings", []):
             if f.get("rule") in SKIP_RULES:
                 continue
-            fp = fingerprint(f)
-            if fp in self._seen:
-                continue
-            self._seen[fp] = now
-            fresh.append(f)
+            fp, rank = fingerprint(f), RANK.get(f.get("severity"), 0)
+            prev = self._seen.get(fp)
+            if prev is not None and rank <= prev[1]:
+                continue                        # ya avisado con esta severidad (o con una mayor)
+            raised = raised or prev is not None
+            self._seen.pop(fp, None)
+            self._seen[fp] = (now, rank)
+            fresh.append((fp, f))
         while len(self._seen) > MAX_SEEN:
             self._seen.pop(next(iter(self._seen)))
         if not fresh or not self.notifier:
             return
-        urgent = [f for f in fresh if f.get("severity") in IMMEDIATE]
-        self._digest += [f for f in fresh if f.get("severity") not in IMMEDIATE]
+        urgent = [(fp, f) for fp, f in fresh if f.get("severity") in IMMEDIATE]
+        sent_now = {fp for fp, _ in urgent}
+        self._digest = [(fp, f) for fp, f in self._digest if fp not in sent_now]      # subió a Alto/Crítico: ya no va en el resumen
+        self._digest += [(fp, f) for fp, f in fresh if f.get("severity") not in IMMEDIATE]
         if urgent:
-            self.notifier.send(self.notifier.format(urgent, f"🛡️ Wazuh · {len(urgent)} hallazgo(s) nuevo(s) para revisar"))
+            kind = "nuevo(s) o con mayor severidad" if raised else "nuevo(s) para revisar"
+            self.notifier.send(self.notifier.format([f for _, f in urgent], f"🛡️ Wazuh · {len(urgent)} hallazgo(s) {kind}"))
 
     def _maybe_digest(self) -> None:
         now = self.clock()
@@ -162,7 +171,7 @@ class LiveState:
             return
         batch, self._digest, self._last_digest = self._digest, [], now
         self.notifier.send(self.notifier.format(
-            batch, f"🛡️ Wazuh · resumen: {len(batch)} hallazgo(s) de severidad media o baja (posibles falsos positivos, revisar)"))
+            [f for _, f in batch], f"🛡️ Wazuh · resumen: {len(batch)} hallazgo(s) de severidad media o baja (posibles falsos positivos, revisar)"))
 
     def status(self) -> dict:
         return {"enabled": True, "rows": self.size, "received": self.received, "interpreted": dict(self.stats),

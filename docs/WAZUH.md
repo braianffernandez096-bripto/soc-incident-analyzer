@@ -16,6 +16,7 @@ Wazuh (alerta nivel ≥ 5) → integración custom-soc-analyzer → POST /api/wa
 - **Solo recibe alertas, no los eventos crudos.** Wazuh recibe los logs de los agentes, los pasa por sus decodificadores y reglas y genera alertas; al analizador llegan únicamente las que superan el `level` configurado. Lo que ninguna regla de Wazuh marcó (o quedó por debajo del nivel) no llega, así que el análisis es sobre el flujo de alertas y no sobre todo lo que ocurrió en el equipo.
 - **Nada se escribe en disco.** Las alertas viven en una ventana en memoria (24 h y 5.000 filas por defecto). Al reiniciar el servicio empieza vacía; las alertas siguen guardadas en Wazuh.
 - **Cada hallazgo se avisa una sola vez.** Crítico y Alto salen en el ciclo de análisis (cada 60 s si llegaron alertas nuevas). Medio y Bajo se juntan en un **resumen cada hora**, marcados como «posibles falsos positivos, revisar».
+- **Si un hallazgo ya avisado sube de severidad, se avisa de nuevo.** Pasa con las ráfagas que llegan a medias: con 6 intentos fallidos el hallazgo es Medio (va al resumen) y, cuando llegan los demás, pasa a Alto y sale el aviso inmediato, una sola vez por subida.
 
 ## Puesta en marcha
 

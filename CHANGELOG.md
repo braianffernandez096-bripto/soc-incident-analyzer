@@ -2,6 +2,19 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [1.11.0] - 2026-11-12
+
+### Novedades
+- **Modo Wazuh en vivo (opcional, apagado por defecto):** `POST /api/wazuh/alerts` recibe las alertas de Wazuh (integración `integratord` incluida en `integrations/wazuh/`), las traduce al esquema del motor (`backend/wazuh.py`: Windows/Sysmon/PowerShell, SSH y sudo de Linux, y el resto como contexto), las acumula en una ventana en memoria y un ciclo las analiza con el mismo motor de reglas. Cada hallazgo nuevo se avisa una sola vez; lo medio y bajo, en un resumen horario. Sin IA en el análisis automático.
+- **Avisos a Telegram** (`backend/notify.py`): solo severidad, recomendación del motor, táctica y técnica MITRE; sin usuarios, IPs, comandos ni logs (el equipo solo con `TELEGRAM_INCLUDE_HOST=1`). El token no se escribe en los registros.
+- En el inicio aparece **Abrir alertas de Wazuh** cuando el modo está activo: abre una instantánea del último análisis como sesión normal (triaje, consultas para el SIEM, informes).
+- Guía nueva: `docs/WAZUH.md`.
+- `docker-compose.yml` pasa al contenedor las variables de Wazuh y Telegram, y `docker-compose.wazuh.yml` une el analizador a la red de Docker de Wazuh (alias `soc-analyzer`).
+
+### Seguridad
+- Clave propia `X-Wazuh-Token` (de 16+ caracteres; con una más corta el endpoint queda cerrado), comparación en tiempo constante, bloqueo tras 10 intentos fallidos por minuto, 1 MB y 200 alertas por llamada, campos recortados y sin caracteres de control.
+- La integración no sigue redirecciones y solo acepta `http://` o `https://`.
+
 ## [1.10.3] - 2026-11-07
 
 ### Añadido: informe HTML en el análisis de phishing

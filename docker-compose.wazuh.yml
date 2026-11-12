@@ -1,0 +1,16 @@
+# Une el analizador a la red de Docker donde corre Wazuh, para que el manager llegue a http://soc-analyzer:8000.
+# Uso:  docker compose -f docker-compose.yml -f docker-compose.wazuh.yml up -d --build
+# El nombre de la red lo ves con `docker network ls` (con el compose oficial de Wazuh de un solo nodo suele ser «single-node_default»).
+# Si es otro, defínelo en el .env:  WAZUH_DOCKER_NETWORK=nombre_de_la_red
+services:
+  analyzer:
+    networks:
+      default: {}
+      wazuh:
+        aliases:
+          - soc-analyzer
+
+networks:
+  wazuh:
+    external: true
+    name: ${WAZUH_DOCKER_NETWORK:-single-node_default}

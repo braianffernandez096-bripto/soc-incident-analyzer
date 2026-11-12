@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import secrets
+import copy
 import threading
 import time
 from collections import defaultdict, deque
@@ -37,6 +38,8 @@ from . import phishing as phishing_mod
 from . import report_html as report_html_mod
 from . import senderreview
 from . import triage as triage_mod
+from . import notify as notify_mod
+from . import wazuh_live
 from . import siemqueries
 from .analysis import analyze, rows_for
 from .parser import SUPPORTED_EXT, ParseError, load_events
@@ -45,6 +48,7 @@ from .report import build_pdf, build_phishing_pdf
 ROOT = Path(__file__).resolve().parent.parent
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 MAX_SESSIONS = 10
+W_MAX_ALERTS = wazuh_live.W.MAX_ALERTS_PER_CALL
 
 
 def _load_dotenv() -> None:
@@ -82,7 +86,7 @@ class SafeJSON(JSONResponse):
 
 
 _DOCS = os.environ.get("ENABLE_DOCS", "").strip().lower() in ("1", "true", "yes")      # API docs reveal the full surface: opt-in
-app = FastAPI(title="SOC Incident Analyzer", version="1.10.3", default_response_class=SafeJSON,
+app = FastAPI(title="SOC Incident Analyzer", version="1.11.0", default_response_class=SafeJSON,
               docs_url="/docs" if _DOCS else None, redoc_url="/redoc" if _DOCS else None, openapi_url="/openapi.json" if _DOCS else None)
 
 
@@ -102,7 +106,7 @@ SECURITY_HEADERS = {
 # ---- optional access token --------------------------------------------------------------------------
 # Off by default (the app binds to localhost). When APP_ACCESS_TOKEN is set, every /api/ route except the two
 # below requires "Authorization: Bearer <token>". It is ONE shared secret, not a user system: serve it over HTTPS.
-OPEN_API_PATHS = {"/api/health", "/api/auth/status"}
+OPEN_API_PATHS = {"/api/health", "/api/auth/status", "/api/wazuh/alerts"}      # la ingesta de Wazuh se autentica con su propia clave (X-Wazuh-Token)
 
 
 def _access_token() -> str:
@@ -287,6 +291,17 @@ def captcha_verify(request: Request, body: CaptchaAnswer):
     return {"pass": grant, "uses": captcha_mod.PASS_USES, "ttl": captcha_mod.PASS_TTL}
 
 
+def _register_session(df: pd.DataFrame, analysis: dict, name: str, client: str = "", analyst: str = "") -> dict:
+    sid = secrets.token_urlsafe(16)
+    SESSIONS[sid] = Session(df=df, analysis=analysis, ai=ai_mod.build_deterministic(analysis), filename=name,
+                            client=client.strip(), analyst=analyst.strip())
+    while len(SESSIONS) > MAX_SESSIONS:
+        SESSIONS.pop(min(SESSIONS, key=lambda k: SESSIONS[k].created))
+    s = SESSIONS[sid]
+    return {"session_id": sid, "filename": name, "client": s.client, "analyst": s.analyst,
+            "analysis": analysis, "ai": s.ai, "ai_configured": bool(_api_key(None)), "ai_keys": _ai_keys()}
+
+
 def _create_session(data: bytes, name: str, client: str, analyst: str, warnings: list[str] | None = None) -> dict:
     try:
         df, meta = load_events(data, name)
@@ -296,14 +311,7 @@ def _create_session(data: bytes, name: str, client: str, analyst: str, warnings:
     analysis = analyze(df, meta)
     analysis["limitations"] = list(analysis.get("limitations", [])) + list(warnings or []) + filecheck.formula_warnings(df)
     log.info("analysis_done rows=%d findings=%d incidents=%d ms=%d", len(df), len(analysis["findings"]), len(analysis["incidents"]), (time.perf_counter() - t0) * 1000)
-    sid = secrets.token_urlsafe(16)
-    SESSIONS[sid] = Session(df=df, analysis=analysis, ai=ai_mod.build_deterministic(analysis), filename=name,
-                            client=client.strip(), analyst=analyst.strip())
-    while len(SESSIONS) > MAX_SESSIONS:
-        SESSIONS.pop(min(SESSIONS, key=lambda k: SESSIONS[k].created))
-    s = SESSIONS[sid]
-    return {"session_id": sid, "filename": name, "client": s.client, "analyst": s.analyst,
-            "analysis": analysis, "ai": s.ai, "ai_configured": bool(_api_key(None)), "ai_keys": _ai_keys()}
+    return _register_session(df, analysis, name, client, analyst)
 
 
 @app.post("/api/upload")
@@ -855,6 +863,92 @@ def report_pdf(sid: str, client: str | None = None, analyst: str | None = None):
     if analyst is not None:
         s.analyst = analyst.strip()
     return _pdf_response(s)
+
+
+# ---- Wazuh en vivo (opcional: WAZUH_INGEST=on y WAZUH_INGEST_TOKEN de 16+ caracteres) ----------------------------------------
+# Wazuh envía cada alerta a POST /api/wazuh/alerts (integratord). Se acumulan en memoria, un ciclo las analiza con el mismo motor y avisa a Telegram
+# (si está configurado). El panel abre una **instantánea** del último análisis: las decisiones del analista viven en esa instantánea. Ver docs/WAZUH.md.
+MAX_WAZUH_BODY = 1024 * 1024
+_LIVE: wazuh_live.LiveState | None = None
+_LIVE_LOCK = threading.Lock()
+_LIVE_CYCLE_LOCK = threading.Lock()
+
+
+def _live() -> wazuh_live.LiveState:
+    global _LIVE
+    with _LIVE_LOCK:
+        if _LIVE is None:
+            _LIVE = wazuh_live.LiveState(notifier=notify_mod.TelegramNotifier.from_env())
+            if os.environ.get("WAZUH_AUTOCYCLE", "on").strip().lower() not in ("0", "off", "false", "no"):
+                every = wazuh_live._int_env("WAZUH_ANALYZE_SECONDS", 60, 10, 3600)
+                threading.Thread(target=_live_loop, args=(_LIVE, every), daemon=True).start()
+        return _LIVE
+
+
+def _live_cycle() -> bool:
+    live = _live()
+    with _LIVE_CYCLE_LOCK:
+        return live.run_cycle(analyze)
+
+
+def _live_loop(live: wazuh_live.LiveState, every: int) -> None:
+    while True:
+        time.sleep(every)
+        try:
+            _live_cycle()
+        except Exception:
+            log.exception("wazuh_loop_error")
+
+
+@app.post("/api/wazuh/alerts", status_code=202)
+async def wazuh_alerts(request: Request):
+    if not wazuh_live.usable():
+        raise HTTPException(404, "No encontrado.")
+    if not secrets.compare_digest(request.headers.get("x-wazuh-token", "").encode(), wazuh_live.token().encode()):
+        _rate_limit(request, "/wazuh-auth-fail", 10, 60)
+        raise HTTPException(401, "Clave de Wazuh no válida.")
+    _rate_limit(request, "/api/wazuh", 600, 60)
+    try:
+        declared = int(request.headers.get("content-length") or 0)
+    except ValueError:
+        declared = 0
+    if declared > MAX_WAZUH_BODY:
+        raise HTTPException(413, "El cuerpo supera 1 MB.")
+    body = await request.body()
+    if len(body) > MAX_WAZUH_BODY:
+        raise HTTPException(413, "El cuerpo supera 1 MB.")
+    try:
+        obj = json.loads(body)
+    except (json.JSONDecodeError, RecursionError, UnicodeDecodeError) as exc:
+        raise HTTPException(400, "El cuerpo no es un JSON válido.") from exc
+    alerts = obj.get("alerts") if isinstance(obj, dict) and isinstance(obj.get("alerts"), list) else obj if isinstance(obj, list) else [obj]
+    if len(alerts) > W_MAX_ALERTS:
+        raise HTTPException(413, f"Máximo {W_MAX_ALERTS} alertas por llamada.")
+    return _live().ingest(alerts)
+
+
+@app.get("/api/wazuh/status")
+def wazuh_status():
+    if not wazuh_live.usable():
+        return {"enabled": False}
+    return _live().status()
+
+
+@app.get("/api/wazuh/session")
+def wazuh_session():
+    """Abre una instantánea del último análisis de las alertas de Wazuh (una sesión normal: se puede pedir triaje, informe, etc.)."""
+    if not wazuh_live.usable():
+        raise HTTPException(404, "El modo Wazuh no está activado en este servidor.")
+    _live_cycle()
+    latest = _live().latest
+    if not latest:
+        raise HTTPException(404, "Todavía no llegaron alertas de Wazuh.")
+    df, meta, analysis = latest
+    analysis = copy.deepcopy(analysis)
+    analysis["limitations"] = list(analysis.get("limitations", [])) + [
+        "Instantánea de las alertas de Wazuh de las últimas %d h (hasta %d filas). Es una foto: las alertas nuevas aparecen al volver a abrirla y las "
+        "decisiones que tomes viven en esta foto." % (_live().window // 3600, _live().max_rows)]
+    return _register_session(df.copy(), analysis, "Alertas de Wazuh (en vivo)")
 
 
 # el frontend se sirve como estático (debe montarse al final)

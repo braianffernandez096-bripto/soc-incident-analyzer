@@ -20,6 +20,17 @@ services:
       - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-}
       - OLLAMA_TIMEOUT=${OLLAMA_TIMEOUT:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Wazuh en vivo y Telegram (opcionales, apagados por defecto; ver docs/WAZUH.md)
+      - WAZUH_INGEST=${WAZUH_INGEST:-}
+      - WAZUH_INGEST_TOKEN=${WAZUH_INGEST_TOKEN:-}
+      - WAZUH_ANALYZE_SECONDS=${WAZUH_ANALYZE_SECONDS:-}
+      - WAZUH_WINDOW_HOURS=${WAZUH_WINDOW_HOURS:-}
+      - WAZUH_MAX_ROWS=${WAZUH_MAX_ROWS:-}
+      - WAZUH_DIGEST_MINUTES=${WAZUH_DIGEST_MINUTES:-}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - TELEGRAM_INCLUDE_HOST=${TELEGRAM_INCLUDE_HOST:-}
+      - APP_BASE_URL=${APP_BASE_URL:-}
     # Lets the container reach an Ollama running on this computer (OLLAMA_HOST=http://host.docker.internal:11434)
     extra_hosts:
       - "host.docker.internal:host-gateway"

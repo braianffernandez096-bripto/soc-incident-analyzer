@@ -26,6 +26,8 @@ Contenido: [Cómo funciona](#cómo-funciona-detalle) · [Análisis de correos](#
 
 10. **Verificar el remitente en DNS** (opcional, botón en cada correo): usa el selector de la propia firma DKIM del correo y la IP que registró el servidor receptor para comprobar, con el DNS de hoy, si el dominio autoriza esa IP en SPF (se evalúa el registro de verdad: `ip4`, `ip6`, `a`, `mx`, `include`, `redirect`, con el límite de 10 consultas), si existe la clave de la firma y qué política DMARC tiene, y lo compara con lo que dicen las cabeceras. Una diferencia (por ejemplo, la cabecera dice `SPF=pass` pero el dominio no autoriza esa IP) no prueba una falsificación, porque el DNS pudo cambiar, pero es justo lo que hay que revisar. Solo salen nombres de dominio por DNS sobre HTTPS; ni la IP ni el contenido del correo. No evalúa macros SPF, `exists` ni `ptr`, y no verifica la firma DKIM en sí (falta el mensaje original byte a byte): comprueba que la clave exista y su tamaño.
 
+11. **Wazuh en vivo** (opcional, apagado por defecto; `backend/wazuh.py`, `backend/wazuh_live.py`, `backend/notify.py`): recibe las alertas de Wazuh en `POST /api/wazuh/alerts` con su propia clave, las traduce al esquema del motor, las acumula en una ventana en memoria y las analiza con las mismas reglas (sin IA); avisa a Telegram solo con severidad, recomendación y técnica. Guía completa: [docs/WAZUH.md](WAZUH.md).
+
 ## Análisis de correos (phishing, detalle)
 
 En la pestaña **Phishing** (disponible desde el inicio, sin cargar logs) sube uno o varios `.eml`, o pulsa **Probar con correos de ejemplo** (`sample_data/correos/`: 8 maliciosos, entre ellos 4 con homógrafos, 1 con un recorrido anómalo y 2 legítimos que no deben alertar). Para obtener un `.eml`: en Outlook, Thunderbird o Gmail guarda el correo como `.eml` o usa «Descargar mensaje». Los `.msg` no se admiten. Si no puedes exportarlo, **pega las cabeceras** (el «origen del mensaje») en el cuadro de la pantalla de carga: se analizan remitente, autenticación y recorrido, pero sin cuerpo no hay enlaces ni adjuntos.
@@ -73,7 +75,7 @@ En la pestaña **Phishing** (disponible desde el inicio, sin cargar logs) sube u
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock      # pytest, cobertura, bandit y pip-audit
-python -m pytest                                           # ~1.200 pruebas
+python -m pytest                                           # ~1.240 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
@@ -100,6 +102,7 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 
 - `tests/unit/test_psdecode.py`: decodificación de `-EncodedCommand` (todas las grafías de la opción, una capa de compresión, bomba de descompresión, correos con ClickFix). `tests/unit/test_spf_remitente.py`: evaluación de SPF (mecanismos, prefijos, límite de 10 consultas, bucles) y verificación del remitente con DNS simulado.
 
+- `tests/integration/test_wazuh_vivo.py`: traducción de alertas de Wazuh, endpoint con clave (apagado, clave corta, fuerza bruta, límites), ciclo de análisis, avisos de Telegram sin datos sensibles, ventana en memoria, instantánea para el panel y el script de integración; el e2e comprueba el botón del inicio.
 - `tests/unit/test_siemqueries.py`: consultas Splunk/KQL y Sigma (YAML válido, entidades y ventana, y valores hostiles que no pueden escapar de las comillas). `tests/unit/test_sigma_otras_fuentes.py`: Sigma de SSH, web, DNS, Linux y nube (YAML válido, etiquetas ATT&CK, coincidencia con las evidencias de los ejemplos y no marcar tráfico normal). `tests/unit/test_syslog.py`: lectura de `auth.log` (fechas clásicas e ISO, año inferido, sudo, errores claros).
 
 ## Seguridad (detalle)
@@ -146,6 +149,7 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 
 ```
 backend/      parser, reglas de detección, correlación, análisis de correos (.eml) y de homógrafos, captcha local, IA, reputación (VirusTotal/AbuseIPDB), MITRE ATT&CK, informe PDF y API (FastAPI)
+integrations/ wazuh/: script de integración que reenvía las alertas de Wazuh al analizador
 scripts/      build_attack_data.py regenera backend/data/ desde los datos oficiales de MITRE; build_captcha_assets.py regenera las figuras del captcha; validar_datasets.py mide las reglas con datasets públicos; validar_correos.py y validar_ofuscacion.py miden phishing y desofuscación con correos y comandos reales; generar_informe_ejemplo.py regenera el PDF de ejemplo cuidando las llamadas de pago a la IA (simulacro por defecto, caché en disco y confirmación; uso de mantenimiento)
 docs/         VALIDACION.md: método y resultados de la validación de las reglas
 frontend/     interfaz web sin build (HTML, CSS y JS; fuentes IBM Plex locales)

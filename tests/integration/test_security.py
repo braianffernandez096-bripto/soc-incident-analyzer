@@ -15,7 +15,7 @@ DATA = Path(__file__).resolve().parents[2] / "sample_data"
 CSV = (DATA / "SOC_L2_Logs_Ampliados_Multiples_Incidentes.csv").read_bytes()
 XLSX = (DATA / "SOC_L2_Logs_Ampliados_Multiples_Incidentes.xlsx").read_bytes()
 TOKEN = "correct-horse-battery-staple-9"
-OPEN_PATHS = {"/api/health", "/api/auth/status"}
+OPEN_PATHS = {"/api/health", "/api/auth/status", "/api/wazuh/alerts"}
 
 
 @pytest.fixture(autouse=True)

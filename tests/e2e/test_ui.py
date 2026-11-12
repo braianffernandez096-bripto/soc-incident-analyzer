@@ -369,3 +369,61 @@ def test_phishing_html_report_downloads_and_opens_offline_without_errors(page, t
     assert rep.evaluate("document.documentElement.getAttribute('data-theme')") in ("dark", "light")
     assert problems == [], problems
     assert page.problems == []
+
+
+# ---------------------------------------------------------------- modo Wazuh (opcional)
+
+def test_wazuh_button_hidden_when_mode_is_off(page):
+    page.wait_for_selector(".landing")
+    page.wait_for_timeout(400)                                                  # da tiempo a que la consulta de estado responda
+    assert page.locator("#wazuhOpen").is_hidden()
+
+
+@pytest.fixture(scope="module")
+def server_wazuh():
+    import json
+    import os
+    port = _free_port()
+    env = {**os.environ, "WAZUH_INGEST": "on", "WAZUH_INGEST_TOKEN": "t" * 24, "WAZUH_AUTOCYCLE": "off"}
+    for k in ("APP_ACCESS_TOKEN", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"):
+        env.pop(k, None)
+    proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "backend.main:app", "--port", str(port), "--log-level", "warning"], cwd=ROOT, env=env)
+    base = f"http://127.0.0.1:{port}"
+    try:
+        for _ in range(60):
+            try:
+                urllib.request.urlopen(f"{base}/api/health", timeout=1)
+                break
+            except Exception:
+                time.sleep(0.2)
+        else:
+            pytest.fail("el servidor no arrancó")
+        alerts = [{"id": f"9.{i}", "timestamp": f"2026-11-12T12:00:{i:02d}.100+0000", "rule": {"level": 5, "description": "Logon failure", "id": "60122"},
+                   "agent": {"id": "001", "name": "WS-01"},
+                   "data": {"win": {"system": {"eventID": "4625", "channel": "Security", "severityValue": "AUDIT_FAILURE"},
+                                    "eventdata": {"targetUserName": "admin", "targetDomainName": "CORP", "ipAddress": "203.0.113.50", "logonType": "3"}}}}
+                  for i in range(12)]
+        req = urllib.request.Request(f"{base}/api/wazuh/alerts", data=json.dumps({"alerts": alerts}).encode(), method="POST",
+                                     headers={"Content-Type": "application/json", "X-Wazuh-Token": "t" * 24})
+        assert urllib.request.urlopen(req, timeout=5).status == 202
+        yield base + "/"
+    finally:
+        proc.terminate()
+        proc.wait(timeout=10)
+
+
+def test_wazuh_button_opens_snapshot_of_live_alerts(browser, server_wazuh):
+    pg = browser.new_page()
+    errs = []
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    pg.goto(server_wazuh)
+    btn = pg.locator("#wazuhOpen")
+    expect(btn).to_be_visible(timeout=WAIT)
+    expect(btn).to_contain_text("12")
+    btn.click()
+    pg.wait_for_selector(".dash", timeout=WAIT)
+    pg.click("text=Hallazgos")
+    expect(pg.locator("body")).to_contain_text("Fuerza bruta", timeout=WAIT)
+    expect(pg.locator("body")).to_contain_text("203.0.113.50")
+    assert errs == []
+    pg.close()

@@ -302,6 +302,7 @@ function landing() {
     <div class="row">
       <button class="btn primary" id="go" disabled>Analizar archivo</button>
       <button class="btn" id="sample" type="button">Probar con datos de ejemplo</button>
+      <button class="btn" id="wazuhOpen" type="button" hidden>Abrir alertas de Wazuh</button>
     </div>
     <div class="err" id="lerr" role="alert" hidden></div>
     <ul class="checks">
@@ -324,6 +325,22 @@ function bindLanding() {
   go.onclick = () => upload(file, $("#client").value, $("#analyst").value);
   $("#fmtHelp").onclick = showHow;
   $("#sample").onclick = () => useSample($("#client").value, $("#analyst").value);
+  bindWazuh();
+}
+/* Modo Wazuh (opcional): solo aparece si el servidor lo tiene activado (WAZUH_INGEST=on). Abre una instantánea del último análisis. */
+async function bindWazuh() {
+  const btn = $("#wazuhOpen"); if (!btn) return;
+  try {
+    const st = await api("/api/wazuh/status");
+    if (!st.enabled || !btn.isConnected) return;
+    btn.hidden = false; btn.textContent = `Abrir alertas de Wazuh (${num(st.rows)})`;
+    btn.onclick = async () => {
+      busy(true, "Analizando las alertas de Wazuh…");
+      try { const res = await api("/api/wazuh/session"); adopt(res); location.hash = "#/dashboard"; render(); }
+      catch (e) { showLandingError(e.message); }
+      finally { busy(false); }
+    };
+  } catch { /* sin modo Wazuh: el botón sigue oculto */ }
 }
 
 /* ---------- gráficos ---------- */

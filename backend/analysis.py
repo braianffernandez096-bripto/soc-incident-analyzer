@@ -37,6 +37,22 @@ def _profile(df: pd.DataFrame, meta: dict) -> dict:
     }
 
 
+def _context_notes() -> list[str]:
+    """Cuenta qué contexto externo opcional se usó (MISP, KEV/EPSS); sin él, aclara que el export no trae inteligencia de amenazas."""
+    from . import context as ctx, misp
+    notes = []
+    if misp.get_client() is not None:
+        notes.append("Las IP y los hashes de los eventos se consultaron en tu MISP (solo coincidencias exactas con indicadores cargados ahí; "
+                     "que no haya coincidencia no prueba que un valor sea inofensivo).")
+    store = ctx.get_store()
+    if store is not None and store.ready:
+        notes.append(f"Los CVE mencionados se cruzaron con CISA KEV (catálogo {store.kev_version or 's/d'}) y EPSS ({store.epss_date or 's/d'}). "
+                     "Es contexto para priorizar: un CVE que no figura en KEV no es necesariamente seguro.")
+    if not notes:
+        notes.append("No hay inteligencia de amenazas en el export ni contexto externo activado.")
+    return notes
+
+
 def _limitations(df: pd.DataFrame, profile: dict) -> list[str]:
     tz_note = (
         "Las marcas de tiempo del export traían zona horaria (u hora epoch); se convirtieron a UTC para unificarlas."
@@ -50,8 +66,9 @@ def _limitations(df: pd.DataFrame, profile: dict) -> list[str]:
         "Las rutas, hashes de archivos, nombres de proceso padre y tipo de inicio de sesión solo están cuando el SIEM los incluyó en "
         "Event_Description o Process_CommandLine. No se inventaron campos ausentes.",
         "Los rangos 192.0.2.0/24, 198.51.100.0/24 y 203.0.113.0/24 son rangos de documentación (RFC 5737); se trataron como externos "
-        "porque no pertenecen a las redes privadas del cliente. No se hizo reputación ni geolocalización (no hay inteligencia de amenazas en el export).",
+        "porque no pertenecen a las redes privadas del cliente. No se hizo reputación ni geolocalización.",
     ]
+    out.extend(_context_notes())
     if profile["blank_destination_pct"] > 5:
         out.append(f"El campo Destination está vacío en el {profile['blank_destination_pct']} % de los eventos, lo que limita el análisis de flujos.")
     if profile["users_with_many_source_ips"]:

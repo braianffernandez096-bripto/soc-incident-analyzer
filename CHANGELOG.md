@@ -13,6 +13,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - Guía nueva: `docs/CONTEXTO.md`.
 
 ### Cambios
+- **Límites del análisis** ya no dice «no hay inteligencia de amenazas» cuando se consultó tu MISP o se cruzó con KEV/EPSS: indica qué contexto se usó y su alcance.
 - El hallazgo del SIEM ahora dice «Informational **o Low**»: la regla agrupa ambas severidades y el título solo mencionaba una.
 - `docker-compose.yml` pasa las variables `CONTEXT_*` y `MISP_*` (la caché va a `/tmp/context`, el sistema de archivos sigue en solo lectura).
 

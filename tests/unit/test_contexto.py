@@ -268,3 +268,17 @@ def test_endpoint_de_estado(store, monkeypatch):
     j = c.get("/api/context/status").json()
     assert j["cve"]["enabled"] and j["cve"]["kev_entries"] == 2 and j["misp"] == {"configured": False}
     assert "CLAVE" not in json.dumps(j)
+
+
+def test_limites_reflejan_el_contexto_usado(store, monkeypatch):
+    misp.set_client(None)
+    lim = " ".join(run([vuln_alert(1, "CVE-2021-44228")])["limitations"])
+    assert "CISA KEV" in lim and "MISP" not in lim and "No hay inteligencia de amenazas" not in lim
+    misp.set_client(misp_client(lambda r: httpx.Response(200, json={})))
+    try:
+        assert "tu MISP" in " ".join(run(ssh_fail_rows())["limitations"])
+    finally:
+        misp.set_client(None)
+    context.set_store(None)
+    monkeypatch.delenv("CONTEXT_ENABLED", raising=False)
+    assert "No hay inteligencia de amenazas" in " ".join(run(ssh_fail_rows())["limitations"])

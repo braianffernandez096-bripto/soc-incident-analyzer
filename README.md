@@ -56,6 +56,10 @@ Las IP y los datos del ejemplo son sintéticos (rangos de documentación RFC 573
 
 ![Generación de variantes de un dominio y comprobación de registro en el DNS](img/gif/parecidos-demo.gif)
 
+**Wazuh en vivo: del ataque simulado al aviso en Telegram y al panel con el incidente** ([guía](docs/WAZUH.md))
+
+![Alertas de Wazuh en el panel: incidentes, hallazgos de fuerza bruta por Windows y SSH, indicadores e informe](img/gif/wazuh-demo.gif)
+
 <details>
 <summary>Ver el informe HTML del análisis de logs</summary>
 

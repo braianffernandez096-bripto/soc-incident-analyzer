@@ -105,6 +105,8 @@ Un aviso tiene este aspecto:
 Panel: http://127.0.0.1:8000
 ```
 
+![Dos avisos de Telegram de fuerza bruta: severidad, tipo de hallazgo, cantidad de eventos, hora, táctica y técnica MITRE](../img/telegram-aviso.png)
+
 Cada hallazgo muestra su severidad y la recomendación del motor, el **tipo** (genérico: «Fuerza bruta», «Credenciales»…), cuántos eventos lo sustentan, la hora del primero (UTC), la táctica y la técnica MITRE.
 
 > **Privacidad.** Telegram es un servicio en la nube y los mensajes de un bot no van cifrados de extremo a extremo. Por eso, por defecto, el aviso **no** lleva usuarios, IPs, comandos, rutas ni logs, ni siquiera el nombre del equipo; ese solo se agrega con `TELEGRAM_INCLUDE_HOST=1`. El detalle se ve en el panel, que corre en tu red. El token del bot nunca se escribe en los registros.

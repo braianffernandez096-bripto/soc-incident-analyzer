@@ -11,6 +11,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - Guía nueva: `docs/WAZUH.md`, con el nivel mínimo recomendado (5, para que el motor vea los eventos sueltos y pueda correlacionarlos), las particularidades de Wazuh en Docker y una prueba de extremo a extremo.
 - Un hallazgo ya avisado que **sube de severidad** vuelve a avisar (una vez por subida) y sale del resumen horario. Se detectó en la prueba con SSH: la ráfaga llegó a medias, el primer análisis la vio como Medio y, al completarse, el aviso inmediato del Alto no salía.
 - **Aviso de Telegram más informativo sin datos sensibles:** ahora indica el tipo de hallazgo (genérico), la cantidad de eventos y la hora (UTC) además de severidad, táctica y técnica. `TELEGRAM_DETAIL=full` (opcional, apagado por defecto) suma título, equipo, cuentas e IPs para quien acepta que pasen por Telegram.
+- Demostración en el README (`img/gif/wazuh-demo.gif`: del ataque al panel con el incidente) y captura del aviso de Telegram en `docs/WAZUH.md`.
 - Probado con un Wazuh en Docker y un agente de Windows 10: 12 inicios de sesión fallidos generan un incidente de fuerza bruta (Alto) y un aviso en Telegram.
 - `docker-compose.yml` pasa al contenedor las variables de Wazuh y Telegram, y `docker-compose.wazuh.yml` une el analizador a la red de Docker de Wazuh (alias `soc-analyzer`).
 

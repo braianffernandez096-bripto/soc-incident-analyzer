@@ -120,3 +120,9 @@ def test_detalle_sin_barras_de_escape():
     hit = {"_index": "wazuh-alerts-4.x", "_source": {"@timestamp": "2026-11-13T17:52:02Z", "agent": {"name": "H"}, "rule": {"id": "92037", "level": 3, "description": "x"},
            "data": {"win": {"eventdata": {"commandLine": '\\"C:\\\\Windows\\\\system32\\\\net.exe\\" use \\\\\\\\localhost\\\\c$ /user:falso'}}}}}
     assert WI.normalize_hit(hit)["detail"] == '"C:\\Windows\\system32\\net.exe" use \\\\localhost\\c$ /user:falso'
+
+
+def test_descripcion_de_la_regla_sin_barras_de_escape():
+    hit = {"_index": "wazuh-alerts-4.x", "_source": {"@timestamp": "2026-11-13T17:52:02Z", "agent": {"name": "H"},
+           "rule": {"id": "92037", "level": 3, "description": "started by C:\\\\Windows\\\\System32\\\\powershell.exe"}}}
+    assert WI.normalize_hit(hit)["description"] == "started by C:\\Windows\\System32\\powershell.exe"

@@ -13,7 +13,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - Guías nuevas: `docs/FEED.md` y `docs/CASO_DE_ESTUDIO.md`; secciones del Indexer en `docs/WAZUH.md` y de solución de problemas. Archivo de ejemplo `sample_data/feed_ejemplo.json`.
 
 ### Cambios
-- El contexto del Indexer muestra los comandos de Windows tal como se escribieron (Wazuh guarda las barras invertidas y comillas con un escape de más).
+- El contexto del Indexer muestra los comandos y las descripciones de Windows tal como se escribieron (Wazuh guarda las barras invertidas y comillas con un escape de más).
 - `docker-compose.yml` monta `./feed` en solo lectura como `/feed` y pasa las variables `FEED_*` y `WAZUH_INDEXER_*`.
 
 ## [1.12.0] - 2026-11-13

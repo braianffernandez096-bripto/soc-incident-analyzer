@@ -108,7 +108,7 @@ def normalize_hit(hit: dict) -> dict:
     detail = _g(s, "data.win.eventdata.commandLine") or _g(s, "data.win.eventdata.image") or _clean(_g(s, "full_log"), 300)
     return {"time": _g(s, "@timestamp"), "raw": str(hit.get("_index", "")).startswith("wazuh-archives"),
             "host": _g(s, "agent.name"), "rule": _g(s, "rule.id"), "level": _g(s, "rule.level"),
-            "description": _clean(_g(s, "rule.description"), 200),
+            "description": _clean(_unescape(_g(s, "rule.description")), 200),
             "ip": _g(s, "data.srcip") or _g(s, "data.win.eventdata.ipAddress") or _g(s, "data.win.eventdata.sourceIp"),
             "user": _g(s, "data.srcuser") or _g(s, "data.dstuser") or _g(s, "data.win.eventdata.targetUserName") or _g(s, "data.win.eventdata.subjectUserName"),
             "event_id": _g(s, "data.win.system.eventID"), "detail": _clean(_unescape(detail), 300)}

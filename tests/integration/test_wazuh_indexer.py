@@ -114,3 +114,9 @@ def test_endpoint_cerrado_si_no_esta_configurado(monkeypatch):
     sid = s["session_id"] if "session_id" in s else s["sid"]
     assert c.get(f"/api/sessions/{sid}").json()["analysis"]["wazuh_context"] is False
     assert c.get(f"/api/sessions/{sid}/findings/F-001/wazuh-context").status_code == 404
+
+
+def test_detalle_sin_barras_de_escape():
+    hit = {"_index": "wazuh-alerts-4.x", "_source": {"@timestamp": "2026-11-13T17:52:02Z", "agent": {"name": "H"}, "rule": {"id": "92037", "level": 3, "description": "x"},
+           "data": {"win": {"eventdata": {"commandLine": '\\"C:\\\\Windows\\\\system32\\\\net.exe\\" use \\\\\\\\localhost\\\\c$ /user:falso'}}}}}
+    assert WI.normalize_hit(hit)["detail"] == '"C:\\Windows\\system32\\net.exe" use \\\\localhost\\c$ /user:falso'

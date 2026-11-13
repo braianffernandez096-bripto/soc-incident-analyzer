@@ -95,6 +95,14 @@ def _clean(text: str, n: int) -> str:
     return re.sub(r"\s+", " ", text).strip()[:n]
 
 
+_ESC = re.compile(r'\\(["\\])')
+
+
+def _unescape(text: str) -> str:
+    """Wazuh guarda las rutas y comillas de Windows con una barra de escape de más (\\\\ por \\ y \\" por "): se deshace para leer el comando tal como se escribió."""
+    return _ESC.sub(r"\1", text or "")
+
+
 def normalize_hit(hit: dict) -> dict:
     s = hit.get("_source") or {}
     detail = _g(s, "data.win.eventdata.commandLine") or _g(s, "data.win.eventdata.image") or _clean(_g(s, "full_log"), 300)
@@ -103,7 +111,7 @@ def normalize_hit(hit: dict) -> dict:
             "description": _clean(_g(s, "rule.description"), 200),
             "ip": _g(s, "data.srcip") or _g(s, "data.win.eventdata.ipAddress") or _g(s, "data.win.eventdata.sourceIp"),
             "user": _g(s, "data.srcuser") or _g(s, "data.dstuser") or _g(s, "data.win.eventdata.targetUserName") or _g(s, "data.win.eventdata.subjectUserName"),
-            "event_id": _g(s, "data.win.system.eventID"), "detail": _clean(detail, 300)}
+            "event_id": _g(s, "data.win.system.eventID"), "detail": _clean(_unescape(detail), 300)}
 
 
 def context_for(finding: dict, http: httpx.Client | None = None) -> dict:

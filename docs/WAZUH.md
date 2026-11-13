@@ -130,11 +130,20 @@ unos minutos antes y después, para ver el entorno del hallazgo y no solo la ale
    ```
 3. Recrea el contenedor con los dos compose (debe estar en la red de Wazuh para resolver ese nombre).
 
-La consulta la arma el servidor (no el navegador), con ventana de `WAZUH_INDEXER_WINDOW_MIN` minutos (5) y hasta `WAZUH_INDEXER_MAX` registros (100). La contraseña nunca se muestra ni se registra;
-los errores (clave rechazada, sin conexión) aparecen como mensajes genéricos.
+La consulta la arma el servidor (no el navegador). Alertas y eventos crudos se piden **por separado**:
 
-**Eventos crudos:** el Indexer guarda por defecto solo alertas. Los eventos sin alerta (`wazuh-archives-*`) existen únicamente si activas `<logall_json>yes</logall_json>` en el manager
-y el archivado en Filebeat; es opcional, consume bastante disco y puedes no mirarlo con `WAZUH_INDEXER_ARCHIVES=off`. Sin ese índice, el contexto muestra solo alertas.
+- **Alertas** (`wazuh-alerts-*`): ±`WAZUH_INDEXER_WINDOW_MIN` minutos (5), hasta `WAZUH_INDEXER_MAX` (100), en orden cronológico.
+- **Eventos crudos** (`wazuh-archives-*`): ±`WAZUH_INDEXER_RAW_WINDOW_SEC` segundos (90), hasta `WAZUH_INDEXER_RAW_MAX` (50), y **solo los que no generaron alerta** (los demás ya están en la lista de alertas). Van primero los que comparten IP o cuenta con el hallazgo, para que un volumen alto de eventos del equipo no tape lo importante. Si no se pueden leer, se muestran igual las alertas.
+
+La contraseña nunca se muestra ni se registra; los errores (clave rechazada, sin conexión) aparecen como mensajes genéricos.
+
+**Eventos crudos:** el Indexer guarda por defecto solo alertas. Los eventos sin alerta existen únicamente si activas el archivado, que son **dos** cambios:
+
+1. En el manager (`ossec.conf`, o `config/wazuh_cluster/wazuh_manager.conf` en Docker): `<logall_json>yes</logall_json>`. Con eso el manager escribe `/var/ossec/logs/archives/archives.json`.
+2. En Filebeat (dentro del contenedor del manager, `/etc/filebeat/filebeat.yml`): bajo `archives:` poner `enabled: true`, y reiniciar el manager. Sin esto el archivo existe pero el Indexer no recibe nada (`wazuh-archives-*` con `count: 0`).
+   Comprobación: `curl -sk -u USUARIO "https://localhost:9200/wazuh-archives-*/_count"` debe devolver un `count` creciente. En Docker, el cambio de Filebeat vive dentro del contenedor: si lo **recreas** (no basta reiniciar) hay que repetirlo.
+
+Es opcional y consume disco (del orden de 100 MB por día en un equipo de laboratorio, más la copia del Indexer): controla con `df -h` y desactívalo con `WAZUH_INDEXER_ARCHIVES=off` si no lo necesitas.
 
 ## Seguridad del endpoint
 
@@ -157,7 +166,8 @@ y el archivado en Filebeat; es opcional, consume bastante disco y puedes no mira
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | — | Activan los avisos |
 | `WAZUH_INDEXER_URL`, `_USER`, `_PASSWORD` | — | Activan el contexto desde el Indexer |
 | `WAZUH_INDEXER_VERIFY`, `_CA` | verificar | Certificado autofirmado o CA propia |
-| `WAZUH_INDEXER_WINDOW_MIN`, `_MAX`, `_ARCHIVES` | 5, 100, on | Ventana, tope de registros y uso de `wazuh-archives` (`off` para no consultarlo) |
+| `WAZUH_INDEXER_WINDOW_MIN`, `_MAX`, `_ARCHIVES` | 5, 100, on | Ventana y tope de alertas, y uso de `wazuh-archives` (`off` para no consultarlo) |
+| `WAZUH_INDEXER_RAW_WINDOW_SEC`, `_RAW_MAX` | 90, 50 | Ventana y tope de eventos crudos |
 | `APP_BASE_URL` | — | Enlace al panel en el aviso (solo `http://` o `https://`) |
 | `TELEGRAM_INCLUDE_HOST` | no | `1` agrega el nombre del equipo al aviso |
 | `TELEGRAM_DETAIL` | básico | `full` suma título, equipo, cuentas e IPs al aviso (ver Privacidad) |

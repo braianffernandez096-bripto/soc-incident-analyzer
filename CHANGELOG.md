@@ -13,6 +13,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - Guías nuevas: `docs/FEED.md` y `docs/CASO_DE_ESTUDIO.md`; secciones del Indexer en `docs/WAZUH.md` y de solución de problemas. Archivo de ejemplo `sample_data/feed_ejemplo.json`.
 
 ### Cambios
+- **Eventos crudos del Indexer, rehechos tras probarlos en vivo:** con el archivado activo, un tope de 100 registros en orden cronológico se llenaba con el arranque del agente y no llegaba al hallazgo. Ahora alertas y crudos se consultan por separado (crudos: ±90 s, máximo 50, solo los que no generaron alerta y primero los de la misma IP o cuenta), se muestran mezclados por hora y el encabezado dice cuántos hay de cada tipo. El detalle de un evento crudo de Windows usa su mensaje en lugar del JSON. Variables nuevas `WAZUH_INDEXER_RAW_WINDOW_SEC` y `WAZUH_INDEXER_RAW_MAX`. Documentado el segundo cambio necesario para tener crudos (`archives: enabled: true` en Filebeat).
 - El contexto del Indexer muestra los comandos y las descripciones de Windows tal como se escribieron (Wazuh guarda las barras invertidas y comillas con un escape de más).
 - `docker-compose.yml` monta `./feed` en solo lectura como `/feed` y pasa las variables `FEED_*` y `WAZUH_INDEXER_*`.
 

@@ -69,5 +69,6 @@ Guía completa: [MISP.md](MISP.md).
 | No aparece el botón «Ver contexto en Wazuh» | Falta `WAZUH_INDEXER_URL`, `_USER` o `_PASSWORD`, o la URL no empieza con `http(s)://`. |
 | «El Indexer rechazó la clave» | Usuario o contraseña distintos (se distinguen mayúsculas); revisa el `.env`. |
 | «No se pudo conectar» | El contenedor no está en la red de Wazuh (recrea con los dos compose) o el certificado es autofirmado y falta `WAZUH_INDEXER_VERIFY=0`. |
-| Solo salen alertas, ningún evento crudo | `wazuh-archives-*` no existe sin `logall_json` (ver `docs/WAZUH.md`). |
+| Solo salen alertas, ningún evento crudo | Hace falta `<logall_json>yes</logall_json>` **y** `archives: enabled: true` en Filebeat (ver `docs/WAZUH.md`); con `curl …/wazuh-archives-*/_count` en `0` falta el segundo. |
+| Los eventos crudos no son los del hallazgo | Se muestran solo los que no generaron alerta, en ±90 s y los más relacionados primero; ajusta `WAZUH_INDEXER_RAW_WINDOW_SEC` y `WAZUH_INDEXER_RAW_MAX`. |
 

@@ -54,6 +54,8 @@ services:
       - WAZUH_INDEXER_WINDOW_MIN=${WAZUH_INDEXER_WINDOW_MIN:-}
       - WAZUH_INDEXER_MAX=${WAZUH_INDEXER_MAX:-}
       - WAZUH_INDEXER_ARCHIVES=${WAZUH_INDEXER_ARCHIVES:-}
+      - WAZUH_INDEXER_RAW_WINDOW_SEC=${WAZUH_INDEXER_RAW_WINDOW_SEC:-}
+      - WAZUH_INDEXER_RAW_MAX=${WAZUH_INDEXER_RAW_MAX:-}
     # Lets the container reach an Ollama running on this computer (OLLAMA_HOST=http://host.docker.internal:11434)
     extra_hosts:
       - "host.docker.internal:host-gateway"

@@ -805,10 +805,12 @@ function evTable(rows) {
     `<tr><td class="mono">${esc(r.Log_ID)}</td><td class="mono">${esc(hhmmss(r.Timestamp))}</td><td>${esc(r.Hostname)}</td><td class="mono">${esc(r.Event_ID)}</td><td>${esc(r.User)}</td><td class="mono">${esc(r.Source_IP)}</td><td>${esc(r.Destination)}</td><td class="cmd">${esc(r.Process_CommandLine || r.Event_Description)}</td><td>${esc(r.Result)}</td></tr>`).join("")}</tbody></table></div>`;
 }
 function wzView(r) {
-  const note = `<p class="muted">${esc(plural(r.shown, "registro", "registros"))}${r.total > r.shown ? ` de ${esc(r.total)} (se muestran los primeros)` : ""} del mismo equipo o IP, ±${esc(r.window_min)} min alrededor del hallazgo. ${r.raw_events ? "Incluye eventos crudos (archivos de Wazuh)." : "Son alertas guardadas por Wazuh; los eventos crudos solo existen si activaste el archivado (logall_json)."}</p>`;
+  const parts = [`${plural(r.alerts_shown ?? r.shown, "alerta", "alertas")}${(r.alerts_total ?? 0) > (r.alerts_shown ?? 0) ? ` de ${r.alerts_total}` : ""} (±${r.window_min} min)`];
+  if (r.archives_enabled) parts.push(r.raw_events ? `${plural(r.raw_shown, "evento crudo", "eventos crudos")}${r.raw_total > r.raw_shown ? ` de ${r.raw_total}` : ""} sin alerta (±${r.raw_window_sec} s, los más relacionados primero)` : "sin eventos crudos en la ventana");
+  const note = `<p class="muted">Del mismo equipo o IP: ${esc(parts.join(" y "))}.${r.archives_enabled ? "" : " Los eventos crudos solo existen si activaste el archivado (logall_json)."}</p>`;
   if (!r.events.length) return note + "<p class='muted'>Wazuh no tiene registros de ese equipo o IP en esa ventana.</p>";
   return note + `<div class="tbl-wrap"><table class="ev-table"><thead><tr><th>Hora (UTC)</th><th>Tipo</th><th>Equipo</th><th>Regla</th><th>Nivel</th><th>Descripción</th><th>Usuario</th><th>IP</th><th>Detalle</th></tr></thead><tbody>${r.events.map((e) =>
-    `<tr><td class="mono">${esc(hhmmss(e.time))}</td><td>${e.raw ? "Evento crudo" : "Alerta"}</td><td>${esc(e.host)}</td><td class="mono">${esc(e.rule)}</td><td class="mono">${esc(e.level)}</td><td>${esc(e.description)}</td><td>${esc(e.user)}</td><td class="mono">${esc(e.ip)}</td><td class="cmd">${esc(e.detail)}</td></tr>`).join("")}</tbody></table></div>`;
+    `<tr><td class="mono">${esc(hhmmss(e.time))}</td><td>${e.raw ? "Evento crudo (sin alerta)" : "Alerta"}</td><td>${esc(e.host)}</td><td class="mono">${esc(e.rule)}</td><td class="mono">${esc(e.level)}</td><td>${esc(e.description)}</td><td>${esc(e.user)}</td><td class="mono">${esc(e.ip)}</td><td class="cmd">${esc(e.detail)}</td></tr>`).join("")}</tbody></table></div>`;
 }
 function bindFindings() {
   let t; $("#fq").oninput = (e) => { clearTimeout(t); t = setTimeout(() => { S.findingQ = e.target.value; S.keepScroll = true; render(); const q = $("#fq"); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }, 220); };

@@ -34,6 +34,21 @@ def _plain(s: str, n: int = 60) -> str:
     return _SAFE.sub("", str(s or ""))[:n].strip()
 
 
+_WINDOWS = {"brute_force", "external_logon", "privilege", "persistence", "persist_run", "defense_registry", "cred_lsass", "cred_dcsync",
+            "kerberoast", "lateral", "mass_access", "sensitive_share", "exfil_proxy", "outbound_shell"}
+
+
+def source_label(f: dict) -> str:
+    """Tipo de origen del hallazgo (genérico, sin datos del entorno): sirve para distinguir p. ej. fuerza bruta de Windows de la de SSH."""
+    rule = str(f.get("rule") or "")
+    proto = _plain((f.get("metrics") or {}).get("protocolo", ""), 12)
+    if rule == "g_auth":
+        return proto or "Autenticación"
+    if rule in _WINDOWS or rule.startswith("cmd_"):
+        return "Windows"
+    return {"web_attack": "IIS/Web", "g_web": "Web", "ctx_cve": "Vulnerabilidad", "ctx_misp": "MISP", "g_dns_tunnel": "DNS", "g_cloud": "Cloud"}.get(rule, "")
+
+
 def _text(s, n: int = 160) -> str:
     """Texto con más libertad (modo ``full``): solo se quitan los caracteres de control y se recorta."""
     return _CTRL.sub(" ", str(s or "")).strip()[:n]
@@ -66,7 +81,9 @@ class TelegramNotifier:
         detail = _plain(f.get("tactic", "")) + (f" · {tech}" if tech else "")
         n = len(f.get("evidence_ids") or [])
         when = str(f.get("time_start") or "")[11:16]
-        what = " · ".join(x for x in (_plain(f.get("category", ""), 40), f"{n} evento(s)" if n else "", f"{when} UTC" if when else "") if x)
+        src = source_label(f)
+        cat = _plain(f.get("category", ""), 40) + (f" ({src})" if src else "")
+        what = " · ".join(x for x in (cat, f"{n} evento(s)" if n else "", f"{when} UTC" if when else "") if x)
         lines = [head]
         if self.full and f.get("title"):
             lines.append("   " + _text(f["title"]))

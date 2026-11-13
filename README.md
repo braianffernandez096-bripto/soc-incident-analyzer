@@ -115,6 +115,7 @@ Abre http://127.0.0.1:8000. El puerto queda publicado solo en tu equipo (`127.0.
 
 - **Phishing:** análisis estático de `.eml` (SPF/DKIM/DMARC, enlaces, homógrafos, adjuntos) con veredicto y puntaje; evaluación de dominio y dominios parecidos. Nunca abre enlaces ni ejecuta adjuntos. [Detalle](docs/DESARROLLO.md#análisis-de-correos-phishing-detalle).
 - **Wazuh en vivo (opcional):** recibe las alertas de Wazuh, las analiza con el mismo motor y avisa por Telegram sin datos sensibles. Apagado por defecto. [Guía](docs/WAZUH.md).
+- **Contexto de amenazas (opcional):** prioriza CVE por explotación real (CISA KEV) y probabilidad (EPSS) con cruce local, y consulta tu propio MISP. Apagado por defecto. [Guía](docs/CONTEXTO.md).
 - **Informe HTML:** un solo archivo que se abre sin conexión, con gráficos, modo claro/oscuro y versión imprimible, para logs y para phishing. [Detalle](docs/INFORME-HTML.md).
 - **Triaje asistido por IA:** recomienda Escalar, Probable falso positivo o Falta información; la severidad la fija siempre el motor. [Detalle](docs/TRIAGE.md).
 - **IA opcional:** Claude, OpenAI o Gemini con tu clave ([docs/PROVEEDORES-IA.md](docs/PROVEEDORES-IA.md)), o un modelo local con Ollama sin costo y sin enviar datos ([docs/IA-LOCAL.md](docs/IA-LOCAL.md)). Un modelo local pequeño sirve para practicar; para el informe formal se aconseja uno de mayor calidad.

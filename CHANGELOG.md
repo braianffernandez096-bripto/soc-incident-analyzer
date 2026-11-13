@@ -2,6 +2,20 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [1.12.0] - 2026-11-13
+
+### Novedades
+- **Contexto de vulnerabilidades (opcional, apagado por defecto, `CONTEXT_ENABLED=on`):** `backend/context.py` descarga el catálogo **CISA KEV** (vulnerabilidades explotadas activamente) y el puntaje **EPSS** (probabilidad de explotación a 30 días) y los cruza **en local**: ningún CVE ni equipo tuyo sale de tu red. Se refrescan solos cada 24 h y, si la descarga falla, se usa la copia anterior.
+- Regla nueva `ctx_cve`: un CVE presente en los eventos (por ejemplo, las alertas de vulnerabilidades de Wazuh, cuyo CVE, paquete y estado ahora se traducen) que figura en KEV es **Alto** (**Crítico** si CISA indica uso en ransomware); sin KEV, EPSS ≥ 70 % es Alto y ≥ 10 % es Medio. Las vulnerabilidades ya corregidas (`Solved`) no disparan. Es contexto para priorizar, no reemplaza a CVSS.
+- **Consulta a tu propio MISP (opcional, `MISP_URL` + `MISP_KEY`):** `backend/misp.py` pregunta por la API REST (`attributes/restSearch`) si alguna IP o hash de los eventos figura como indicador. Regla nueva `ctx_misp` (Alto). Usa `enforceWarninglist` y, por defecto, solo atributos `to_ids`; resultados en caché 10 min; un fallo de red o de clave no tumba el análisis ni se registra la clave.
+- **Aviso de Telegram con el tipo de origen:** «Fuerza bruta (Windows)» frente a «Fuerza bruta (SSH)», que antes se veían iguales.
+- `GET /api/context/status` indica si el contexto está listo (sin claves ni URL de MISP). Prueba manual: `python -m backend.context --refresh`.
+- Guía nueva: `docs/CONTEXTO.md`.
+
+### Cambios
+- El hallazgo del SIEM ahora dice «Informational **o Low**»: la regla agrupa ambas severidades y el título solo mencionaba una.
+- `docker-compose.yml` pasa las variables `CONTEXT_*` y `MISP_*` (la caché va a `/tmp/context`, el sistema de archivos sigue en solo lectura).
+
 ## [1.11.0] - 2026-11-12
 
 ### Novedades

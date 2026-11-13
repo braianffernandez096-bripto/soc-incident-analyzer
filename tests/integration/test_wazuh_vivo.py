@@ -291,9 +291,9 @@ def test_compose_passes_every_wazuh_and_telegram_variable():
     root = Path(__file__).resolve().parents[2]
     compose = (root / "docker-compose.yml").read_text(encoding="utf-8")
     example = (root / ".env.example").read_text(encoding="utf-8")
-    wanted = set(re.findall(r"^#?\s*((?:WAZUH|TELEGRAM)_[A-Z_]+)=", example, re.M)) | {"APP_BASE_URL"}
+    wanted = set(re.findall(r"^#?\s*((?:WAZUH|TELEGRAM|CONTEXT|MISP)_[A-Z_]+)=", example, re.M)) | {"APP_BASE_URL"}
     assert {"WAZUH_INGEST", "WAZUH_INGEST_TOKEN", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"} <= wanted
-    missing = sorted(v for v in wanted if f"- {v}=${{{v}:-}}" not in compose)
+    missing = sorted(v for v in wanted if f"- {v}=${{{v}:-" not in compose)
     assert not missing, f"docker-compose.yml no pasa: {missing}"
 
 

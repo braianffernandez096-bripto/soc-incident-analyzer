@@ -1144,10 +1144,10 @@ def rule_underclassification(st: State) -> None:
             continue
         per_rule[f.title] = sum(1 for i in f.evidence_ids if i in set(info["Log_ID"]))
     top = [(t, n) for t, n in per_rule.most_common() if n][:6]
-    _mk(st, "siem_underclass", f"El SIEM clasificó como 'Informational' {len(info)} eventos que forman parte de incidentes",
+    _mk(st, "siem_underclass", f"El SIEM clasificó como 'Informational o Low' {len(info)} eventos que forman parte de incidentes",
         "Otras anomalías", "Calidad de datos / SIEM", [], "Medio",
-        [f"{len(info)} de {len(ev)} eventos usados como evidencia ({fmt_dec(len(info) / len(ev) * 100, 0)} %) tienen Severity=Informational en el export."],
-        f"De los {len(ev)} eventos que sustentan los hallazgos, {len(info)} fueron clasificados por el SIEM como Informational, por lo que "
+        [f"{len(info)} de {len(ev)} eventos usados como evidencia ({fmt_dec(len(info) / len(ev) * 100, 0)} %) tienen Severity=Informational o Low en el export."],
+        f"De los {len(ev)} eventos que sustentan los hallazgos, {len(info)} fueron clasificados por el SIEM como Informational o Low, por lo que "
         f"no habrían generado una alerta prioritaria. Ejemplos por hallazgo: " + "; ".join(f"{t} ({n})" for t, n in top) +
         ". Se recomienda ajustar las reglas de correlación/severidad del SIEM para cubrir estos comportamientos.",
         info.head(40), metrics={"eventos_informational": int(len(info)), "eventos_evidencia": int(len(ev)), "top": top}, iocs=[])
@@ -1171,7 +1171,7 @@ RULES: list[tuple[str, str, Callable[[State], None]]] = [
     ("outbound_shell", "Conexión saliente a IP externa iniciada por shell/proceso inusual", rule_outbound),
     ("web_attack", "Ataque web: ráfagas HTTP con patrones de webshell/enumeración", rule_web_attack),
     ("dataquality", "Calidad de datos: hosts con distintas grafías, fuente de log incoherente, cuentas similares", rule_dataquality),
-    ("siem_underclass", "Brecha del SIEM: evidencias de incidentes clasificadas como Informational", rule_underclassification),
+    ("siem_underclass", "Brecha del SIEM: evidencias de incidentes clasificadas como Informational o Low", rule_underclassification),
 ]
 
 
@@ -1308,3 +1308,8 @@ def build_hypotheses(incidents: list[dict]) -> list[dict]:
 from . import detection_generic  # noqa: E402
 
 RULES.extend(detection_generic.RULES)
+
+# Contexto externo opcional (CISA KEV / EPSS / MISP). Sin configurar no produce hallazgos.
+from . import detection_context  # noqa: E402
+
+RULES.extend(detection_context.RULES)

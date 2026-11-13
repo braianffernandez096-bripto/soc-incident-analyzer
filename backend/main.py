@@ -951,5 +951,13 @@ def wazuh_session():
     return _register_session(df.copy(), analysis, "Alertas de Wazuh (en vivo)")
 
 
+@app.get("/api/context/status")
+def context_status():
+    """Estado del contexto opcional (CISA KEV / EPSS y MISP). No devuelve claves ni la URL de MISP."""
+    from . import context as ctx_mod, misp as misp_mod
+    store = ctx_mod.get_store()
+    return {"cve": store.status() if store else {"enabled": False}, "misp": {"configured": misp_mod.get_client() is not None}}
+
+
 # el frontend se sirve como estático (debe montarse al final)
 app.mount("/", StaticFiles(directory=ROOT / "frontend", html=True), name="frontend")

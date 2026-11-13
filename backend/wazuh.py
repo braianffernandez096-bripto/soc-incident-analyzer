@@ -192,6 +192,13 @@ def _generic_row(alert: dict, rule: dict) -> dict:
     for key in ("srcuser", "dstuser", "url", "protocol", "id"):
         if _val(data.get(key)):
             extra.append(f"{_title(key)}: {_val(data.get(key), 200)}")
+    vuln = data.get("vulnerability") if isinstance(data.get("vulnerability"), dict) else {}
+    if vuln:
+        pkg = vuln.get("package") if isinstance(vuln.get("package"), dict) else {}
+        for label, val in (("CVE", vuln.get("cve")), ("Severidad CVE", vuln.get("severity")), ("Estado", vuln.get("status") or vuln.get("state")),
+                           ("Paquete", " ".join(x for x in (_val(pkg.get("name"), 80), _val(pkg.get("version"), 40)) if x))):
+            if _val(val, 120):
+                extra.append(f"{label}: {_val(val, 120)}")
     src = _ip(data.get("srcip") or data.get("src_ip"))
     dst = _ip(data.get("dstip") or data.get("dest_ip"))
     return {

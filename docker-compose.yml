@@ -32,6 +32,15 @@ services:
       - TELEGRAM_INCLUDE_HOST=${TELEGRAM_INCLUDE_HOST:-}
       - TELEGRAM_DETAIL=${TELEGRAM_DETAIL:-}
       - APP_BASE_URL=${APP_BASE_URL:-}
+      # Contexto opcional: CISA KEV + EPSS (se descargan y se cruzan en local) y tu MISP (ver docs/CONTEXTO.md)
+      - CONTEXT_ENABLED=${CONTEXT_ENABLED:-}
+      - CONTEXT_DIR=${CONTEXT_DIR:-/tmp/context}
+      - CONTEXT_REFRESH_HOURS=${CONTEXT_REFRESH_HOURS:-}
+      - MISP_URL=${MISP_URL:-}
+      - MISP_KEY=${MISP_KEY:-}
+      - MISP_VERIFY=${MISP_VERIFY:-}
+      - MISP_ONLY_IDS=${MISP_ONLY_IDS:-}
+      - MISP_INCLUDE_PRIVATE=${MISP_INCLUDE_PRIVATE:-}
     # Lets the container reach an Ollama running on this computer (OLLAMA_HOST=http://host.docker.internal:11434)
     extra_hosts:
       - "host.docker.internal:host-gateway"

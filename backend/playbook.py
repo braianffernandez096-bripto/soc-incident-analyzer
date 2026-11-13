@@ -276,7 +276,7 @@ GENERAL_RECOMMENDATIONS = {
     "cmd_log_tamper": "Enviar los registros a un colector central en tiempo real y alertar el borrado de logs, los cambios de auditoría y el servicio EventLog detenido.",
     "cmd_lolbin_proxy": "Restringir con WDAC/AppLocker los programas de Windows que permiten ejecutar scripts o archivos remotos (mshta, cmstp, hh) donde no se necesiten.",
     "cmd_anti_recovery": "Mantener backups offline e inmutables, probar la restauración y alertar de inmediato cualquier uso de vssadmin/wbadmin delete.",
-    "siem_underclass": "Revisar la severidad y las reglas de correlación del SIEM: varios eventos que sustentan incidentes quedaron como Informational.",
+    "siem_underclass": "Revisar la severidad y las reglas de correlación del SIEM: varios eventos que sustentan incidentes quedaron como Informational o Low.",
     "dq_host_alias": "Normalizar nombres de host y fuentes de log en el pipeline del SIEM para no fragmentar correlaciones.",
 }
 
@@ -369,4 +369,26 @@ GENERAL_RECOMMENDATIONS.update({
     "g_dns_tunnel": "Forzar el DNS corporativo y alertar consultas largas y de alta entropía.",
     "g_cloud": "Aplicar mínimo privilegio a identidades cloud y alertar cambios de políticas IAM y creación de claves.",
     "g_mining": "Monitorear CPU sostenida y conexiones a pools de minería; corregir la vía de entrada.",
+})
+
+
+PLAYBOOK.update({
+    "ctx_cve": _pb(
+        "Una vulnerabilidad con explotación real conocida (CISA KEV) o muy probable (EPSS) está presente en {host}: es la que un atacante usaría primero.",
+        ["Confirmar que el componente afectado está instalado y expuesto en {host} (versión, servicio en escucha, accesible desde Internet o desde la red de usuarios).",
+         "Buscar en los logs de {host} señales de explotación previas al parche: procesos hijos inesperados del servicio afectado, conexiones salientes nuevas, archivos creados."],
+        ["Si el servicio está expuesto y no se puede parchear de inmediato, limitar el acceso (firewall/WAF) o desactivar el componente hasta corregirlo."],
+        ["Aplicar el parche del fabricante y verificar la versión; respetar el plazo de remediación indicado por CISA cuando figura en KEV.",
+         "Priorizar la corrección por KEV/EPSS además del puntaje CVSS."]),
+    "ctx_misp": _pb(
+        "Un indicador que tu equipo ya marcó como malicioso en MISP aparece en la actividad de {host}.",
+        ["Abrir el evento de MISP indicado: campaña, confianza, fecha y otros indicadores relacionados; buscar esos indicadores en el resto de los logs.",
+         "Revisar qué hizo {host} con {ip} (dirección, volumen, proceso que originó la conexión)."],
+        ["Bloquear {ip} en el egress/ingress mientras se confirma.", "Aislar {host} si hubo comunicación saliente hacia el indicador."],
+        ["Cargar el indicador en el bloqueo automático (firewall/proxy/DNS) si la confianza es alta."]),
+})
+
+GENERAL_RECOMMENDATIONS.update({
+    "ctx_cve": "Priorizar el parcheo por explotación real (KEV) y probabilidad (EPSS), no solo por CVSS.",
+    "ctx_misp": "Automatizar el bloqueo de indicadores de alta confianza de MISP y revisar periódicamente su vigencia.",
 })

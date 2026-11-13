@@ -240,7 +240,7 @@ def deterministic_report(analysis: dict) -> dict:
                f"El análisis identificó {pl_(len(incs), 'incidente independiente', 'incidentes independientes')} y {pl_(st['findings_total'], 'hallazgo', 'hallazgos')} "
                f"({pl_(sev['Crítico'], 'crítico', 'críticos')}, {pl_(sev['Alto'], 'alto', 'altos')}, {pl_(sev['Medio'], 'medio', 'medios')}, {pl_(sev['Bajo'], 'bajo', 'bajos')}); "
                + verbo
-               + (f"Además, el SIEM clasificó como Informational {under['metrics']['eventos_informational']} eventos que sustentan los incidentes, "
+               + (f"Además, el SIEM clasificó como Informational o Low {under['metrics']['eventos_informational']} eventos que sustentan los incidentes, "
                   f"por lo que parte de esta actividad no habría generado una alerta prioritaria. " if under else "")
                + "El detalle de cada incidente figura en la tabla siguiente.")
     top = sorted(incs, key=lambda i: (D.SEV_ORDER[i["severity"]], len(i["finding_ids"])), reverse=True)[:3]

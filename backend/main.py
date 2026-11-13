@@ -179,6 +179,7 @@ class Session:
     phish_id: str = ""             # análisis de correos asociado (se añade al PDF)
     triage: dict | None = None     # recomendaciones de triaje generadas con IA (sin ellas se usa la del motor)
     decisions: dict = field(default_factory=dict)   # decisión del analista por incidente (solo en memoria, como la sesión)
+    origin: str = ""               # "wazuh" si la sesión es la instantánea de las alertas de Wazuh (única que puede consultar el Indexer)
 
 
 SESSIONS: dict[str, Session] = {}
@@ -292,10 +293,10 @@ def captcha_verify(request: Request, body: CaptchaAnswer):
     return {"pass": grant, "uses": captcha_mod.PASS_USES, "ttl": captcha_mod.PASS_TTL}
 
 
-def _register_session(df: pd.DataFrame, analysis: dict, name: str, client: str = "", analyst: str = "") -> dict:
+def _register_session(df: pd.DataFrame, analysis: dict, name: str, client: str = "", analyst: str = "", origin: str = "") -> dict:
     sid = secrets.token_urlsafe(16)
     SESSIONS[sid] = Session(df=df, analysis=analysis, ai=ai_mod.build_deterministic(analysis), filename=name,
-                            client=client.strip(), analyst=analyst.strip())
+                            client=client.strip(), analyst=analyst.strip(), origin=origin)
     while len(SESSIONS) > MAX_SESSIONS:
         SESSIONS.pop(min(SESSIONS, key=lambda k: SESSIONS[k].created))
     s = SESSIONS[sid]
@@ -430,6 +431,8 @@ def finding_wazuh_context(sid: str, fid: str, request: Request):
         raise HTTPException(404, "El contexto del Indexer de Wazuh no está configurado en este servidor.")
     _rate_limit(request, "/api/wazuh-context", 30, 60)
     s = _get(sid)
+    if s.origin != "wazuh":       # un archivo subido puede traer cualquier equipo, IP u hora: no se le abre el Indexer
+        raise HTTPException(403, "El contexto del Indexer solo está disponible en las alertas de Wazuh en vivo, no en archivos subidos.")
     f = next((x for x in s.analysis["findings"] if x["id"] == fid), None)
     if not f:
         raise HTTPException(404, "Hallazgo no encontrado.")
@@ -965,7 +968,8 @@ def wazuh_session():
     analysis["limitations"] = list(analysis.get("limitations", [])) + [
         "Instantánea de las alertas de Wazuh de las últimas %d h (hasta %d filas). Es una foto: las alertas nuevas aparecen al volver a abrirla y las "
         "decisiones que tomes viven en esta foto." % (_live().window // 3600, _live().max_rows)]
-    return _register_session(df.copy(), analysis, "Alertas de Wazuh (en vivo)")
+    analysis["wazuh_context"] = wazuh_indexer.configured()
+    return _register_session(df.copy(), analysis, "Alertas de Wazuh (en vivo)", origin="wazuh")
 
 
 @app.get("/api/context/status")

@@ -8,7 +8,6 @@ import pandas as pd
 
 from . import attack
 from . import detection as D
-from . import wazuh_indexer
 from .siemqueries import ALL_SUPPORTED as SIEM_SUPPORTED
 
 log = logging.getLogger("soc.analysis")
@@ -235,7 +234,7 @@ def analyze(df: pd.DataFrame, meta: dict) -> dict:
         "stats": stats,
         "attack": attack.build_matrix(ordered),
         "siem_rules": sorted(SIEM_SUPPORTED),
-        "wazuh_context": wazuh_indexer.configured(),
+        "wazuh_context": False,                 # lo activa solo la instantánea de Wazuh en vivo (ver main.wazuh_session)
         "flag_map": flag_map,
         "limitations": _limitations(df, profile) + [
             f"La regla «{d}» no pudo ejecutarse con este archivo; sus detecciones pueden faltar." for d in failed_rules],

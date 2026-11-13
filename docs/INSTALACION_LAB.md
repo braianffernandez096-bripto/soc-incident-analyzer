@@ -36,6 +36,8 @@ Se usaron tres máquinas virtuales (servidor, Windows y MISP), pero se puede emp
 
 Si algo no responde como en la columna de la derecha, mira [SOLUCION_PROBLEMAS.md](SOLUCION_PROBLEMAS.md): reúne los síntomas que aparecieron al montar este laboratorio.
 
+Antes de dejarlo encendido: [ENDURECER_LAB.md](ENDURECER_LAB.md) (contraseñas por defecto, puertos publicados, certificados).
+
 ## Cinco reglas que ahorran horas
 
 1. **Recrea siempre con los dos archivos de compose** si usas Wazuh: `docker compose -f docker-compose.yml -f docker-compose.wazuh.yml up -d --build --force-recreate`. Con el comando simple, el analizador sale de la red de Wazuh y las alertas dejan de llegar **sin ningún error**.

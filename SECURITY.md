@@ -26,6 +26,10 @@ Solo la rama `main`.
 | Uso automatizado | Opcional: con `CAPTCHA=on` las subidas exigen resolver un captcha local (imágenes o rompecabezas deslizante; sin terceros ni internet), con un solo intento por desafío, pase de un solo uso y límite de fallos por IP. Frena bots genéricos; no detiene a un atacante dirigido ni sustituye a `APP_ACCESS_TOKEN`. |
 | Cadena de suministro | Dependencias con versión exacta y hash (`requirements.lock`), Dependabot, y en cada cambio `bandit`, `pip-audit` y Trivy. |
 | Superficie expuesta | Documentación de la API desactivada por defecto, contenedor sin privilegios, de solo lectura y sin capacidades. |
+| Ingesta de Wazuh | Clave propia en `X-Wazuh-Token` (16 caracteres o más, comparación en tiempo constante; sin clave el endpoint queda cerrado), 10 intentos fallidos por minuto y 429, máximo 1 MB y 200 alertas por llamada, campos recortados y limpios. |
+| Contexto del Indexer de Wazuh | Usuario de solo lectura; la consulta la arma el servidor (el navegador no envía consultas); solo disponible en las alertas de Wazuh en vivo, **no en archivos subidos**; 30 consultas por minuto; la contraseña no se muestra ni se registra. |
+| Avisos de Telegram | Sin usuarios, IPs, comandos ni logs por defecto; el token no se registra. |
+| MISP, KEV/EPSS y feed propio | Las direcciones las define solo el servidor; MISP e Indexer sin redirecciones; descargas con tope de tamaño; un archivo roto no reemplaza al bueno; la clave de MISP no se registra. |
 
 ## Lo que la aplicación NO hace
 
@@ -33,6 +37,7 @@ Solo la rama `main`.
 - **Sin `APP_ACCESS_TOKEN` no tiene login.** Cualquiera que llegue al puerto puede usarla. Por defecto solo es accesible desde tu equipo.
 - **La clave de acceso es una sola, compartida.** No hay usuarios, roles ni aislamiento entre personas: quien tenga el identificador de una sesión puede verla.
 - **No incluye HTTPS.** Si la expones en una red, ponla detrás de un proxy inverso con HTTPS; sin él la clave viaja sin cifrar.
+- **No cifra la comunicación con Wazuh, MISP o el Indexer por sí sola.** `MISP_VERIFY=0` y `WAZUH_INDEXER_VERIFY=0` apagan la verificación del certificado (el servicio lo registra como aviso); son para laboratorio. Usa `MISP_CA` o `WAZUH_INDEXER_CA` con la CA de tu servicio. Más en [docs/ENDURECER_LAB.md](docs/ENDURECER_LAB.md).
 - **Las sesiones viven en memoria** (máximo 10) y se pierden al reiniciar.
 - **La CSP permite estilos en línea** (`style-src 'unsafe-inline'`) porque la interfaz los usa. Es un riesgo aceptado: los scripts siguen limitados a `'self'`, así que un dato malicioso no puede ejecutar código.
 
@@ -47,3 +52,4 @@ Nada sale sin una acción tuya: la IA y la reputación están apagadas hasta que
 3. Sírvela detrás de HTTPS y no publiques el puerto 8000 directamente.
 4. Mantén las dependencias al día (acepta los pull requests de Dependabot) y ejecuta `make audit` de vez en cuando.
 5. Usa datos de logs de los que tengas permiso para procesar: pueden contener información personal.
+6. Si lo conectas a Wazuh, MISP o Telegram, revisa [docs/ENDURECER_LAB.md](docs/ENDURECER_LAB.md): contraseñas por defecto, puertos publicados, certificados y rotación de claves.

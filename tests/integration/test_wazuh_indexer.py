@@ -130,8 +130,11 @@ def test_endpoint_y_aviso_en_el_analisis(env, monkeypatch):
     c = TestClient(main.app)
     s = c.post("/api/sample").json()
     sid = s["session_id"] if "session_id" in s else s["sid"]
-    assert c.get(f"/api/sessions/{sid}").json()["analysis"]["wazuh_context"] is True
     fid = c.get(f"/api/sessions/{sid}").json()["analysis"]["findings"][0]["id"]
+    # un archivo subido (o el ejemplo) no puede consultar el Indexer: podría traer cualquier equipo, IP u hora
+    assert c.get(f"/api/sessions/{sid}").json()["analysis"]["wazuh_context"] is False
+    assert c.get(f"/api/sessions/{sid}/findings/{fid}/wazuh-context").status_code == 403
+    main.SESSIONS[sid].origin = "wazuh"           # lo que hace la instantánea de Wazuh en vivo
     monkeypatch.setattr(WI, "context_for", lambda f, http=None: {"events": [], "total": 0, "shown": 0, "window_min": 5, "raw_events": False, "archives_enabled": True, "from": "", "to": ""})
     assert c.get(f"/api/sessions/{sid}/findings/{fid}/wazuh-context").status_code == 200
     assert c.get(f"/api/sessions/{sid}/findings/F-999/wazuh-context").status_code == 404
@@ -163,3 +166,24 @@ def test_descripcion_de_la_regla_sin_barras_de_escape():
     hit = {"_index": "wazuh-alerts-4.x", "_source": {"@timestamp": "2026-11-13T17:52:02Z", "agent": {"name": "H"},
            "rule": {"id": "92037", "level": 3, "description": "started by C:\\\\Windows\\\\System32\\\\powershell.exe"}}}
     assert WI.normalize_hit(hit)["description"] == "started by C:\\Windows\\System32\\powershell.exe"
+
+
+def test_instantanea_de_wazuh_en_vivo_marca_origen_y_activa_el_boton(env, monkeypatch):
+    c = TestClient(main.app)
+    s = c.post("/api/sample").json()
+    df, meta = main.SESSIONS[s["session_id"]].df, {}
+    out = main._register_session(df.copy(), {**s["analysis"], "wazuh_context": True}, "Alertas de Wazuh (en vivo)", origin="wazuh")
+    sid = out["session_id"]
+    assert main.SESSIONS[sid].origin == "wazuh" and out["analysis"]["wazuh_context"] is True
+    fid = out["analysis"]["findings"][0]["id"]
+    monkeypatch.setattr(WI, "context_for", lambda f, http=None: {"events": [], "total": 0, "shown": 0, "window_min": 5, "raw_events": False, "archives_enabled": True, "from": "", "to": ""})
+    assert c.get(f"/api/sessions/{sid}/findings/{fid}/wazuh-context").status_code == 200
+
+
+def test_avisa_si_se_desactiva_la_verificacion_tls(env, monkeypatch, caplog):
+    monkeypatch.setenv("WAZUH_INDEXER_VERIFY", "0")
+    monkeypatch.setattr(WI, "_TLS_WARNED", False)
+    with caplog.at_level("WARNING", logger="soc.indexer"):
+        assert WI._verify() is False
+        WI._verify()
+    assert caplog.text.count("tls_verify_disabled") == 1 and "SECRETA" not in caplog.text

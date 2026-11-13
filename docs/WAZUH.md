@@ -140,7 +140,7 @@ La consulta la arma el servidor (no el navegador). Alertas y eventos crudos se p
 - **Alertas** (`wazuh-alerts-*`): ±`WAZUH_INDEXER_WINDOW_MIN` minutos (5), hasta `WAZUH_INDEXER_MAX` (100), en orden cronológico.
 - **Eventos crudos** (`wazuh-archives-*`): ±`WAZUH_INDEXER_RAW_WINDOW_SEC` segundos (90), hasta `WAZUH_INDEXER_RAW_MAX` (50), y **solo los que no generaron alerta** (los demás ya están en la lista de alertas). Van primero los que comparten IP o cuenta con el hallazgo, para que un volumen alto de eventos del equipo no tape lo importante. Si no se pueden leer, se muestran igual las alertas.
 
-La contraseña nunca se muestra ni se registra; los errores (clave rechazada, sin conexión) aparecen como mensajes genéricos.
+El botón aparece **solo en las alertas de Wazuh en vivo** (**Abrir alertas de Wazuh**): un archivo subido puede traer cualquier equipo, IP u hora, y no se le abre el Indexer. La contraseña nunca se muestra ni se registra; los errores (clave rechazada, sin conexión) aparecen como mensajes genéricos.
 
 **Eventos crudos:** el Indexer guarda por defecto solo alertas. Los eventos sin alerta existen únicamente si activas el archivado, que son **dos** cambios:
 

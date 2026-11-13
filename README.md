@@ -135,7 +135,7 @@ Hay pruebas unitarias, de integración, de extremo a extremo con navegador real 
 
 ## Privacidad y seguridad
 
-La app corre en tu equipo y no envía telemetría; solo salen datos si activas la IA de un proveedor, la consulta DNS o la reputación ([docs/PRIVACIDAD.md](docs/PRIVACIDAD.md)). Los datos del archivo se tratan como no confiables (escape, CSP estricta, tipo por contenido), las claves nunca se guardan y la IA no puede cambiar la criticidad. Contenedor sin privilegios y CI con `bandit`, `pip-audit` y Trivy: [detalle](docs/DESARROLLO.md#seguridad-detalle) y [SECURITY.md](SECURITY.md). Para colaborar: [CONTRIBUTING.md](CONTRIBUTING.md).
+La app corre en tu equipo y no envía telemetría; solo salen datos si activas la IA de un proveedor, la consulta DNS o la reputación ([docs/PRIVACIDAD.md](docs/PRIVACIDAD.md)); para el laboratorio con Wazuh, MISP y Telegram, [cómo endurecerlo](docs/ENDURECER_LAB.md). Los datos del archivo se tratan como no confiables (escape, CSP estricta, tipo por contenido), las claves nunca se guardan y la IA no puede cambiar la criticidad. Contenedor sin privilegios y CI con `bandit`, `pip-audit` y Trivy: [detalle](docs/DESARROLLO.md#seguridad-detalle) y [SECURITY.md](SECURITY.md). Para colaborar: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Si algo falla, límites y estructura
 

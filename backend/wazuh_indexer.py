@@ -55,11 +55,24 @@ def _int(name: str, default: int, lo: int, hi: int) -> int:
     return max(lo, min(hi, v))
 
 
+_TLS_WARNED = False
+
+
+def _warn_tls() -> None:
+    global _TLS_WARNED
+    if not _TLS_WARNED:
+        _TLS_WARNED = True
+        log.warning("tls_verify_disabled service=wazuh_indexer: solo para laboratorio; en producción usa WAZUH_INDEXER_CA con la CA de tu Indexer")
+
+
 def _verify():
     ca = os.environ.get("WAZUH_INDEXER_CA", "").strip()
     if ca:
         return ca
-    return os.environ.get("WAZUH_INDEXER_VERIFY", "").strip().lower() not in ("0", "false", "no", "off")
+    ok = os.environ.get("WAZUH_INDEXER_VERIFY", "").strip().lower() not in ("0", "false", "no", "off")
+    if not ok:
+        _warn_tls()
+    return ok
 
 
 def _host_variants(host: str) -> list[str]:

@@ -53,6 +53,8 @@ class MispClient:
             return None
         ca = os.environ.get("MISP_CA", "").strip()
         verify: bool | str = ca if ca else _truthy("MISP_VERIFY", True)
+        if verify is False:
+            log.warning("tls_verify_disabled service=misp: solo para laboratorio; en producción usa MISP_CA con la CA de tu MISP")
         try:
             cache = max(0.0, min(86400.0, float(os.environ.get("MISP_CACHE_SECONDS", "").strip() or CACHE_OK)))
         except ValueError:

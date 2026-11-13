@@ -355,3 +355,19 @@ def test_same_severity_finding_is_not_repeated_and_lower_severity_does_not_reale
     live._dirty = True
     live.run_cycle(main.analyze)
     assert len(sink.sent) == 1
+
+
+def test_la_instantanea_en_vivo_es_la_unica_con_contexto_del_indexer(api, monkeypatch):
+    monkeypatch.setenv("WAZUH_INDEXER_URL", "https://idx.lab:9200")
+    monkeypatch.setenv("WAZUH_INDEXER_USER", "ro")
+    monkeypatch.setenv("WAZUH_INDEXER_PASSWORD", "x")
+    api.post("/api/wazuh/alerts", json=ataque(), headers=HDR)
+    r = api.get("/api/wazuh/session").json()
+    assert r["analysis"]["wazuh_context"] is True and main.SESSIONS[r["session_id"]].origin == "wazuh"
+    fid = r["analysis"]["findings"][0]["id"]
+    from backend import wazuh_indexer
+    monkeypatch.setattr(wazuh_indexer, "context_for", lambda f, http=None: {"events": [], "total": 0, "shown": 0, "window_min": 5, "raw_events": False, "archives_enabled": True, "from": "", "to": ""})
+    assert api.get(f"/api/sessions/{r['session_id']}/findings/{fid}/wazuh-context").status_code == 200
+    ejemplo = api.post("/api/sample").json()
+    assert ejemplo["analysis"]["wazuh_context"] is False
+    assert api.get(f"/api/sessions/{ejemplo['session_id']}/findings/F-001/wazuh-context").status_code == 403

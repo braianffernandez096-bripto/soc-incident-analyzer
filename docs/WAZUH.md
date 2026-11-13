@@ -97,13 +97,19 @@ Un aviso tiene este aspecto:
 ```
 🛡️ Wazuh · 2 hallazgo(s) nuevo(s) para revisar
 🔴 Escalar · Crítico
+   Credenciales · 3 evento(s) · 12:02 UTC
    Acceso a credenciales · T1003
 🟠 Escalar · Alto
-   Acceso inicial · T1110
+   Fuerza bruta · 12 evento(s) · 12:00 UTC
+   Acceso a credenciales · T1110
 Panel: http://127.0.0.1:8000
 ```
 
-> **Privacidad.** Telegram es un servicio en la nube y los mensajes de un bot no van cifrados de extremo a extremo. Por eso el aviso solo lleva severidad, recomendación del motor, táctica y técnica. **No** lleva usuarios, IPs, comandos, rutas ni logs, ni siquiera el nombre del equipo; ese solo se agrega con `TELEGRAM_INCLUDE_HOST=1`. El detalle se ve en el panel, que corre en tu red. El token del bot nunca se escribe en los registros.
+Cada hallazgo muestra su severidad y la recomendación del motor, el **tipo** (genérico: «Fuerza bruta», «Credenciales»…), cuántos eventos lo sustentan, la hora del primero (UTC), la táctica y la técnica MITRE.
+
+> **Privacidad.** Telegram es un servicio en la nube y los mensajes de un bot no van cifrados de extremo a extremo. Por eso, por defecto, el aviso **no** lleva usuarios, IPs, comandos, rutas ni logs, ni siquiera el nombre del equipo; ese solo se agrega con `TELEGRAM_INCLUDE_HOST=1`. El detalle se ve en el panel, que corre en tu red. El token del bot nunca se escribe en los registros.
+>
+> Si aceptas que esos datos pasen por Telegram (un laboratorio, por ejemplo), `TELEGRAM_DETAIL=full` suma el título del hallazgo, el equipo, las cuentas y las IPs. Sigue sin incluir comandos, rutas ni logs. Es una decisión explícita: está apagada por defecto.
 
 ## Seguridad del endpoint
 
@@ -126,6 +132,7 @@ Panel: http://127.0.0.1:8000
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | — | Activan los avisos |
 | `APP_BASE_URL` | — | Enlace al panel en el aviso (solo `http://` o `https://`) |
 | `TELEGRAM_INCLUDE_HOST` | no | `1` agrega el nombre del equipo al aviso |
+| `TELEGRAM_DETAIL` | básico | `full` suma título, equipo, cuentas e IPs al aviso (ver Privacidad) |
 
 ## Probarlo sin Wazuh
 

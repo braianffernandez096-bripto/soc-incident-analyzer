@@ -1,11 +1,15 @@
 """Avisos a Telegram (opcional, apagado por defecto).
 
-Telegram es un servicio en la nube y los mensajes de un bot **no** van cifrados de extremo a extremo, así que el aviso lleva lo mínimo para que el
-analista sepa que debe mirar el panel: severidad, recomendación del motor, táctica y técnica MITRE y un enlace. **No** incluye usuarios, IPs,
-comandos, rutas ni logs. El nombre del equipo solo se agrega si lo pides con ``TELEGRAM_INCLUDE_HOST=1``.
+Telegram es un servicio en la nube y los mensajes de un bot **no** van cifrados de extremo a extremo, así que por defecto el aviso lleva lo mínimo
+para que el analista sepa qué mirar en el panel: severidad, recomendación del motor, tipo de hallazgo (genérico, p. ej. «Fuerza bruta»), cantidad de
+eventos, hora (UTC), táctica y técnica MITRE y un enlace. **No** incluye usuarios, IPs, comandos, rutas ni logs. El nombre del equipo solo se agrega si
+lo pides con ``TELEGRAM_INCLUDE_HOST=1``.
 
-Variables: ``TELEGRAM_BOT_TOKEN`` y ``TELEGRAM_CHAT_ID`` (sin ellas no se envía nada), ``APP_BASE_URL`` (para el enlace) y ``TELEGRAM_INCLUDE_HOST``.
-El token nunca se escribe en los registros.
+``TELEGRAM_DETAIL=full`` es una opción **explícita** para quien acepta que esos datos pasen por Telegram: suma el título del hallazgo, el equipo, las
+cuentas y las IPs. Sigue sin incluir comandos, rutas ni logs.
+
+Variables: ``TELEGRAM_BOT_TOKEN`` y ``TELEGRAM_CHAT_ID`` (sin ellas no se envía nada), ``APP_BASE_URL`` (para el enlace), ``TELEGRAM_INCLUDE_HOST`` y
+``TELEGRAM_DETAIL``. El token nunca se escribe en los registros.
 """
 from __future__ import annotations
 
@@ -23,17 +27,23 @@ MAX_LINES = 10
 EMOJI = {"Crítico": "🔴", "Alto": "🟠", "Medio": "🟡", "Bajo": "🟢"}
 REC = {"Crítico": "Escalar", "Alto": "Escalar", "Medio": "Falta información", "Bajo": "Probable falso positivo"}
 _SAFE = re.compile(r"[^\w .\-]", re.UNICODE)
+_CTRL = re.compile(r"[\x00-\x1f\x7f]")
 
 
 def _plain(s: str, n: int = 60) -> str:
     return _SAFE.sub("", str(s or ""))[:n].strip()
 
 
+def _text(s, n: int = 160) -> str:
+    """Texto con más libertad (modo ``full``): solo se quitan los caracteres de control y se recorta."""
+    return _CTRL.sub(" ", str(s or "")).strip()[:n]
+
+
 class TelegramNotifier:
     def __init__(self, token: str, chat_id: str, *, include_host: bool = False, base_url: str = "",
-                 post: Callable | None = None, timeout: float = 10.0):
+                 post: Callable | None = None, timeout: float = 10.0, full: bool = False):
         self._token, self.chat_id = token, chat_id
-        self.include_host, self.base_url = include_host, base_url.rstrip("/")
+        self.include_host, self.base_url, self.full = include_host, base_url.rstrip("/"), full
         self._post, self._timeout = post, timeout
 
     @classmethod
@@ -46,7 +56,7 @@ class TelegramNotifier:
         if base and not re.match(r"^https?://", base, re.I):
             base = ""
         return cls(token, chat, include_host=os.environ.get("TELEGRAM_INCLUDE_HOST", "").strip().lower() in ("1", "true", "yes"),
-                   base_url=base, post=post)
+                   base_url=base, post=post, full=os.environ.get("TELEGRAM_DETAIL", "").strip().lower() == "full")
 
     # -- formato ---------------------------------------------------------------------------------
     def line(self, f: dict) -> str:
@@ -54,10 +64,25 @@ class TelegramNotifier:
         head = f"{EMOJI.get(sev, '⚪')} {REC.get(sev, 'Revisar')} · {sev}"
         tech = ", ".join(_plain(m, 14) for m in (f.get("mitre") or [])[:2])
         detail = _plain(f.get("tactic", "")) + (f" · {tech}" if tech else "")
+        n = len(f.get("evidence_ids") or [])
+        when = str(f.get("time_start") or "")[11:16]
+        what = " · ".join(x for x in (_plain(f.get("category", ""), 40), f"{n} evento(s)" if n else "", f"{when} UTC" if when else "") if x)
+        lines = [head]
+        if self.full and f.get("title"):
+            lines.append("   " + _text(f["title"]))
+        if what:
+            lines.append("   " + what)
         host = ""
-        if self.include_host and f.get("hosts"):
-            host = " · Equipo: " + _plain(f["hosts"][0], 40)
-        return f"{head}\n   {detail}{host}".rstrip()
+        if (self.include_host or self.full) and f.get("hosts"):
+            host = " · Equipo: " + (_text(", ".join(f["hosts"][:3]), 80) if self.full else _plain(f["hosts"][0], 40))
+        lines.append(f"   {detail}{host}".rstrip())
+        if self.full:
+            who = ", ".join(list(f.get("actor_users") or f.get("users") or [])[:3])
+            ips = ", ".join((f.get("ips") or [])[:3])
+            extra = " · ".join(x for x in (f"Cuentas: {_text(who, 80)}" if who else "", f"IP: {_text(ips, 80)}" if ips else "") if x)
+            if extra:
+                lines.append("   " + extra)
+        return "\n".join(lines)
 
     def format(self, findings: list[dict], title: str) -> str:
         lines = [self.line(f) for f in findings[:MAX_LINES]]

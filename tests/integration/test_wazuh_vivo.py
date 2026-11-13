@@ -215,6 +215,21 @@ def test_formato_minimo_y_host_opcional():
     assert "y 5 más" in muchos
 
 
+def test_formato_basico_dice_que_es_sin_datos_sensibles_y_full_es_opcional():
+    f = {"severity": "Alto", "category": "Fuerza bruta", "tactic": "Acceso a credenciales", "mitre": ["T1110.001"],
+         "time_start": "2026-11-12 21:41:00", "evidence_ids": [str(i) for i in range(12)], "title": "Fuerza bruta por SSH desde 10.0.0.9",
+         "hosts": ["SRV-1"], "users": ["falso"], "actor_users": [], "ips": ["10.0.0.9"]}
+    basico = notify.TelegramNotifier("t", "1").format([f], "T")
+    assert "Fuerza bruta · 12 evento(s) · 21:41 UTC" in basico and "T1110.001" in basico
+    assert not any(x in basico for x in ("10.0.0.9", "falso", "SRV-1", "por SSH"))          # el título lleva datos: solo en modo full
+    completo = notify.TelegramNotifier("t", "1", full=True).format([f], "T")
+    assert "Fuerza bruta por SSH desde 10.0.0.9" in completo and "Equipo: SRV-1" in completo
+    assert "Cuentas: falso" in completo and "IP: 10.0.0.9" in completo
+    hostil = dict(f, title="x\x00\x1b[31m" + "A" * 500, hosts=["h\n\rQ"])
+    out = notify.TelegramNotifier("t", "1", full=True).format([hostil], "T")
+    assert "\x00" not in out and "\x1b" not in out and len(out) < 900
+
+
 def test_telegram_nunca_lanza_ni_filtra_el_token(monkeypatch, caplog):
     import httpx
     def boom(*a, **k):
@@ -232,7 +247,11 @@ def test_from_env(monkeypatch):
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "9")
     monkeypatch.setenv("APP_BASE_URL", "javascript:alert(1)")
     n = notify.TelegramNotifier.from_env()
-    assert n.chat_id == "9" and n.base_url == "" and n.include_host is False
+    assert n.chat_id == "9" and n.base_url == "" and n.include_host is False and n.full is False
+    monkeypatch.setenv("TELEGRAM_DETAIL", "FULL")
+    assert notify.TelegramNotifier.from_env().full is True
+    monkeypatch.setenv("TELEGRAM_DETAIL", "otra-cosa")
+    assert notify.TelegramNotifier.from_env().full is False
 
 
 # ---------------------------------------------------------------- script de integración

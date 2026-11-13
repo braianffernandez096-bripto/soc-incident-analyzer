@@ -30,6 +30,7 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
       - TELEGRAM_INCLUDE_HOST=${TELEGRAM_INCLUDE_HOST:-}
+      - TELEGRAM_DETAIL=${TELEGRAM_DETAIL:-}
       - APP_BASE_URL=${APP_BASE_URL:-}
     # Lets the container reach an Ollama running on this computer (OLLAMA_HOST=http://host.docker.internal:11434)
     extra_hosts:

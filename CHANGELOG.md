@@ -11,6 +11,8 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - **Aviso de Telegram con el tipo de origen:** «Fuerza bruta (Windows)» frente a «Fuerza bruta (SSH)», que antes se veían iguales.
 - `GET /api/context/status` indica si el contexto está listo (sin claves ni URL de MISP). Prueba manual: `python -m backend.context --refresh`.
 - Guía nueva: `docs/CONTEXTO.md`.
+- **Probado en laboratorio** (Wazuh 4.14.7, MISP 2.4): descarga real de KEV (1779 CVE) y EPSS (≈406 mil), MISP con clave de solo lectura y certificado autofirmado, y los avisos de Telegram «Fuerza bruta (Windows)», «Fuerza bruta (SSH)» y «Vulnerabilidad».
+- Documentado en `docs/WAZUH.md`: recrear el contenedor del analizador con los dos archivos de compose (si no, sale de la red de Wazuh y las alertas dejan de llegar sin error).
 
 ### Cambios
 - **Límites del análisis** ya no dice «no hay inteligencia de amenazas» cuando se consultó tu MISP o se cruzó con KEV/EPSS: indica qué contexto se usó y su alcance.

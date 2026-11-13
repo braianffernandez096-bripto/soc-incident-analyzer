@@ -64,6 +64,8 @@ Wazuh (alerta nivel ≥ 5) → integración custom-soc-analyzer → POST /api/wa
 
    **Si el manager corre en Docker** (compose oficial de un solo nodo), edita el `ossec.conf` de **dentro del contenedor** (`docker exec -it <contenedor> vi /var/ossec/etc/ossec.conf`, o con `sed`). `/var/ossec/etc` es un volumen y el archivo de tu carpeta `config/wazuh_cluster/` no se vuelve a copiar al reiniciar, así que un cambio hecho solo ahí no se aplica. Para comprobar que Wazuh lo tomó, mira que el registro diga `Enabling integration for: 'custom-soc-analyzer'` (`grep -i integrator /var/ossec/logs/ossec.log | tail`); si dice `Remote integrations not configured`, la integración no está cargada.
 
+   **Al recrear el contenedor del analizador, usa siempre los dos archivos de compose:** `docker compose -f docker-compose.yml -f docker-compose.wazuh.yml up -d --force-recreate`. Con el comando simple (`docker compose up -d`) el contenedor sale de la red de Wazuh: la integración, que lo busca por el nombre `soc-analyzer`, deja de encontrarlo y **las alertas dejan de llegar sin ningún error visible** (en los registros del analizador solo se ven los chequeos de salud). Se comprueba con `docker inspect soc-incident-analyzer-analyzer-1 --format "{{json .NetworkSettings.Networks}}"`, que debe incluir `single-node_default`.
+
 4. Abre la app. Si el modo está activo y ya llegaron alertas, en el inicio aparece **Abrir alertas de Wazuh (N)**. Abre una **instantánea** del último análisis: una sesión normal, con triaje, consultas para el SIEM e informes. Las alertas que lleguen después aparecen al volver a abrirla, y las decisiones que tomes viven en esa foto.
 
 ## Probar la integración
@@ -79,7 +81,7 @@ Son 12 inicios de sesión fallidos con un usuario que no existe (no bloquea ning
 Dos cosas que conviene saber al leer el panel:
 
 - **Las horas están en UTC**, como en el resto de la app: en Argentina son 3 horas menos.
-- Si Wazuh etiquetó los eventos con severidad baja, el motor suma la observación **«El SIEM clasificó como Informational…»**: avisa de que la clasificación del SIEM se quedó corta frente a lo que el motor detectó. No es una amenaza más, es una brecha de calidad, y por eso no genera aviso en Telegram.
+- Si Wazuh etiquetó los eventos con severidad baja, el motor suma la observación **«El SIEM clasificó como Informational o Low…»**: avisa de que la clasificación del SIEM se quedó corta frente a lo que el motor detectó. No es una amenaza más, es una brecha de calidad, y por eso no genera aviso en Telegram.
 
 ## Telegram (opcional)
 
@@ -150,6 +152,6 @@ El estado se consulta en `GET /api/wazuh/status` (cuántas alertas hay, cuántas
 
 - Es un análisis **por ventana**: la fuerza bruta o el movimiento lateral se detectan con las alertas que están en la ventana, así que si Wazuh solo envía las de nivel alto, el motor verá menos contexto que con los eventos crudos. Baja el `level` si quieres más.
 - Una alerta de Wazuh ya es una detección. El motor la vuelve a evaluar con sus reglas; coincidirán a menudo, pero no siempre.
-- El nivel de Wazuh se traduce a la «severidad del SIEM» (nivel 3 o menos = Informational). Por eso la observación «El SIEM clasificó como Informational…» puede aparecer cuando una alerta de nivel bajo forma parte de un incidente.
+- El nivel de Wazuh se traduce a la «severidad del SIEM» (nivel 3 o menos = Informational). Por eso la observación «El SIEM clasificó como Informational o Low…» puede aparecer cuando una alerta de nivel bajo forma parte de un incidente.
 - Las decisiones del analista viven en la instantánea y no sobreviven a reabrirla ni a reiniciar el servicio, igual que las sesiones normales.
-- No se interpretan todavía las alertas del módulo de vulnerabilidades ni de integridad de archivos más allá de su descripción.
+- Las alertas de integridad de archivos no se interpretan más allá de su descripción. Las de **vulnerabilidades** se traducen (CVE, paquete y estado) y, con el contexto activado, se cruzan con CISA KEV y EPSS ([CONTEXTO.md](CONTEXTO.md)). Ojo: en la imagen Docker oficial de Wazuh 4.14 el módulo de vulnerabilidades viene **desactivado** (`<vulnerability-detection><enabled>no`) y, en las pruebas con esa versión, no generó alertas: el cruce se comprobó enviando una alerta de vulnerabilidad con el formato de Wazuh al analizador.

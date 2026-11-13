@@ -59,7 +59,7 @@ Una coincidencia genera un hallazgo **Alto** que cita los eventos de MISP. Indic
 ### Probarlo
 
 1. En MISP crea un evento y agrega el atributo `ip-dst` = `203.0.113.50` con «For Intrusion Detection System» marcado.
-2. Genera actividad que mencione esa IP (por ejemplo, la prueba de fuerza bruta de [WAZUH.md](WAZUH.md)).
+2. Genera actividad que mencione esa IP: por ejemplo, sube al analizador un CSV de eventos con `203.0.113.50` como destino o IP de origen, o usa la prueba de [WAZUH.md](WAZUH.md).
 3. En el panel aparece «Indicador conocido en MISP: 203.0.113.50».
 
 ## Variables
@@ -79,4 +79,6 @@ Una coincidencia genera un hallazgo **Alto** que cita los eventos de MISP. Indic
 
 - KEV y EPSS se cruzan por el texto del evento: si el log no menciona el CVE, no hay cruce.
 - La coincidencia con MISP es exacta (el valor tal cual); los atributos compuestos (`ip|puerto`) no cuentan.
-- Los avisos de vulnerabilidades dependen de lo que Wazuh alerte (p. ej. no hay alertas en el primer escaneo del sistema operativo).
+- Los avisos de vulnerabilidades dependen de lo que Wazuh alerte. En Wazuh 4.14 con la imagen Docker oficial el módulo de vulnerabilidades viene desactivado y no emitió alertas en las pruebas; para probar el cruce se envió una alerta con su formato (`data.vulnerability.cve`, `severity`, `status`, `package`) a `POST /api/wazuh/alerts`.
+- Si usas un certificado autofirmado en MISP necesitas `MISP_VERIFY=0` (sin eso el analizador rechaza la conexión y, por diseño, el análisis sigue sin la consulta; el motivo queda en el registro como `misp_failed type=ConnectError`).
+- La clave de MISP distingue mayúsculas y minúsculas: un solo carácter distinto da «Authentication failed».

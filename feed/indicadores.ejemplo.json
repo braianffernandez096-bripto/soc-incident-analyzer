@@ -1,0 +1,8 @@
+{
+  "indicadores": [
+    {"valor": "203.0.113.50", "tipo": "ip", "descripcion": "Servidor de comando y control de laboratorio", "fuente": "equipo-soc", "fecha": "2026-11-01"},
+    {"valor": "evil-update.example", "tipo": "dominio", "descripcion": "Dominio de descarga de malware (ejemplo)", "fuente": "equipo-soc", "fecha": "2026-11-05"},
+    {"valor": "44d88612fea8a8f36de82e1278abb02f", "tipo": "hash", "descripcion": "Hash de prueba (EICAR)", "fuente": "equipo-soc", "fecha": "2026-11-01", "expira": "2027-12-31"},
+    {"valor": "198.51.100.77", "descripcion": "Indicador vencido: no debe disparar", "fuente": "equipo-soc", "fecha": "2025-01-01"}
+  ]
+}

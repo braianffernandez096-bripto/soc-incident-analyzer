@@ -5,6 +5,7 @@ Como el resto del motor, fijan la criticidad con umbrales explícitos; la IA sol
 
 - ``ctx_cve``: un CVE que aparece en los eventos (p. ej. alertas de vulnerabilidades de Wazuh) y figura en KEV, o tiene un EPSS alto.
 - ``ctx_misp``: una IP o hash de los eventos que existe como indicador en tu MISP.
+- ``ctx_feed``: una IP, un hash o un dominio de los eventos que figura (y no venció) en tu feed JSON de indicadores.
 """
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ import re
 import pandas as pd
 
 from . import context as C
+from . import feed as F
 from . import misp as M
 from .detection import CONFIG, State, _ioc, _mk, fmt_dec, ip_of
 
@@ -116,7 +118,57 @@ def rule_misp(st: State) -> None:
             iocs=[_ioc("IP" if is_ip else "Hash", val, "Coincide con MISP")])
 
 
+def rule_feed(st: State) -> None:
+    feed = F.get_feed()
+    if feed is None or not feed.ready:
+        return
+    d = st.df
+    where: dict[str, list[int]] = {}
+
+    def add(val: str, idx: int) -> None:
+        where.setdefault(val, []).append(idx)
+
+    for col in ("Source_IP", "Destination"):
+        for idx, v in d[col].items():
+            ip = ip_of(str(v))
+            if ip:
+                norm, kind = F.normalize(ip)
+                if kind == "ip":
+                    add(norm, idx)
+    text = (d["Event_Description"] + " " + d["Process_CommandLine"] + " " + d["Destination"]).str.lower()
+    for idx in d.index[text.str.contains(_HASH, na=False)]:
+        for h in _HASH.findall(text.at[idx]):
+            add(h, idx)
+    doms = feed.domains()
+    if doms:
+        for idx, t in text.items():
+            for tok in F.TOKEN_RE.findall(t):
+                labels = tok.rstrip(".").split(".")
+                for i in range(len(labels) - 1):                      # «a.b.evil.com» coincide con «evil.com» (sin cruzar el sufijo público)
+                    cand = ".".join(labels[i:])
+                    if cand in doms:
+                        add(cand, idx)
+                        break
+    if not where:
+        return
+    active = feed.lookup(list(where))
+    for val, e in active.items():
+        rows = d.loc[list(dict.fromkeys(where[val]))]
+        kind = e["tipo"]
+        label = {"ip": "La IP", "hash": "El hash", "dominio": "El dominio"}[kind]
+        extra = " · ".join(x for x in (e["descripcion"], f"fuente: {e['fuente']}" if e["fuente"] else "",
+                                       f"vigente hasta {e['expira']}" if e["expira"] else "sin vencimiento") if x)
+        _mk(st, "ctx_feed", f"Indicador conocido en tu feed: {val}", "Otras anomalías", "Ejecución" if kind == "hash" else "Comando y control", [], "Alto",
+            [f"{label} {val} figura en tu feed de indicadores ({extra})."],
+            f"{label} {val} aparece en los eventos y coincide con un indicador de tu feed ({extra}). Revisa el contexto del indicador (campaña, fecha, "
+            f"confianza) antes de actuar: la coincidencia indica que alguien lo reportó como malicioso, no prueba por sí sola que el equipo esté comprometido.",
+            rows, actor_ips=[val] if kind == "ip" else [],
+            metrics={"valor": val, "tipo": kind, "fuente": e["fuente"], "fecha": e["fecha"], "expira": e["expira"], "descripcion": e["descripcion"]},
+            iocs=[_ioc({"ip": "IP", "hash": "Hash", "dominio": "Dominio"}[kind], val, "Coincide con tu feed")])
+
+
 RULES = [
     ("ctx_cve", "Contexto (opcional): CVE presente en los eventos y listado en CISA KEV o con EPSS alto", rule_cve_context),
     ("ctx_misp", "Contexto (opcional): IP o hash de los eventos que existe como indicador en tu MISP", rule_misp),
+    ("ctx_feed", "Contexto (opcional): IP, hash o dominio de los eventos que figura (y no venció) en tu feed JSON de indicadores", rule_feed),
 ]

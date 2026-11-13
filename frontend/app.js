@@ -778,6 +778,7 @@ function findings() {
         <h4>Impacto en la organización</h4><p>${esc(a.impact || "")}</p>
         <h4>Evidencia (${plural(f.evidence_ids.length, "evento", "eventos")})</h4>
         <div class="evbox" data-fid="${esc(f.id)}"><button class="btn" data-loadev="${esc(f.id)}">Ver eventos de log</button></div>
+        ${S.a.wazuh_context ? `<h4>Contexto en Wazuh</h4><div class="wzbox"><button class="btn" data-wzctx="${esc(f.id)}">Ver contexto en Wazuh (Indexer)</button></div>` : ""}
         ${(S.a.siem_rules || []).includes(f.rule) ? `<h4>Buscar en tu SIEM</h4><div class="siembox"><button class="btn" data-siem="${esc(f.id)}">Ver consultas (Splunk, KQL, Sigma)</button></div>` : ""}
         <h4>Plan de acción</h4>
         <div class="plan"><div><h4>Investigar</h4><ul>${li(ap.investigate)}</ul></div><div><h4>Contener</h4><ul>${li(ap.contain)}</ul></div><div><h4>Remediar</h4><ul>${li(ap.remediate)}</ul></div></div>
@@ -803,6 +804,12 @@ function evTable(rows) {
   return `<div class="tbl-wrap"><table class="ev-table"><thead><tr><th>Log_ID</th><th>Hora</th><th>Equipo</th><th>Evento</th><th>Usuario</th><th>IP origen</th><th>Destino</th><th>Detalle</th><th>Resultado</th></tr></thead><tbody>${rows.map((r) =>
     `<tr><td class="mono">${esc(r.Log_ID)}</td><td class="mono">${esc(hhmmss(r.Timestamp))}</td><td>${esc(r.Hostname)}</td><td class="mono">${esc(r.Event_ID)}</td><td>${esc(r.User)}</td><td class="mono">${esc(r.Source_IP)}</td><td>${esc(r.Destination)}</td><td class="cmd">${esc(r.Process_CommandLine || r.Event_Description)}</td><td>${esc(r.Result)}</td></tr>`).join("")}</tbody></table></div>`;
 }
+function wzView(r) {
+  const note = `<p class="muted">${esc(plural(r.shown, "registro", "registros"))}${r.total > r.shown ? ` de ${esc(r.total)} (se muestran los primeros)` : ""} del mismo equipo o IP, ±${esc(r.window_min)} min alrededor del hallazgo. ${r.raw_events ? "Incluye eventos crudos (archivos de Wazuh)." : "Son alertas guardadas por Wazuh; los eventos crudos solo existen si activaste el archivado (logall_json)."}</p>`;
+  if (!r.events.length) return note + "<p class='muted'>Wazuh no tiene registros de ese equipo o IP en esa ventana.</p>";
+  return note + `<div class="tbl-wrap"><table class="ev-table"><thead><tr><th>Hora (UTC)</th><th>Tipo</th><th>Equipo</th><th>Regla</th><th>Nivel</th><th>Descripción</th><th>Usuario</th><th>IP</th><th>Detalle</th></tr></thead><tbody>${r.events.map((e) =>
+    `<tr><td class="mono">${esc(hhmmss(e.time))}</td><td>${e.raw ? "Evento crudo" : "Alerta"}</td><td>${esc(e.host)}</td><td class="mono">${esc(e.rule)}</td><td class="mono">${esc(e.level)}</td><td>${esc(e.description)}</td><td>${esc(e.user)}</td><td class="mono">${esc(e.ip)}</td><td class="cmd">${esc(e.detail)}</td></tr>`).join("")}</tbody></table></div>`;
+}
 function bindFindings() {
   let t; $("#fq").oninput = (e) => { clearTimeout(t); t = setTimeout(() => { S.findingQ = e.target.value; S.keepScroll = true; render(); const q = $("#fq"); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }, 220); };
   $("#fcat").onchange = (e) => { S.findingCat = e.target.value; S.keepScroll = true; render(); };
@@ -810,6 +817,11 @@ function bindFindings() {
   document.querySelectorAll("[data-loadev]").forEach((b) => b.onclick = async () => {
     b.disabled = true;
     try { const r = await api(`/api/sessions/${S.sid}/findings/${b.dataset.loadev}/evidence`); b.closest(".evbox").innerHTML = evTable(r.rows); }
+    catch (e) { toast(e.message); b.disabled = false; }
+  });
+  document.querySelectorAll("[data-wzctx]").forEach((b) => b.onclick = async () => {
+    b.disabled = true;
+    try { const r = await api(`/api/sessions/${S.sid}/findings/${b.dataset.wzctx}/wazuh-context`); b.closest(".wzbox").innerHTML = wzView(r); }
     catch (e) { toast(e.message); b.disabled = false; }
   });
   document.querySelectorAll("[data-siem]").forEach((b) => b.onclick = async () => {

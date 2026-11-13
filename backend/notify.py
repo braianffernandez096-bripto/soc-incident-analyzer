@@ -46,7 +46,7 @@ def source_label(f: dict) -> str:
         return proto or "Autenticación"
     if rule in _WINDOWS or rule.startswith("cmd_"):
         return "Windows"
-    return {"web_attack": "IIS/Web", "g_web": "Web", "ctx_cve": "Vulnerabilidad", "ctx_misp": "MISP", "g_dns_tunnel": "DNS", "g_cloud": "Cloud"}.get(rule, "")
+    return {"web_attack": "IIS/Web", "g_web": "Web", "ctx_cve": "Vulnerabilidad", "ctx_misp": "MISP", "ctx_feed": "Feed", "g_dns_tunnel": "DNS", "g_cloud": "Cloud"}.get(rule, "")
 
 
 def _text(s, n: int = 160) -> str:

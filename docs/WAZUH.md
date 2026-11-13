@@ -115,6 +115,27 @@ Cada hallazgo muestra su severidad y la recomendación del motor, el **tipo** (g
 >
 > Si aceptas que esos datos pasen por Telegram (un laboratorio, por ejemplo), `TELEGRAM_DETAIL=full` suma el título del hallazgo, el equipo, las cuentas y las IPs. Sigue sin incluir comandos, rutas ni logs. Es una decisión explícita: está apagada por defecto.
 
+## Contexto desde el Indexer (opcional)
+
+Con esto, cada hallazgo muestra el botón **Ver contexto en Wazuh (Indexer)**: consulta tu Indexer y lista lo que pasó en ese equipo o con esa IP
+unos minutos antes y después, para ver el entorno del hallazgo y no solo la alerta. Es de **solo lectura** y apagado por defecto.
+
+1. En el Dashboard de Wazuh crea un usuario interno con rol de solo lectura sobre `wazuh-alerts-*` (y `wazuh-archives-*` si lo usas). No uses `admin`.
+2. En el `.env` del analizador:
+   ```
+   WAZUH_INDEXER_URL=https://single-node-wazuh.indexer-1:9200
+   WAZUH_INDEXER_USER=usuario-de-solo-lectura
+   WAZUH_INDEXER_PASSWORD=...        # solo en el .env
+   WAZUH_INDEXER_VERIFY=0            # certificado autofirmado de laboratorio
+   ```
+3. Recrea el contenedor con los dos compose (debe estar en la red de Wazuh para resolver ese nombre).
+
+La consulta la arma el servidor (no el navegador), con ventana de `WAZUH_INDEXER_WINDOW_MIN` minutos (5) y hasta `WAZUH_INDEXER_MAX` registros (100). La contraseña nunca se muestra ni se registra;
+los errores (clave rechazada, sin conexión) aparecen como mensajes genéricos.
+
+**Eventos crudos:** el Indexer guarda por defecto solo alertas. Los eventos sin alerta (`wazuh-archives-*`) existen únicamente si activas `<logall_json>yes</logall_json>` en el manager
+y el archivado en Filebeat; es opcional, consume bastante disco y puedes no mirarlo con `WAZUH_INDEXER_ARCHIVES=off`. Sin ese índice, el contexto muestra solo alertas.
+
 ## Seguridad del endpoint
 
 - Clave propia en el encabezado `X-Wazuh-Token` (comparación en tiempo constante). Aparte de `APP_ACCESS_TOKEN`: una no reemplaza a la otra.
@@ -134,6 +155,9 @@ Cada hallazgo muestra su severidad y la recomendación del motor, el **tipo** (g
 | `WAZUH_MAX_ROWS` | 5000 | Máximo de alertas en la ventana (100 a 20000) |
 | `WAZUH_DIGEST_MINUTES` | 60 | Resumen de lo medio y bajo (1 a 1440) |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | — | Activan los avisos |
+| `WAZUH_INDEXER_URL`, `_USER`, `_PASSWORD` | — | Activan el contexto desde el Indexer |
+| `WAZUH_INDEXER_VERIFY`, `_CA` | verificar | Certificado autofirmado o CA propia |
+| `WAZUH_INDEXER_WINDOW_MIN`, `_MAX`, `_ARCHIVES` | 5, 100, on | Ventana, tope de registros y uso de `wazuh-archives` (`off` para no consultarlo) |
 | `APP_BASE_URL` | — | Enlace al panel en el aviso (solo `http://` o `https://`) |
 | `TELEGRAM_INCLUDE_HOST` | no | `1` agrega el nombre del equipo al aviso |
 | `TELEGRAM_DETAIL` | básico | `full` suma título, equipo, cuentas e IPs al aviso (ver Privacidad) |

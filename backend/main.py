@@ -39,6 +39,7 @@ from . import report_html as report_html_mod
 from . import senderreview
 from . import triage as triage_mod
 from . import notify as notify_mod
+from . import wazuh_indexer
 from . import wazuh_live
 from . import siemqueries
 from .analysis import analyze, rows_for
@@ -420,6 +421,22 @@ def finding_queries(sid: str, fid: str):
     if not qs:
         raise HTTPException(404, "Este tipo de hallazgo no tiene consultas equivalentes.")
     return qs
+
+
+@app.get("/api/sessions/{sid}/findings/{fid}/wazuh-context")
+def finding_wazuh_context(sid: str, fid: str, request: Request):
+    """Lo que el Indexer de Wazuh guardó del mismo equipo o IP alrededor del hallazgo. La consulta la arma el servidor; solo lectura."""
+    if not wazuh_indexer.configured():
+        raise HTTPException(404, "El contexto del Indexer de Wazuh no está configurado en este servidor.")
+    _rate_limit(request, "/api/wazuh-context", 30, 60)
+    s = _get(sid)
+    f = next((x for x in s.analysis["findings"] if x["id"] == fid), None)
+    if not f:
+        raise HTTPException(404, "Hallazgo no encontrado.")
+    try:
+        return wazuh_indexer.context_for(f)
+    except wazuh_indexer.IndexerError as exc:
+        raise HTTPException(502, str(exc)) from exc
 
 
 @app.get("/api/sessions/{sid}/sigma.yml")
@@ -954,9 +971,10 @@ def wazuh_session():
 @app.get("/api/context/status")
 def context_status():
     """Estado del contexto opcional (CISA KEV / EPSS y MISP). No devuelve claves ni la URL de MISP."""
-    from . import context as ctx_mod, misp as misp_mod
-    store = ctx_mod.get_store()
-    return {"cve": store.status() if store else {"enabled": False}, "misp": {"configured": misp_mod.get_client() is not None}}
+    from . import context as ctx_mod, feed as feed_mod, misp as misp_mod
+    store, fd = ctx_mod.get_store(), feed_mod.get_feed()
+    return {"cve": store.status() if store else {"enabled": False}, "misp": {"configured": misp_mod.get_client() is not None},
+            "feed": fd.status() if fd else {"configured": False}}
 
 
 # el frontend se sirve como estático (debe montarse al final)

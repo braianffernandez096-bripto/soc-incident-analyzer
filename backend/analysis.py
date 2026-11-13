@@ -8,6 +8,7 @@ import pandas as pd
 
 from . import attack
 from . import detection as D
+from . import wazuh_indexer
 from .siemqueries import ALL_SUPPORTED as SIEM_SUPPORTED
 
 log = logging.getLogger("soc.analysis")
@@ -39,7 +40,7 @@ def _profile(df: pd.DataFrame, meta: dict) -> dict:
 
 def _context_notes() -> list[str]:
     """Cuenta qué contexto externo opcional se usó (MISP, KEV/EPSS); sin él, aclara que el export no trae inteligencia de amenazas."""
-    from . import context as ctx, misp
+    from . import context as ctx, feed as feed_mod, misp
     notes = []
     if misp.get_client() is not None:
         notes.append("Las IP y los hashes de los eventos se consultaron en tu MISP (solo coincidencias exactas con indicadores cargados ahí; "
@@ -48,6 +49,11 @@ def _context_notes() -> list[str]:
     if store is not None and store.ready:
         notes.append(f"Los CVE mencionados se cruzaron con CISA KEV (catálogo {store.kev_version or 's/d'}) y EPSS ({store.epss_date or 's/d'}). "
                      "Es contexto para priorizar: un CVE que no figura en KEV no es necesariamente seguro.")
+    fd = feed_mod.get_feed()
+    if fd is not None and fd.ready:
+        st = fd.status()
+        notes.append(f"Los eventos se cruzaron con tu feed de indicadores ({st['active']} vigentes de {st['indicators']}"
+                     + (f"; vencen a los {fd.ttl} días de su fecha" if fd.ttl else "") + "). Un indicador sin fecha ni «expira» no vence nunca.")
     if not notes:
         notes.append("No hay inteligencia de amenazas en el export ni contexto externo activado.")
     return notes
@@ -229,6 +235,7 @@ def analyze(df: pd.DataFrame, meta: dict) -> dict:
         "stats": stats,
         "attack": attack.build_matrix(ordered),
         "siem_rules": sorted(SIEM_SUPPORTED),
+        "wazuh_context": wazuh_indexer.configured(),
         "flag_map": flag_map,
         "limitations": _limitations(df, profile) + [
             f"La regla «{d}» no pudo ejecutarse con este archivo; sus detecciones pueden faltar." for d in failed_rules],

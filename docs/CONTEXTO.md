@@ -1,4 +1,4 @@
-# Contexto de amenazas: CISA KEV, EPSS y tu MISP
+# Contexto de amenazas: CISA KEV, EPSS, tu MISP y tu feed
 
 Volver al [README](../README.md) · [MISP paso a paso](MISP.md) · [Solución de problemas](SOLUCION_PROBLEMAS.md)
 
@@ -66,6 +66,10 @@ Una coincidencia genera un hallazgo **Alto** que cita los eventos de MISP. Indic
 2. Genera actividad que mencione esa IP: por ejemplo, sube al analizador un CSV de eventos con `203.0.113.50` como destino o IP de origen, o usa la prueba de [WAZUH.md](WAZUH.md).
 3. En el panel aparece «Indicador conocido en MISP: 203.0.113.50».
 
+## 3. Tu feed JSON
+
+Indicadores propios (IP, dominios, hashes) con vencimiento (TTL). Ver [FEED.md](FEED.md).
+
 ## Variables
 
 | Variable | Por defecto | Descripción |
@@ -78,6 +82,8 @@ Una coincidencia genera un hallazgo **Alto** que cita los eventos de MISP. Indic
 | `MISP_VERIFY` / `MISP_CA` | verificar | Certificado autofirmado o CA propia. |
 | `MISP_ONLY_IDS` | 1 | Solo atributos `to_ids`. |
 | `MISP_INCLUDE_PRIVATE` | 0 | Consultar también IP privadas. |
+| `MISP_CACHE_SECONDS` | 600 | Memoria de respuestas de MISP. |
+| `FEED_PATH` / `FEED_URL` / `FEED_TTL_DAYS` / `FEED_REFRESH_HOURS` | — | Feed propio ([FEED.md](FEED.md)). |
 
 ## Límites conocidos
 

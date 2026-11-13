@@ -380,6 +380,12 @@ PLAYBOOK.update({
         ["Si el servicio está expuesto y no se puede parchear de inmediato, limitar el acceso (firewall/WAF) o desactivar el componente hasta corregirlo."],
         ["Aplicar el parche del fabricante y verificar la versión; respetar el plazo de remediación indicado por CISA cuando figura en KEV.",
          "Priorizar la corrección por KEV/EPSS además del puntaje CVSS."]),
+    "ctx_feed": _pb(
+        "Un indicador de tu propio feed de amenazas aparece en la actividad de {host}.",
+        ["Revisar la descripción y la fuente del indicador en tu feed; buscar el mismo valor en el resto de los logs.",
+         "Revisar qué hizo {host} con {ip} (dirección, volumen, proceso que originó la conexión)."],
+        ["Bloquear {ip} en el egress/ingress mientras se confirma.", "Aislar {host} si hubo comunicación saliente hacia el indicador."],
+        ["Si el indicador es de alta confianza, cargarlo en el bloqueo automático (firewall/proxy/DNS) y revisar su vigencia en el feed."]),
     "ctx_misp": _pb(
         "Un indicador que tu equipo ya marcó como malicioso en MISP aparece en la actividad de {host}.",
         ["Abrir el evento de MISP indicado: campaña, confianza, fecha y otros indicadores relacionados; buscar esos indicadores en el resto de los logs.",
@@ -390,5 +396,6 @@ PLAYBOOK.update({
 
 GENERAL_RECOMMENDATIONS.update({
     "ctx_cve": "Priorizar el parcheo por explotación real (KEV) y probabilidad (EPSS), no solo por CVSS.",
+    "ctx_feed": "Mantener el feed con fecha o vencimiento en cada indicador, para que los viejos dejen de generar alertas.",
     "ctx_misp": "Automatizar el bloqueo de indicadores de alta confianza de MISP y revisar periódicamente su vigencia.",
 })

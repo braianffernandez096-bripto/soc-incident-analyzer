@@ -41,9 +41,24 @@ services:
       - MISP_VERIFY=${MISP_VERIFY:-}
       - MISP_ONLY_IDS=${MISP_ONLY_IDS:-}
       - MISP_INCLUDE_PRIVATE=${MISP_INCLUDE_PRIVATE:-}
+      - MISP_CACHE_SECONDS=${MISP_CACHE_SECONDS:-}
+      # Feed JSON propio de indicadores (con vencimiento) y contexto desde el Indexer de Wazuh (ver docs/FEED.md y docs/WAZUH.md)
+      - FEED_PATH=${FEED_PATH:-}
+      - FEED_URL=${FEED_URL:-}
+      - FEED_TTL_DAYS=${FEED_TTL_DAYS:-}
+      - FEED_REFRESH_HOURS=${FEED_REFRESH_HOURS:-}
+      - WAZUH_INDEXER_URL=${WAZUH_INDEXER_URL:-}
+      - WAZUH_INDEXER_USER=${WAZUH_INDEXER_USER:-}
+      - WAZUH_INDEXER_PASSWORD=${WAZUH_INDEXER_PASSWORD:-}
+      - WAZUH_INDEXER_VERIFY=${WAZUH_INDEXER_VERIFY:-}
+      - WAZUH_INDEXER_WINDOW_MIN=${WAZUH_INDEXER_WINDOW_MIN:-}
+      - WAZUH_INDEXER_MAX=${WAZUH_INDEXER_MAX:-}
+      - WAZUH_INDEXER_ARCHIVES=${WAZUH_INDEXER_ARCHIVES:-}
     # Lets the container reach an Ollama running on this computer (OLLAMA_HOST=http://host.docker.internal:11434)
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      - ./feed:/feed:ro        # carpeta para tu feed JSON de indicadores (FEED_PATH=/feed/indicadores.json); solo lectura
     # Least privilege: read-only filesystem (uploads are spooled to a small tmpfs), no capabilities, no escalation
     read_only: true
     tmpfs:

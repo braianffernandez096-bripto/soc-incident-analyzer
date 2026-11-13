@@ -2,6 +2,19 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [1.13.0] - 2026-11-13
+
+### Novedades
+- **Feed JSON propio (opcional, `FEED_PATH` o `FEED_URL`):** `backend/feed.py` carga tus indicadores (IP, dominios y hashes) y la regla `ctx_feed` (Alto) los cruza en local con los eventos, incluidos los subdominios. Acepta lista u objeto `indicadores`, con nombres de campo en español o inglés.
+- **TTL de indicadores:** vencen a los `FEED_TTL_DAYS` días (30) desde su fecha, o en la fecha `expira` si existe; sin fecha no vencen. Un archivo roto no reemplaza a la última copia buena; `FEED_URL` se refresca en segundo plano. El estado figura en `GET /api/context/status` y en «Límites del análisis».
+- **Contexto desde el Indexer de Wazuh (opcional):** el botón «Ver contexto en Wazuh (Indexer)» de cada hallazgo lista alertas (y eventos crudos si existe `wazuh-archives-*`) del equipo o la IP en una ventana alrededor del hallazgo. Solo lectura; la consulta la arma el servidor y la contraseña no se muestra ni se registra. Variables `WAZUH_INDEXER_*`.
+- `MISP_CACHE_SECONDS` para ajustar la memoria de respuestas de MISP.
+- Aviso de Telegram etiquetado «Feed» y guion de actuación (playbook) para `ctx_feed`.
+- Guías nuevas: `docs/FEED.md` y `docs/CASO_DE_ESTUDIO.md`; secciones del Indexer en `docs/WAZUH.md` y de solución de problemas. Archivo de ejemplo `sample_data/feed_ejemplo.json`.
+
+### Cambios
+- `docker-compose.yml` monta `./feed` en solo lectura como `/feed` y pasa las variables `FEED_*` y `WAZUH_INDEXER_*`.
+
 ## [1.12.0] - 2026-11-13
 
 ### Novedades

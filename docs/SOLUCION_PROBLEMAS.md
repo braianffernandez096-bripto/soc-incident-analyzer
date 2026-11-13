@@ -54,3 +54,20 @@ Guía completa: [MISP.md](MISP.md).
 
 - [`sample_data/ejemplo_cve.csv`](../sample_data/ejemplo_cve.csv): Log4Shell en dos equipos (con KEV activo: **Crítico**), PAN-OS y una fila ya corregida (no genera hallazgo).
 - [`sample_data/ejemplo_misp.csv`](../sample_data/ejemplo_misp.csv): conexiones a `203.0.113.50`; requiere cargar ese indicador en tu MISP ([MISP.md](MISP.md), paso 7).
+
+## Feed propio
+
+| Síntoma | Causa y solución |
+|---|---|
+| `feed` en `/api/context/status` sin indicadores | `FEED_PATH` debe apuntar dentro de `/feed` y el archivo estar en `./feed/`; recrea el contenedor tras editar el `.env`. |
+| Un indicador no dispara | Puede haber vencido (`expira` o `fecha` + `FEED_TTL_DAYS`) o su `tipo` no coincide con el valor. |
+
+## Contexto desde el Indexer
+
+| Síntoma | Causa y solución |
+|---|---|
+| No aparece el botón «Ver contexto en Wazuh» | Falta `WAZUH_INDEXER_URL`, `_USER` o `_PASSWORD`, o la URL no empieza con `http(s)://`. |
+| «El Indexer rechazó la clave» | Usuario o contraseña distintos (se distinguen mayúsculas); revisa el `.env`. |
+| «No se pudo conectar» | El contenedor no está en la red de Wazuh (recrea con los dos compose) o el certificado es autofirmado y falta `WAZUH_INDEXER_VERIFY=0`. |
+| Solo salen alertas, ningún evento crudo | `wazuh-archives-*` no existe sin `logall_json` (ver `docs/WAZUH.md`). |
+

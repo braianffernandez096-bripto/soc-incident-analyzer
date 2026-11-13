@@ -5,7 +5,7 @@ Aquí solo se le pregunta, por la API REST (``POST /attributes/restSearch``), si
 Nada sale a Internet: la consulta va a la URL que tú configuras.
 
 Variables: ``MISP_URL`` (p. ej. ``https://192.168.64.20``) y ``MISP_KEY`` (clave de API de un usuario con permisos de lectura; va en el ``.env`` del servidor,
-nunca en el chat ni en el repositorio). Opcionales: ``MISP_VERIFY=0`` si el certificado es autofirmado (laboratorio), ``MISP_CA`` (ruta de una CA propia),
+nunca en el chat ni en el repositorio). Opcionales: ``MISP_CACHE_SECONDS`` (600) para cuánto se recuerda una respuesta, ``MISP_VERIFY=0`` si el certificado es autofirmado (laboratorio), ``MISP_CA`` (ruta de una CA propia),
 ``MISP_ONLY_IDS=0`` para incluir también atributos no marcados «to_ids», ``MISP_INCLUDE_PRIVATE=1`` para consultar también IP privadas.
 
 Se usa ``enforceWarninglist`` para que MISP descarte valores de listas de advertencia (DNS públicos, rangos conocidos…) y se reduzcan los falsos positivos.
@@ -37,8 +37,9 @@ def _truthy(name: str, default: bool) -> bool:
 
 class MispClient:
     def __init__(self, url: str, key: str, *, verify: bool | str = True, only_ids: bool = True, include_private: bool = False,
-                 http: httpx.Client | None = None, clock=time.monotonic):
+                 http: httpx.Client | None = None, clock=time.monotonic, cache_seconds: float = CACHE_OK):
         self.url, self._key = url.rstrip("/"), key
+        self.cache_ok = cache_seconds
         self.only_ids, self.include_private = only_ids, include_private
         self._http = http or httpx.Client(timeout=TIMEOUT, verify=verify, follow_redirects=False, trust_env=False)
         self._cache: dict[str, tuple[float, list[dict]]] = {}
@@ -52,7 +53,12 @@ class MispClient:
             return None
         ca = os.environ.get("MISP_CA", "").strip()
         verify: bool | str = ca if ca else _truthy("MISP_VERIFY", True)
-        return cls(url, key, verify=verify, only_ids=_truthy("MISP_ONLY_IDS", True), include_private=_truthy("MISP_INCLUDE_PRIVATE", False))
+        try:
+            cache = max(0.0, min(86400.0, float(os.environ.get("MISP_CACHE_SECONDS", "").strip() or CACHE_OK)))
+        except ValueError:
+            cache = CACHE_OK
+        return cls(url, key, verify=verify, only_ids=_truthy("MISP_ONLY_IDS", True), include_private=_truthy("MISP_INCLUDE_PRIVATE", False),
+                   cache_seconds=cache)
 
     # -- qué se puede preguntar
     def queryable(self, value: str) -> bool:
@@ -82,7 +88,7 @@ class MispClient:
         with self._lock:
             for v in wanted:
                 hit = self._cache.get(v)
-                if hit and now - hit[0] < (CACHE_OK if hit[1] is not None else CACHE_ERR):
+                if hit and now - hit[0] < (self.cache_ok if hit[1] is not None else CACHE_ERR):
                     if hit[1]:
                         out[v] = hit[1]
                 else:

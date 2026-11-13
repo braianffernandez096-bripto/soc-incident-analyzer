@@ -13,7 +13,7 @@ Wazuh (alerta nivel ≥ 5) → integración custom-soc-analyzer → POST /api/wa
 
 - **El motor decide la criticidad.** Es el mismo de los archivos: reglas deterministas, MITRE ATT&CK y consultas para el SIEM. **No interviene ninguna IA** en el análisis automático ni en los avisos. Si quieres triaje o informe con IA, lo pides tú desde el panel, como siempre.
 - **Qué entiende hoy de Wazuh:** eventos de Windows (Seguridad, System, Sysmon y PowerShell), inicios de sesión SSH y `sudo` en Linux (a partir de `full_log`). Cualquier otra alerta se conserva como contexto con su descripción, su regla y su técnica MITRE, y se cuenta en el estado.
-- **Solo recibe alertas, no los eventos crudos.** Wazuh recibe los logs de los agentes, los pasa por sus decodificadores y reglas y genera alertas; al analizador llegan únicamente las que superan el `level` configurado. Lo que ninguna regla de Wazuh marcó (o quedó por debajo del nivel) no llega, así que el análisis es sobre el flujo de alertas y no sobre todo lo que ocurrió en el equipo.
+- **Al analizador solo llegan alertas, no los eventos crudos.** (Con el [contexto desde el Indexer](#contexto-desde-el-indexer-opcional) puedes **mirar** los eventos crudos de un hallazgo, pero el motor sigue analizando solo las alertas.) Wazuh recibe los logs de los agentes, los pasa por sus decodificadores y reglas y genera alertas; al analizador llegan únicamente las que superan el `level` configurado. Lo que ninguna regla de Wazuh marcó (o quedó por debajo del nivel) no llega, así que el análisis es sobre el flujo de alertas y no sobre todo lo que ocurrió en el equipo.
 - **Nada se escribe en disco.** Las alertas viven en una ventana en memoria (24 h y 5.000 filas por defecto). Al reiniciar el servicio empieza vacía; las alertas siguen guardadas en Wazuh.
 - **Cada hallazgo se avisa una sola vez.** Crítico y Alto salen en el ciclo de análisis (cada 60 s si llegaron alertas nuevas). Medio y Bajo se juntan en un **resumen cada hora**, marcados como «posibles falsos positivos, revisar».
 - **Si un hallazgo ya avisado sube de severidad, se avisa de nuevo.** Pasa con las ráfagas que llegan a medias: con 6 intentos fallidos el hallazgo es Medio (va al resumen) y, cuando llegan los demás, pasa a Alto y sale el aviso inmediato, una sola vez por subida.
@@ -120,7 +120,11 @@ Cada hallazgo muestra su severidad y la recomendación del motor, el **tipo** (g
 Con esto, cada hallazgo muestra el botón **Ver contexto en Wazuh (Indexer)**: consulta tu Indexer y lista lo que pasó en ese equipo o con esa IP
 unos minutos antes y después, para ver el entorno del hallazgo y no solo la alerta. Es de **solo lectura** y apagado por defecto.
 
-1. En el Dashboard de Wazuh crea un usuario interno con rol de solo lectura sobre `wazuh-alerts-*` (y `wazuh-archives-*` si lo usas). No uses `admin`.
+1. En el Dashboard de Wazuh, con `admin`, crea un usuario de solo lectura (no uses `admin` para el analizador):
+   - ☰ → **Indexer management** → **Security** → **Roles** → **Create role**: nombre `analyzer_ro`, sin permisos de cluster; en **Index permissions** los patrones `wazuh-alerts-*` y `wazuh-archives-*` con el grupo **`read`**.
+   - **Internal users** → **Create internal user**: nombre `analyzer_ro` y una contraseña (sin `$`, `#`, comillas ni espacios, que rompen el `.env`).
+   - Vuelve al rol → pestaña **Mapped users** → **Map users** → `analyzer_ro`. Sin este mapeo el usuario existe pero el Indexer responde «no permissions».
+   - Prueba en el servidor (te pide la contraseña): `curl -sk -u analyzer_ro "https://localhost:9200/wazuh-alerts-*/_count"` debe devolver un `count`.
 2. En el `.env` del analizador:
    ```
    WAZUH_INDEXER_URL=https://single-node-wazuh.indexer-1:9200
@@ -128,7 +132,8 @@ unos minutos antes y después, para ver el entorno del hallazgo y no solo la ale
    WAZUH_INDEXER_PASSWORD=...        # solo en el .env
    WAZUH_INDEXER_VERIFY=0            # certificado autofirmado de laboratorio
    ```
-3. Recrea el contenedor con los dos compose (debe estar en la red de Wazuh para resolver ese nombre).
+3. Recrea el contenedor con los dos compose (debe estar en la red de Wazuh para resolver ese nombre) y comprueba la conexión sin mostrar la contraseña:
+   `sudo docker exec soc-incident-analyzer-analyzer-1 python -c "import os,httpx;r=httpx.get(os.environ['WAZUH_INDEXER_URL']+'/wazuh-alerts-*/_count',auth=(os.environ['WAZUH_INDEXER_USER'],os.environ['WAZUH_INDEXER_PASSWORD']),verify=False);print(r.status_code)"`  (debe imprimir `200`; `401` = usuario o contraseña distintos).
 
 La consulta la arma el servidor (no el navegador). Alertas y eventos crudos se piden **por separado**:
 

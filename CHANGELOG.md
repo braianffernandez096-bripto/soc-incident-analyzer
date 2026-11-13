@@ -10,7 +10,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - **Contexto desde el Indexer de Wazuh (opcional):** el botón «Ver contexto en Wazuh (Indexer)» de cada hallazgo lista alertas (y eventos crudos si existe `wazuh-archives-*`) del equipo o la IP en una ventana alrededor del hallazgo. Solo lectura; la consulta la arma el servidor y la contraseña no se muestra ni se registra. Variables `WAZUH_INDEXER_*`.
 - `MISP_CACHE_SECONDS` para ajustar la memoria de respuestas de MISP.
 - Aviso de Telegram etiquetado «Feed» y guion de actuación (playbook) para `ctx_feed`.
-- Guías nuevas: `docs/FEED.md` y `docs/CASO_DE_ESTUDIO.md`; secciones del Indexer en `docs/WAZUH.md` y de solución de problemas. Archivo de ejemplo `sample_data/feed_ejemplo.json`.
+- Guías nuevas: `docs/INSTALACION_LAB.md` (el laboratorio completo en orden, con cómo comprobar cada paso), `docs/FEED.md` y `docs/CASO_DE_ESTUDIO.md`; secciones del Indexer en `docs/WAZUH.md` y de solución de problemas. Archivo de ejemplo `sample_data/feed_ejemplo.json`.
 
 ### Cambios
 - **Eventos crudos del Indexer, rehechos tras probarlos en vivo:** con el archivado activo, un tope de 100 registros en orden cronológico se llenaba con el arranque del agente y no llegaba al hallazgo. Ahora alertas y crudos se consultan por separado (crudos: ±90 s, máximo 50, solo los que no generaron alerta y primero los de la misma IP o cuenta), se muestran mezclados por hora y el encabezado dice cuántos hay de cada tipo. El detalle de un evento crudo de Windows usa su mensaje en lugar del JSON. Variables nuevas `WAZUH_INDEXER_RAW_WINDOW_SEC` y `WAZUH_INDEXER_RAW_MAX`. Documentado el segundo cambio necesario para tener crudos (`archives: enabled: true` en Filebeat).

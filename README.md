@@ -114,6 +114,7 @@ Abre http://127.0.0.1:8000. El puerto queda publicado solo en tu equipo (`127.0.
 ## Más funciones
 
 - **Phishing:** análisis estático de `.eml` (SPF/DKIM/DMARC, enlaces, homógrafos, adjuntos) con veredicto y puntaje; evaluación de dominio y dominios parecidos. Nunca abre enlaces ni ejecuta adjuntos. [Detalle](docs/DESARROLLO.md#análisis-de-correos-phishing-detalle).
+- **Laboratorio completo paso a paso:** [Wazuh, Telegram, KEV/EPSS, MISP, feed e Indexer en orden, con cómo comprobar cada paso](docs/INSTALACION_LAB.md).
 - **Caso de estudio:** [del ataque simulado al aviso y al informe](docs/CASO_DE_ESTUDIO.md).
 - **Wazuh en vivo (opcional):** recibe las alertas de Wazuh, las analiza con el mismo motor y avisa por Telegram sin datos sensibles. Apagado por defecto. [Guía](docs/WAZUH.md).
 - **Contexto de amenazas (opcional):** prioriza CVE por explotación real (CISA KEV) y probabilidad (EPSS) con cruce local, y consulta tu propio MISP. Apagado por defecto. [Guía](docs/CONTEXTO.md), [MISP paso a paso](docs/MISP.md) y [solución de problemas](docs/SOLUCION_PROBLEMAS.md). Suma un [feed JSON propio con vencimiento](docs/FEED.md).
@@ -126,7 +127,7 @@ Abre http://127.0.0.1:8000. El puerto queda publicado solo en tu equipo (`127.0.
 
 ```bash
 pip install --require-hashes -r requirements-dev.lock
-python -m pytest                                           # ~1.240 pruebas
+python -m pytest                                           # ~1.290 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 

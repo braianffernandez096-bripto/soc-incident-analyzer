@@ -9,6 +9,7 @@ from backend import main, notify, wazuh, wazuh_live
 
 TOKEN = "x" * 24
 HDR = {"X-Wazuh-Token": TOKEN}
+APP_TOKEN = "clave-de-acceso-de-prueba-01"      # la instantánea en vivo solo se abre con APP_ACCESS_TOKEN
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -41,14 +42,14 @@ def api(monkeypatch):
     monkeypatch.setenv("WAZUH_INGEST", "on")
     monkeypatch.setenv("WAZUH_INGEST_TOKEN", TOKEN)
     monkeypatch.setenv("WAZUH_AUTOCYCLE", "off")
-    monkeypatch.delenv("APP_ACCESS_TOKEN", raising=False)
+    monkeypatch.setenv("APP_ACCESS_TOKEN", APP_TOKEN)
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
     sent = []
     monkeypatch.setattr(main, "_LIVE", wazuh_live.LiveState(notifier=notify.TelegramNotifier("t", "1", post=lambda u, p: sent.append(p) or True)))
     main.SESSIONS.clear()
     main._hits.clear()
-    c = TestClient(main.app)
+    c = TestClient(main.app, headers={"Authorization": f"Bearer {APP_TOKEN}"})
     c.sent = sent
     return c
 
@@ -371,3 +372,21 @@ def test_la_instantanea_en_vivo_es_la_unica_con_contexto_del_indexer(api, monkey
     ejemplo = api.post("/api/sample").json()
     assert ejemplo["analysis"]["wazuh_context"] is False
     assert api.get(f"/api/sessions/{ejemplo['session_id']}/findings/F-001/wazuh-context").status_code == 403
+
+
+def test_sin_clave_de_acceso_se_ingiere_pero_la_instantanea_queda_cerrada(api, monkeypatch):
+    monkeypatch.delenv("APP_ACCESS_TOKEN", raising=False)
+    anon = TestClient(main.app)
+    assert anon.post("/api/wazuh/alerts", json={"alerts": ataque()}, headers=HDR).status_code == 202      # la ingesta tiene su propia clave
+    st = anon.get("/api/wazuh/status").json()
+    assert st["enabled"] is True and st["needs_token"] is True
+    r = anon.get("/api/wazuh/session")
+    assert r.status_code == 403 and "APP_ACCESS_TOKEN" in r.json()["detail"]
+    assert not main.SESSIONS                                                                              # no se creó ninguna sesión con las alertas
+
+
+def test_con_clave_de_acceso_la_instantanea_exige_la_clave(api):
+    api.post("/api/wazuh/alerts", json={"alerts": ataque()}, headers=HDR)
+    assert TestClient(main.app).get("/api/wazuh/session").status_code == 401
+    assert api.get("/api/wazuh/status").json()["needs_token"] is False
+    assert api.get("/api/wazuh/session").status_code == 200

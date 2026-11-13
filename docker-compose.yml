@@ -10,9 +10,18 @@ services:
       # All optional: taken from your shell or from a .env file next to this file
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-}
       - VT_API_KEY=${VT_API_KEY:-}
       - ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY:-}
       - APP_ACCESS_TOKEN=${APP_ACCESS_TOKEN:-}
+      # Nombres con los que se puede abrir la app además de 127.0.0.1 y localhost (protege de DNS rebinding); ver SECURITY.md
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-}
+      # IP del proxy inverso del que se acepta X-Forwarded-For. Vacío = de ninguno (lo correcto sin proxy)
+      - FORWARDED_ALLOW_IPS=${FORWARDED_ALLOW_IPS:-}
+      - DNS_LOOKUPS=${DNS_LOOKUPS:-}
       - CAPTCHA=${CAPTCHA:-}
       - CAPTCHA_TYPE=${CAPTCHA_TYPE:-}
       - ENABLE_DOCS=${ENABLE_DOCS:-}

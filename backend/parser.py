@@ -23,6 +23,13 @@ import pandas as pd
 
 from . import syslog as syslog_mod
 
+try:                                          # openpyxl usa defusedxml solo si está instalado; sin él vuelve en silencio al analizador XML estándar
+    import openpyxl as _openpyxl
+    if not getattr(_openpyxl, "DEFUSEDXML", False):
+        raise RuntimeError("defusedxml no está instalado: los .xlsx se leerían sin protección contra XXE y bombas XML. Instala requirements.lock.")
+except ImportError:                           # sin openpyxl no se leen .xlsx y pandas lo dirá al intentarlo
+    pass
+
 CANONICAL = [
     "Log_ID", "Timestamp", "Hostname", "Event_ID", "User", "Source_IP",
     "Destination", "Log_Source", "Event_Description", "Process_CommandLine",
@@ -77,6 +84,7 @@ MAX_UNCOMPRESSED_BYTES = 300 * 1024 * 1024   # un .xlsx es un zip: limita su tam
 MAX_ROWS = 100_000
 MAX_COLUMNS = 500
 MAX_JSON_DEPTH = 8
+MAX_CELLS = 4_000_000                         # celdas en todas las hojas: 100.000 filas x 40 columnas; más que eso no es un export de logs
 
 
 class ParseError(ValueError):
@@ -152,11 +160,54 @@ def _too_many_rows(n: int) -> ParseError:
 
 # ---------------------------------------------------------------- lectores por formato
 
+_ROW_TAG = re.compile(rb"<(?:\w+:)?row[\s/>]")
+_CELL_TAG = re.compile(rb"<(?:\w+:)?c[\s/>]")
+_TAG_OVERLAP = 48
+
+
+def _count_sheet(fh) -> tuple[int, int]:
+    """(filas, celdas) de una hoja, contando etiquetas mientras se descomprime: nada se carga entero en memoria."""
+    rows = cells = 0
+    carry = b""
+    while True:
+        chunk = fh.read(1024 * 1024)
+        buf = carry + chunk
+        end = len(buf) if not chunk else max(0, len(buf) - _TAG_OVERLAP)      # lo que quede en el borde se cuenta en la vuelta siguiente
+        rows += sum(1 for m in _ROW_TAG.finditer(buf) if m.start() < end)
+        cells += sum(1 for m in _CELL_TAG.finditer(buf) if m.start() < end)
+        if not chunk:
+            return rows, cells
+        carry = buf[end:]
+        if rows > MAX_ROWS + 100 or cells > MAX_CELLS:
+            return rows, cells                                               # ya alcanza para rechazar: no hace falta leer el resto
+
+
+def _check_sheet_volume(z: zipfile.ZipFile) -> None:
+    """Un .xlsx de 1 MB puede declarar millones de celdas vacías o repetidas (se comprimen casi a nada) y tener al servidor minutos
+    leyéndolas antes de llegar al límite de filas. Se cuentan aquí, en segundos, y se rechaza antes de que pandas las abra."""
+    total_cells = 0
+    for info in z.infolist():
+        name = info.filename.lower()
+        if not (name.startswith("xl/worksheets/") and name.endswith(".xml")):
+            continue
+        with z.open(info) as fh:
+            rows, cells = _count_sheet(fh)
+        if rows > MAX_ROWS + 100:               # el conteo se corta al pasar el límite: no se sabe el total, solo que sobra
+            raise ParseError(f"El archivo tiene más de {MAX_ROWS:,} filas; el máximo soportado es {MAX_ROWS:,}. "
+                             "Divide el export por rango de fechas.".replace(",", "."))
+        total_cells += cells
+        if total_cells > MAX_CELLS:
+            raise ParseError(f"El archivo tiene más de {MAX_CELLS:,} celdas; no parece un export de logs. Exporta solo las columnas necesarias "
+                             "o divide el export por rango de fechas.".replace(",", "."))
+
+
 def _check_zip_size(source) -> None:
     """Rechaza archivos cuyo contenido descomprimido es desproporcionado, antes de que pandas los expanda."""
     try:
         with zipfile.ZipFile(source) as z:
             total = sum(i.file_size for i in z.infolist())
+            if total <= MAX_UNCOMPRESSED_BYTES:
+                _check_sheet_volume(z)
     except zipfile.BadZipFile as exc:
         raise ParseError("El archivo no es un Excel (.xlsx) válido.") from exc
     finally:

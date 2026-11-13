@@ -30,7 +30,7 @@ start: $(PY) ## Start the app in the background (127.0.0.1, port 8000 by default
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then \
 	  echo "🟡 Ya está corriendo (PID $$(cat $(PID_FILE))). Usa: make restart"; \
 	else \
-	  nohup $(PY) -m uvicorn backend.main:app --host 127.0.0.1 --port $(PORT) > $(LOG_FILE) 2>&1 & echo $$! > $(PID_FILE); \
+	  FORWARDED_ALLOW_IPS="$${FORWARDED_ALLOW_IPS:-}" nohup $(PY) -m uvicorn backend.main:app --host 127.0.0.1 --port $(PORT) > $(LOG_FILE) 2>&1 & echo $$! > $(PID_FILE); \
 	  for i in $$(seq 1 30); do \
 	    if $(PY) -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:$(PORT)/api/health', timeout=2)" 2>/dev/null; then \
 	      echo "🟢 CORRIENDO en http://127.0.0.1:$(PORT)  (PID $$(cat $(PID_FILE)))"; exit 0; fi; \

@@ -152,6 +152,7 @@ Es opcional y consume disco (del orden de 100 MB por día en un equipo de labora
 
 ## Seguridad del endpoint
 
+- **El panel exige `APP_ACCESS_TOKEN`.** Con `WAZUH_INGEST=on` y sin esa clave, las alertas se reciben, se analizan y se avisan, pero «Abrir alertas de Wazuh» responde 403: son datos reales de tu red y la app no los sirve sin login. Al unir el analizador a la red de Wazuh, cualquier contenedor de esa red llega al puerto 8000.
 - Clave propia en el encabezado `X-Wazuh-Token` (comparación en tiempo constante). Aparte de `APP_ACCESS_TOKEN`: una no reemplaza a la otra.
 - Los intentos con clave incorrecta se bloquean (429) tras 10 en un minuto; el endpoint admite hasta 600 alertas por minuto por origen.
 - Máximo 1 MB y 200 alertas por llamada. Los campos se recortan y se limpian de caracteres de control; la interfaz los escapa al mostrarlos.

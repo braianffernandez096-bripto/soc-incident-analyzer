@@ -9,9 +9,12 @@ RUN python -m venv /opt/venv \
 
 # ---- Stage 2: runtime image: no compiler, no pip cache, no tests, no .env ----
 FROM python:3.12-slim-bookworm AS runtime
+# FORWARDED_ALLOW_IPS vacío: uvicorn no se fía de X-Forwarded-For de nadie (por defecto se fía de 127.0.0.1 y los límites por IP
+# se saltarían cambiando esa cabecera). Detrás de un proxy inverso, pon ahí la IP del proxy.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/opt/venv/bin:$PATH"
+    PATH="/opt/venv/bin:$PATH" \
+    FORWARDED_ALLOW_IPS=""
 
 # Unprivileged user; application files stay root-owned and read-only for it
 RUN useradd --create-home --uid 10001 --shell /usr/sbin/nologin appuser

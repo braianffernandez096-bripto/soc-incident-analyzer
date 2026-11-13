@@ -379,13 +379,16 @@ def test_wazuh_button_hidden_when_mode_is_off(page):
     assert page.locator("#wazuhOpen").is_hidden()
 
 
+WAZUH_APP_TOKEN = "e2e-clave-de-acceso-0001"      # la instantánea de Wazuh en vivo solo se abre con APP_ACCESS_TOKEN
+
+
 @pytest.fixture(scope="module")
 def server_wazuh():
     import json
     import os
     port = _free_port()
-    env = {**os.environ, "WAZUH_INGEST": "on", "WAZUH_INGEST_TOKEN": "t" * 24, "WAZUH_AUTOCYCLE": "off"}
-    for k in ("APP_ACCESS_TOKEN", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"):
+    env = {**os.environ, "WAZUH_INGEST": "on", "WAZUH_INGEST_TOKEN": "t" * 24, "WAZUH_AUTOCYCLE": "off", "APP_ACCESS_TOKEN": WAZUH_APP_TOKEN}
+    for k in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"):
         env.pop(k, None)
     proc = subprocess.Popen([sys.executable, "-m", "uvicorn", "backend.main:app", "--port", str(port), "--log-level", "warning"], cwd=ROOT, env=env)
     base = f"http://127.0.0.1:{port}"
@@ -417,6 +420,8 @@ def test_wazuh_button_opens_snapshot_of_live_alerts(browser, server_wazuh):
     errs = []
     pg.on("pageerror", lambda e: errs.append(str(e)))
     pg.goto(server_wazuh)
+    pg.fill("#accessKey", WAZUH_APP_TOKEN)             # pantalla «Acceso protegido»
+    pg.click("#accessForm button[type=submit]")
     btn = pg.locator("#wazuhOpen")
     expect(btn).to_be_visible(timeout=WAIT)
     expect(btn).to_contain_text("12")

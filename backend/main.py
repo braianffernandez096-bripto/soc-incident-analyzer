@@ -16,12 +16,14 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Annotated
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pandas as pd
 from fastapi import FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from . import ai as ai_mod
 from . import ai_cloud
@@ -49,6 +51,7 @@ from .report import build_pdf, build_phishing_pdf
 ROOT = Path(__file__).resolve().parent.parent
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 MAX_SESSIONS = 10
+MAX_PARALLEL_ANALYSES = 2      # análisis simultáneos (son CPU pura): el resto recibe 503 y reintenta
 W_MAX_ALERTS = wazuh_live.W.MAX_ALERTS_PER_CALL
 
 
@@ -114,6 +117,37 @@ def _access_token() -> str:
     return os.environ.get("APP_ACCESS_TOKEN", "").strip()
 
 
+# ---- allowed Host names (DNS rebinding) ---------------------------------------------------------------
+# A page on any website can make the browser talk to http://127.0.0.1:8000 under its own name (DNS rebinding) and then
+# read the API as same-origin. Browsers always send the name they used in "Host", so anything but our own names is refused.
+# Extra names (reverse proxy, another computer) go in ALLOWED_HOSTS, comma separated; the host of APP_BASE_URL is added too.
+HOST_EXEMPT_PATHS = {"/api/wazuh/alerts"}      # machine to machine (Docker alias), authenticated with its own key; no browser data comes back
+
+
+def _allowed_hosts() -> set[str]:
+    hosts = {"127.0.0.1", "localhost", "::1"}
+    hosts |= {h.strip().lower().rstrip(".") for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()}
+    try:
+        base = urlsplit(os.environ.get("APP_BASE_URL", "").strip()).hostname
+    except ValueError:
+        base = None
+    if base:
+        hosts.add(base.lower().rstrip("."))
+    return hosts
+
+
+def _host_ok(request: Request) -> bool:
+    allowed = _allowed_hosts()
+    if "*" in allowed:
+        return True
+    raw = request.headers.get("host", "").strip().lower()
+    if raw.startswith("["):                      # [::1]:8000
+        name = raw[1:].split("]", 1)[0]
+    else:
+        name = raw.rsplit(":", 1)[0] if raw.count(":") == 1 else raw
+    return name.rstrip(".") in allowed
+
+
 def _token_ok(request: Request, token: str) -> bool:
     scheme, _, supplied = request.headers.get("authorization", "").partition(" ")
     return scheme.lower() == "bearer" and secrets.compare_digest(supplied.strip().encode(), token.encode())
@@ -123,9 +157,13 @@ def _token_ok(request: Request, token: str) -> bool:
 async def access_control(request: Request, call_next):
     token = _access_token()
     path = request.url.path
+    if path not in HOST_EXEMPT_PATHS and not _host_ok(request):
+        log.warning("host_rejected host=%r path=%s", request.headers.get("host", "")[:80], path[:80])
+        return JSONResponse({"detail": "Nombre de host no permitido. Si accedes a la app con otro nombre, agrégalo en ALLOWED_HOSTS."}, status_code=400)
     if token and path.startswith("/api/") and path not in OPEN_API_PATHS and not _token_ok(request, token):
         try:
             _rate_limit(request, "/auth-fail", 10, 60)      # only failures count: brute force gets 429
+            _rate_limit_key("*", "/auth-fail-all", 100, 60)  # and a cap across all IPs: the per-IP one depends on the proxy setup
         except HTTPException as exc:
             return JSONResponse({"detail": exc.detail}, status_code=429)
         return JSONResponse({"detail": "Acceso no autorizado. Introduce la clave de acceso."}, status_code=401,
@@ -154,7 +192,10 @@ _hits_lock = threading.Lock()
 
 
 def _rate_limit(request: Request, key: str, limit: int, window: int) -> None:
-    ip = request.client.host if request.client else "unknown"
+    _rate_limit_key(request.client.host if request.client else "unknown", key, limit, window)
+
+
+def _rate_limit_key(ip: str, key: str, limit: int, window: int) -> None:
     now = time.monotonic()
     with _hits_lock:
         q = _hits[(ip, key)]
@@ -240,7 +281,10 @@ def auth_check():
 
 
 @app.get("/api/health")
-def health():
+def health(request: Request):
+    token = _access_token()
+    if token and not _token_ok(request, token):
+        return {"ok": True}                      # liveness only: which AI providers are configured is not public
     return {"ok": True, "ai_configured": bool(os.environ.get("ANTHROPIC_API_KEY", "").strip()),
             "model": os.environ.get("ANTHROPIC_MODEL") or ai_mod.DEFAULT_MODEL, "ai_keys": _ai_keys()}
 
@@ -304,6 +348,27 @@ def _register_session(df: pd.DataFrame, analysis: dict, name: str, client: str =
             "analysis": analysis, "ai": s.ai, "ai_configured": bool(_api_key(None)), "ai_keys": _ai_keys()}
 
 
+_ANALYSIS_SLOTS = threading.BoundedSemaphore(MAX_PARALLEL_ANALYSES)
+
+
+def _with_slot(fn, *args):
+    """Run a CPU-heavy analysis in one of the few slots. Without a free slot the caller gets 503 instead of piling up work."""
+    if not _ANALYSIS_SLOTS.acquire(blocking=False):
+        raise HTTPException(503, "El servidor está analizando otros archivos. Espera unos segundos e inténtalo de nuevo.", headers={"Retry-After": "15"})
+    try:
+        return fn(*args)
+    finally:
+        _ANALYSIS_SLOTS.release()
+
+
+def _analyze_upload(data: bytes, name: str, client: str, analyst: str) -> dict:
+    check = filecheck.inspect_upload(data, name)
+    if check.reject:
+        log.warning("upload_rejected reason=content_mismatch ext=%s size=%d", os.path.splitext(name)[1].lower(), len(data))
+        raise HTTPException(422, check.reject)
+    return _create_session(data, name, client, analyst, check.warnings)
+
+
 def _create_session(data: bytes, name: str, client: str, analyst: str, warnings: list[str] | None = None) -> dict:
     try:
         df, meta = load_events(data, name)
@@ -332,11 +397,8 @@ async def upload(request: Request, file: UploadFile = File(...), client: str = F
     data = b"".join(chunks)
     if not data:
         raise HTTPException(400, "El archivo está vacío.")
-    check = filecheck.inspect_upload(data, name)
-    if check.reject:
-        log.warning("upload_rejected reason=content_mismatch ext=%s size=%d", os.path.splitext(name)[1].lower(), len(data))
-        raise HTTPException(422, check.reject)
-    return _create_session(data, name, client, analyst, check.warnings)
+    # parsing and detection are pure CPU: off the event loop, or one upload freezes every other request (health included)
+    return await run_in_threadpool(_with_slot, _analyze_upload, data, name, client, analyst)
 
 
 SAMPLE_FILE = ROOT / "sample_data" / "SOC_L2_Logs_Ampliados_Multiples_Incidentes.csv"
@@ -348,7 +410,7 @@ def use_sample(request: Request, client: str = Form(""), analyst: str = Form("")
     _rate_limit(request, "/api/upload", *RATE_LIMITS["/api/upload"])
     if not SAMPLE_FILE.is_file():
         raise HTTPException(404, "Este despliegue no incluye los datos de ejemplo.")
-    return _create_session(SAMPLE_FILE.read_bytes(), SAMPLE_FILE.name, client, analyst)
+    return _with_slot(_create_session, SAMPLE_FILE.read_bytes(), SAMPLE_FILE.name, client, analyst)
 
 
 @app.get("/api/sessions/{sid}")
@@ -670,7 +732,7 @@ async def phishing_upload(request: Request, files: list[UploadFile] | None = Fil
                 raise HTTPException(413, f"«{name}» supera el límite de 5 MB.")
             chunks.append(chunk)
         batch.append((name, b"".join(chunks)))
-    result = phishing_mod.analyze_many(batch, expected.strip()[:200], frozenset(pasted_names))
+    result = await run_in_threadpool(_with_slot, phishing_mod.analyze_many, batch, expected.strip()[:200], frozenset(pasted_names))
     _enrich_mitre(result["items"])
     if not result["items"]:
         raise HTTPException(422, result["errors"][0]["error"] if result["errors"] else "No se pudo analizar ningún correo.")
@@ -779,7 +841,7 @@ def phishing_sample(request: Request, sid: str = Form("")):
     paths = sorted(SAMPLE_EML_DIR.glob("*.eml"))[:MAX_SAMPLE_EML]
     if not paths:
         raise HTTPException(404, "Este despliegue no incluye los correos de ejemplo.")
-    result = phishing_mod.analyze_many([(q.name, q.read_bytes()) for q in paths])
+    result = _with_slot(phishing_mod.analyze_many, [(q.name, q.read_bytes()) for q in paths])
     _enrich_mitre(result["items"])
     pid = secrets.token_urlsafe(16)
     PHISH[pid] = PhishSession(items=result["items"], errors=result["errors"])
@@ -947,11 +1009,18 @@ async def wazuh_alerts(request: Request):
     return _live().ingest(alerts)
 
 
+WAZUH_LOCKED_MSG = ("Las alertas de Wazuh en vivo solo se abren con APP_ACCESS_TOKEN definido en el servidor: "
+                     "sin él, cualquiera que llegue al puerto podría leerlas.")
+
+if wazuh_live.usable() and not _access_token():
+    log.warning("wazuh_panel_locked: WAZUH_INGEST is on without APP_ACCESS_TOKEN; alerts are ingested but the live snapshot stays closed")
+
+
 @app.get("/api/wazuh/status")
 def wazuh_status():
     if not wazuh_live.usable():
         return {"enabled": False}
-    return _live().status()
+    return {**_live().status(), "needs_token": not _access_token()}
 
 
 @app.get("/api/wazuh/session")
@@ -959,6 +1028,8 @@ def wazuh_session():
     """Abre una instantánea del último análisis de las alertas de Wazuh (una sesión normal: se puede pedir triaje, informe, etc.)."""
     if not wazuh_live.usable():
         raise HTTPException(404, "El modo Wazuh no está activado en este servidor.")
+    if not _access_token():      # live alerts are real data that nobody uploaded: never served without the access key
+        raise HTTPException(403, WAZUH_LOCKED_MSG)
     _live_cycle()
     latest = _live().latest
     if not latest:

@@ -1,0 +1,5 @@
+Log_ID,Timestamp,Hostname,Event_ID,User,Source_IP,Destination,Log_Source,Event_Description,Process_CommandLine,Result,Severity
+1,2026-11-13 14:00:05,WS-01,3,jperez,10.0.0.15,203.0.113.50,Sysmon,Conexión de red saliente hacia 203.0.113.50:443,C:\Users\jperez\AppData\Local\Temp\update.exe,Success,Medium
+2,2026-11-13 14:00:35,WS-01,3,jperez,10.0.0.15,203.0.113.50,Sysmon,Conexión de red saliente hacia 203.0.113.50:443,C:\Users\jperez\AppData\Local\Temp\update.exe,Success,Medium
+3,2026-11-13 14:01:05,WS-01,3,jperez,10.0.0.15,203.0.113.50,Sysmon,Conexión de red saliente hacia 203.0.113.50:443,C:\Users\jperez\AppData\Local\Temp\update.exe,Success,Medium
+4,2026-11-13 14:05:00,WS-02,4624,mlopez,10.0.0.22,10.0.0.5,Security,Inicio de sesión correcto,,Success,Informational

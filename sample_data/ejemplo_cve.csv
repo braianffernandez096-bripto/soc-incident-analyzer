@@ -1,0 +1,5 @@
+Log_ID,Timestamp,Hostname,Event_ID,User,Source_IP,Destination,Log_Source,Event_Description,Process_CommandLine,Result,Severity
+1,2026-11-13 14:00:05,SRV-APP-01,wazuh_regla_23504,,,,Wazuh,CVE-2021-44228 afecta al paquete log4j-core 2.14.1. CVE: CVE-2021-44228. Severidad CVE: Critical. Estado: Active. Paquete: log4j-core 2.14.1,,Success,High
+2,2026-11-13 14:00:06,SRV-APP-02,wazuh_regla_23504,,,,Wazuh,CVE-2021-44228 afecta al paquete log4j-core 2.14.1. CVE: CVE-2021-44228. Severidad CVE: Critical. Estado: Active. Paquete: log4j-core 2.14.1,,Success,High
+3,2026-11-13 14:00:07,SRV-WEB-01,wazuh_regla_23503,,,,Wazuh,CVE-2024-3400 afecta al paquete pan-os. CVE: CVE-2024-3400. Severidad CVE: High. Estado: Active. Paquete: pan-os 11.1,,Success,High
+4,2026-11-13 14:00:08,SRV-WEB-01,wazuh_regla_23504,,,,Wazuh,CVE-2021-44228 afecta al paquete log4j-core 2.17.2. CVE: CVE-2021-44228. Severidad CVE: Critical. Estado: Solved. Paquete: log4j-core 2.17.2,,Success,Informational

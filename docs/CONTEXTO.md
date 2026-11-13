@@ -1,5 +1,7 @@
 # Contexto de amenazas: CISA KEV, EPSS y tu MISP
 
+Volver al [README](../README.md) · [MISP paso a paso](MISP.md) · [Solución de problemas](SOLUCION_PROBLEMAS.md)
+
 Todo es **opcional y está apagado por defecto**. Sin configurar nada, el analizador se comporta exactamente igual que antes.
 
 | Fuente | Qué aporta | Qué sale de tu red |
@@ -41,6 +43,8 @@ Debe mostrar `kev: ok (… registros)` y `epss: ok (… registros)`, y una líne
 Funciona con cualquier log que mencione un CVE. Con Wazuh, el módulo de detección de vulnerabilidades genera alertas con el CVE, el paquete y el estado; llegan al analizador si su nivel alcanza el `<level>` de la integración (ver [WAZUH.md](WAZUH.md)). Los hallazgos Alto o Crítico se avisan por Telegram como cualquier otro.
 
 ## 2. Tu MISP
+
+Guía completa con el usuario de solo lectura, la clave y las comprobaciones: **[MISP.md](MISP.md)**. Resumen:
 
 En el `.env` (la clave **solo** aquí; nunca en el chat ni en GitHub):
 

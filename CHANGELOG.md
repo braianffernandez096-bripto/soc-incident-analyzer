@@ -12,6 +12,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - `GET /api/context/status` indica si el contexto está listo (sin claves ni URL de MISP). Prueba manual: `python -m backend.context --refresh`.
 - Guía nueva: `docs/CONTEXTO.md`.
 - **Probado en laboratorio** (Wazuh 4.14.7, MISP 2.4): descarga real de KEV (1779 CVE) y EPSS (≈406 mil), MISP con clave de solo lectura y certificado autofirmado, y los avisos de Telegram «Fuerza bruta (Windows)», «Fuerza bruta (SSH)» y «Vulnerabilidad».
+- Guías nuevas: `docs/MISP.md` (usuario de solo lectura, clave, comprobaciones e indicador de prueba) y `docs/SOLUCION_PROBLEMAS.md` (síntomas y soluciones de acceso, Wazuh, Telegram, MISP y KEV/EPSS). Archivos de ejemplo `sample_data/ejemplo_cve.csv` y `ejemplo_misp.csv`.
 - Documentado en `docs/WAZUH.md`: recrear el contenedor del analizador con los dos archivos de compose (si no, sale de la red de Wazuh y las alertas dejan de llegar sin error).
 
 ### Cambios

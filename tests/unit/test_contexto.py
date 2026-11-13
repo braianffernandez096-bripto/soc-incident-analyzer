@@ -24,7 +24,7 @@ def store(tmp_path, monkeypatch):
     s = context.Store(tmp_path)
     s.kev, s.kev_version = context.parse_kev(KEV)
     s.epss, s.epss_date = context.parse_epss(EPSS)
-    s.loaded_at = 1.0
+    s.loaded_at, s._refreshing = 1.0, True        # sin descargas en segundo plano durante las pruebas
     context.set_store(s)
     yield s
     context.set_store(None)
@@ -282,3 +282,28 @@ def test_limites_reflejan_el_contexto_usado(store, monkeypatch):
     context.set_store(None)
     monkeypatch.delenv("CONTEXT_ENABLED", raising=False)
     assert "No hay inteligencia de amenazas" in " ".join(run(ssh_fail_rows())["limitations"])
+
+
+def test_archivos_de_ejemplo_de_la_documentacion(store):
+    from pathlib import Path
+    d = Path(__file__).resolve().parents[2] / "sample_data"
+    from backend import parser
+    df, meta = parser.load_events((d / "ejemplo_cve.csv").read_bytes(), "ejemplo_cve.csv")
+    f = {x["metrics"]["cve"]: x for x in main.analyze(df, meta)["findings"] if x["rule"] == "ctx_cve"}
+    assert f["CVE-2021-44228"]["severity"] == "Crítico" and f["CVE-2021-44228"]["metrics"]["equipos"] == 2       # la fila «Solved» no cuenta
+    misp.set_client(misp_client(lambda r: httpx.Response(200, json=RESP)))
+    try:
+        df, meta = parser.load_events((d / "ejemplo_misp.csv").read_bytes(), "ejemplo_misp.csv")
+        assert [x for x in main.analyze(df, meta)["findings"] if x["rule"] == "ctx_misp"]
+    finally:
+        misp.set_client(None)
+
+
+def test_enlaces_de_las_guias_nuevas_existen():
+    import re
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    for name in ("docs/MISP.md", "docs/SOLUCION_PROBLEMAS.md", "docs/CONTEXTO.md"):
+        for target in re.findall(r"\]\(([^)#]+)(?:#[^)]*)?\)", (root / name).read_text(encoding="utf-8")):
+            if not target.startswith("http"):
+                assert (root / name).parent.joinpath(target).resolve().exists(), (name, target)

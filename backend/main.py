@@ -8,11 +8,12 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import secrets
 import copy
 import threading
 import time
-from collections import defaultdict, deque
+from collections import Counter, defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Annotated
 from pathlib import Path
@@ -51,6 +52,7 @@ from .report import build_pdf, build_phishing_pdf
 ROOT = Path(__file__).resolve().parent.parent
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 MAX_SESSIONS = 10
+MAX_META = 120                 # caracteres de «cliente» y «analista»: van a cada informe y a la memoria de la sesión
 MAX_PARALLEL_ANALYSES = 2      # análisis simultáneos (son CPU pura): el resto recibe 503 y reintenta
 W_MAX_ALERTS = wazuh_live.W.MAX_ALERTS_PER_CALL
 
@@ -124,6 +126,9 @@ def _access_token() -> str:
 HOST_EXEMPT_PATHS = {"/api/wazuh/alerts"}      # machine to machine (Docker alias), authenticated with its own key; no browser data comes back
 
 
+_HOST_RE = re.compile(r"^(?:\[([0-9a-f:.]+)\]|([a-z0-9._-]+))(?::\d{1,5})?$")
+
+
 def _allowed_hosts() -> set[str]:
     hosts = {"127.0.0.1", "localhost", "::1"}
     hosts |= {h.strip().lower().rstrip(".") for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()}
@@ -140,12 +145,8 @@ def _host_ok(request: Request) -> bool:
     allowed = _allowed_hosts()
     if "*" in allowed:
         return True
-    raw = request.headers.get("host", "").strip().lower()
-    if raw.startswith("["):                      # [::1]:8000
-        name = raw[1:].split("]", 1)[0]
-    else:
-        name = raw.rsplit(":", 1)[0] if raw.count(":") == 1 else raw
-    return name.rstrip(".") in allowed
+    m = _HOST_RE.match(request.headers.get("host", "").strip().lower())      # exact shape only: name or [ipv6], optional port, nothing else
+    return bool(m) and (m.group(1) or m.group(2)).rstrip(".") in allowed
 
 
 def _token_ok(request: Request, token: str) -> bool:
@@ -221,6 +222,8 @@ class Session:
     triage: dict | None = None     # recomendaciones de triaje generadas con IA (sin ellas se usa la del motor)
     decisions: dict = field(default_factory=dict)   # decisión del analista por incidente (solo en memoria, como la sesión)
     origin: str = ""               # "wazuh" si la sesión es la instantánea de las alertas de Wazuh (única que puede consultar el Indexer)
+    owner: str = ""                # IP que la creó: al llenarse el cupo se desaloja primero a quien más sesiones tiene
+    touched: float = field(default_factory=time.time)      # último uso: pasado SESSION_TTL_MINUTES sin uso, se borra
 
 
 SESSIONS: dict[str, Session] = {}
@@ -234,6 +237,8 @@ class PhishSession:
     intel: dict | None = None
     client: str = ""
     analyst: str = ""
+    owner: str = ""
+    touched: float = field(default_factory=time.time)
 
 
 PHISH: dict[str, PhishSession] = {}
@@ -241,10 +246,50 @@ MAX_EML_FILES = 5
 PASTED_NAME = "cabeceras-pegadas"
 
 
+# ---- vida de las sesiones --------------------------------------------------------------------------------
+# Los logs y correos analizados viven solo en memoria. Se borran al pasar SESSION_TTL_MINUTES sin uso (4 h por defecto), cuando el
+# analista pulsa «Cargar otro» (DELETE) o al llenarse el cupo. En ese caso sale la sesión más antigua de quien MÁS sesiones tiene:
+# así quien crea sesiones en serie se desaloja a sí mismo y no a los demás.
+_STORE_LOCK = threading.RLock()
+_CTRL_RE = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def _meta(text) -> str:
+    """Nombre de cliente o de analista: una línea corta, sin caracteres de control."""
+    return _CTRL_RE.sub(" ", str(text or "")).strip()[:MAX_META]
+
+
+def _session_ttl() -> float:
+    try:
+        minutes = int(os.environ.get("SESSION_TTL_MINUTES", "").strip() or 240)
+    except ValueError:
+        minutes = 240
+    return max(5, min(minutes, 7 * 24 * 60)) * 60.0
+
+
+def _purge_expired() -> None:
+    limit = time.time() - _session_ttl()
+    with _STORE_LOCK:
+        for store in (SESSIONS, PHISH):
+            for k in [k for k, v in store.items() if v.touched < limit]:
+                store.pop(k, None)
+
+
+def _evict_over_cap(store: dict, keep: str) -> None:
+    with _STORE_LOCK:
+        while len(store) > MAX_SESSIONS:
+            counts = Counter(v.owner for v in store.values())
+            top = max(counts.values())
+            cands = [k for k, v in store.items() if k != keep and counts[v.owner] == top] or [k for k in store if k != keep]
+            store.pop(min(cands, key=lambda k: store[k].created))
+
+
 def _get(sid: str) -> Session:
+    _purge_expired()
     s = SESSIONS.get(sid)
     if not s:
         raise HTTPException(404, "Sesión no encontrada. Vuelve a cargar el archivo.")
+    s.touched = time.time()
     return s
 
 
@@ -282,6 +327,7 @@ def auth_check():
 
 @app.get("/api/health")
 def health(request: Request):
+    _purge_expired()                             # the container healthcheck calls this every 30 s: it doubles as the expiry timer
     token = _access_token()
     if token and not _token_ok(request, token):
         return {"ok": True}                      # liveness only: which AI providers are configured is not public
@@ -337,13 +383,15 @@ def captcha_verify(request: Request, body: CaptchaAnswer):
     return {"pass": grant, "uses": captcha_mod.PASS_USES, "ttl": captcha_mod.PASS_TTL}
 
 
-def _register_session(df: pd.DataFrame, analysis: dict, name: str, client: str = "", analyst: str = "", origin: str = "") -> dict:
+def _register_session(df: pd.DataFrame, analysis: dict, name: str, client: str = "", analyst: str = "", origin: str = "",
+                      owner: str = "") -> dict:
     sid = secrets.token_urlsafe(16)
-    SESSIONS[sid] = Session(df=df, analysis=analysis, ai=ai_mod.build_deterministic(analysis), filename=name,
-                            client=client.strip(), analyst=analyst.strip(), origin=origin)
-    while len(SESSIONS) > MAX_SESSIONS:
-        SESSIONS.pop(min(SESSIONS, key=lambda k: SESSIONS[k].created))
-    s = SESSIONS[sid]
+    s = Session(df=df, analysis=analysis, ai=ai_mod.build_deterministic(analysis), filename=name,
+                client=_meta(client), analyst=_meta(analyst), origin=origin, owner=owner)
+    _purge_expired()
+    with _STORE_LOCK:
+        SESSIONS[sid] = s
+        _evict_over_cap(SESSIONS, sid)
     return {"session_id": sid, "filename": name, "client": s.client, "analyst": s.analyst,
             "analysis": analysis, "ai": s.ai, "ai_configured": bool(_api_key(None)), "ai_keys": _ai_keys()}
 
@@ -361,15 +409,15 @@ def _with_slot(fn, *args):
         _ANALYSIS_SLOTS.release()
 
 
-def _analyze_upload(data: bytes, name: str, client: str, analyst: str) -> dict:
+def _analyze_upload(data: bytes, name: str, client: str, analyst: str, owner: str = "") -> dict:
     check = filecheck.inspect_upload(data, name)
     if check.reject:
         log.warning("upload_rejected reason=content_mismatch ext=%s size=%d", os.path.splitext(name)[1].lower(), len(data))
         raise HTTPException(422, check.reject)
-    return _create_session(data, name, client, analyst, check.warnings)
+    return _create_session(data, name, client, analyst, check.warnings, owner)
 
 
-def _create_session(data: bytes, name: str, client: str, analyst: str, warnings: list[str] | None = None) -> dict:
+def _create_session(data: bytes, name: str, client: str, analyst: str, warnings: list[str] | None = None, owner: str = "") -> dict:
     try:
         df, meta = load_events(data, name)
     except ParseError as exc:
@@ -378,7 +426,7 @@ def _create_session(data: bytes, name: str, client: str, analyst: str, warnings:
     analysis = analyze(df, meta)
     analysis["limitations"] = list(analysis.get("limitations", [])) + list(warnings or []) + filecheck.formula_warnings(df)
     log.info("analysis_done rows=%d findings=%d incidents=%d ms=%d", len(df), len(analysis["findings"]), len(analysis["incidents"]), (time.perf_counter() - t0) * 1000)
-    return _register_session(df, analysis, name, client, analyst)
+    return _register_session(df, analysis, name, client, analyst, owner=owner)
 
 
 @app.post("/api/upload")
@@ -398,7 +446,7 @@ async def upload(request: Request, file: UploadFile = File(...), client: str = F
     if not data:
         raise HTTPException(400, "El archivo está vacío.")
     # parsing and detection are pure CPU: off the event loop, or one upload freezes every other request (health included)
-    return await run_in_threadpool(_with_slot, _analyze_upload, data, name, client, analyst)
+    return await run_in_threadpool(_with_slot, _analyze_upload, data, name, client, analyst, _client_ip(request))
 
 
 SAMPLE_FILE = ROOT / "sample_data" / "SOC_L2_Logs_Ampliados_Multiples_Incidentes.csv"
@@ -410,13 +458,21 @@ def use_sample(request: Request, client: str = Form(""), analyst: str = Form("")
     _rate_limit(request, "/api/upload", *RATE_LIMITS["/api/upload"])
     if not SAMPLE_FILE.is_file():
         raise HTTPException(404, "Este despliegue no incluye los datos de ejemplo.")
-    return _with_slot(_create_session, SAMPLE_FILE.read_bytes(), SAMPLE_FILE.name, client, analyst)
+    return _with_slot(_create_session, SAMPLE_FILE.read_bytes(), SAMPLE_FILE.name, client, analyst, None, _client_ip(request))
 
 
 @app.get("/api/sessions/{sid}")
 def get_session(sid: str):
     s = _get(sid)
     return {"session_id": sid, "filename": s.filename, "client": s.client, "analyst": s.analyst, "analysis": s.analysis, "ai": s.ai}
+
+
+@app.delete("/api/sessions/{sid}")
+def delete_session(sid: str):
+    """Borra la sesión de la memoria del servidor (lo hace la interfaz al pulsar «Cargar otro»). Idempotente."""
+    with _STORE_LOCK:
+        gone = SESSIONS.pop(sid, None)
+    return {"ok": True, "deleted": gone is not None}
 
 
 @app.get("/api/sessions/{sid}/events")
@@ -518,7 +574,7 @@ def sigma_rules(sid: str):
 @app.post("/api/sessions/{sid}/meta")
 def set_meta(sid: str, client: str = Form(""), analyst: str = Form("")):
     s = _get(sid)
-    s.client, s.analyst = client.strip(), analyst.strip()
+    s.client, s.analyst = _meta(client), _meta(analyst)
     return {"ok": True}
 
 
@@ -697,7 +753,10 @@ def _enrich_mitre(items: list[dict]) -> list[dict]:
 
 
 def _get_phish(pid: str) -> PhishSession:
+    _purge_expired()
     p = PHISH.get(pid)
+    if p:
+        p.touched = time.time()
     if not p:
         raise HTTPException(404, "Análisis de correos no encontrado. Vuelve a cargar los archivos.")
     return p
@@ -737,9 +796,10 @@ async def phishing_upload(request: Request, files: list[UploadFile] | None = Fil
     if not result["items"]:
         raise HTTPException(422, result["errors"][0]["error"] if result["errors"] else "No se pudo analizar ningún correo.")
     pid = secrets.token_urlsafe(16)
-    PHISH[pid] = PhishSession(items=result["items"], errors=result["errors"])
-    while len(PHISH) > MAX_SESSIONS:
-        PHISH.pop(min(PHISH, key=lambda k: PHISH[k].created))
+    _purge_expired()
+    with _STORE_LOCK:
+        PHISH[pid] = PhishSession(items=result["items"], errors=result["errors"], owner=_client_ip(request))
+        _evict_over_cap(PHISH, pid)
     if sid and sid in SESSIONS:
         SESSIONS[sid].phish_id = pid
     log.info("phishing_done mails=%d errors=%d max_severity=%s", len(result["items"]), len(result["errors"]), result["items"][0]["severity"])
@@ -844,9 +904,10 @@ def phishing_sample(request: Request, sid: str = Form("")):
     result = _with_slot(phishing_mod.analyze_many, [(q.name, q.read_bytes()) for q in paths])
     _enrich_mitre(result["items"])
     pid = secrets.token_urlsafe(16)
-    PHISH[pid] = PhishSession(items=result["items"], errors=result["errors"])
-    while len(PHISH) > MAX_SESSIONS:
-        PHISH.pop(min(PHISH, key=lambda k: PHISH[k].created))
+    _purge_expired()
+    with _STORE_LOCK:
+        PHISH[pid] = PhishSession(items=result["items"], errors=result["errors"], owner=_client_ip(request))
+        _evict_over_cap(PHISH, pid)
     if sid and sid in SESSIONS:
         SESSIONS[sid].phish_id = pid
     return {"phishing_id": pid, "items": result["items"], "errors": result["errors"]}
@@ -874,11 +935,19 @@ def phishing_intel_start(pid: str, request: Request, include_reserved: bool = Fa
     return _intel_launch(p, pid, phishing_mod.all_iocs(p.items), request, include_reserved, x_vt_key, x_abuseipdb_key)
 
 
+@app.delete("/api/phishing/{pid}")
+def delete_phishing(pid: str):
+    """Borra un análisis de correos de la memoria del servidor. Idempotente."""
+    with _STORE_LOCK:
+        gone = PHISH.pop(pid, None)
+    return {"ok": True, "deleted": gone is not None}
+
+
 @app.post("/api/phishing/{pid}/report.pdf")
 def phishing_report(pid: str, client: str = Form(""), analyst: str = Form("")):
     p = _get_phish(pid)
     intel = p.intel if p.intel and p.intel.get("results") else None
-    pdf = build_phishing_pdf(p.items, {"client": client.strip(), "analyst": analyst.strip()}, intel)
+    pdf = build_phishing_pdf(p.items, {"client": _meta(client), "analyst": _meta(analyst)}, intel)
     return Response(pdf, media_type="application/pdf", headers={"Content-Disposition": 'attachment; filename="informe_phishing.pdf"'})
 
 
@@ -886,7 +955,7 @@ def phishing_report(pid: str, client: str = Form(""), analyst: str = Form("")):
 def phishing_report_html(pid: str, client: str = Form(""), analyst: str = Form("")):
     p = _get_phish(pid)
     intel = p.intel if p.intel and p.intel.get("results") else None
-    doc = report_html_mod.build_phishing_html(p.items, {"client": client.strip(), "analyst": analyst.strip()}, intel)
+    doc = report_html_mod.build_phishing_html(p.items, {"client": _meta(client), "analyst": _meta(analyst)}, intel)
     return Response(doc, media_type="text/html; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="informe_phishing.html"'})
 
 
@@ -902,6 +971,8 @@ def attack_layer(sid: str):
 def _pdf_response(s: Session) -> Response:
     intel = s.intel if s.intel and s.intel.get("results") else None
     ph = PHISH.get(s.phish_id)
+    if ph:
+        ph.touched = time.time()      # el análisis de correos enlazado vive mientras se use la sesión de logs
     tv = triage_mod.view(s.analysis, s.triage, s.decisions) if (s.triage or s.decisions) else None
     pdf = build_pdf(s.analysis, s.ai, s.df, {"client": s.client, "analyst": s.analyst, "filename": s.filename}, intel=intel,
                     phishing=ph.items if ph else None, triage=tv)
@@ -913,6 +984,8 @@ def _html_response(s: Session) -> Response:
     """Informe en un único archivo HTML (se abre sin conexión). Mismo contenido que el PDF; todo dato se escapa al generarlo."""
     intel = s.intel if s.intel and s.intel.get("results") else None
     ph = PHISH.get(s.phish_id)
+    if ph:
+        ph.touched = time.time()      # el análisis de correos enlazado vive mientras se use la sesión de logs
     tv = triage_mod.view(s.analysis, s.triage, s.decisions) if (s.triage or s.decisions) else None
     doc = report_html_mod.build_html(s.analysis, s.ai, s.df, {"client": s.client, "analyst": s.analyst, "filename": s.filename}, intel=intel,
                                      phishing=ph.items if ph else None, triage=tv)
@@ -924,7 +997,7 @@ def _html_response(s: Session) -> Response:
 def report_html_post(sid: str, client: str = Form(""), analyst: str = Form("")):
     """Los nombres de cliente y analista viajan en el cuerpo, no en la URL (igual que el PDF)."""
     s = _get(sid)
-    s.client, s.analyst = client.strip(), analyst.strip()
+    s.client, s.analyst = _meta(client), _meta(analyst)
     return _html_response(s)
 
 
@@ -932,7 +1005,7 @@ def report_html_post(sid: str, client: str = Form(""), analyst: str = Form("")):
 def report_pdf_post(sid: str, client: str = Form(""), analyst: str = Form("")):
     """Preferred way to download the report: the client and analyst names travel in the body, not in the URL."""
     s = _get(sid)
-    s.client, s.analyst = client.strip(), analyst.strip()
+    s.client, s.analyst = _meta(client), _meta(analyst)
     return _pdf_response(s)
 
 
@@ -941,9 +1014,9 @@ def report_pdf(sid: str, client: str | None = None, analyst: str | None = None):
     """Kept for compatibility. Names in a query string end up in access logs: the UI uses the POST route instead."""
     s = _get(sid)
     if client is not None:
-        s.client = client.strip()
+        s.client = _meta(client)
     if analyst is not None:
-        s.analyst = analyst.strip()
+        s.analyst = _meta(analyst)
     return _pdf_response(s)
 
 
@@ -1024,7 +1097,7 @@ def wazuh_status():
 
 
 @app.get("/api/wazuh/session")
-def wazuh_session():
+def wazuh_session(request: Request):
     """Abre una instantánea del último análisis de las alertas de Wazuh (una sesión normal: se puede pedir triaje, informe, etc.)."""
     if not wazuh_live.usable():
         raise HTTPException(404, "El modo Wazuh no está activado en este servidor.")
@@ -1040,7 +1113,7 @@ def wazuh_session():
         "Instantánea de las alertas de Wazuh de las últimas %d h (hasta %d filas). Es una foto: las alertas nuevas aparecen al volver a abrirla y las "
         "decisiones que tomes viven en esta foto." % (_live().window // 3600, _live().max_rows)]
     analysis["wazuh_context"] = wazuh_indexer.configured()
-    return _register_session(df.copy(), analysis, "Alertas de Wazuh (en vivo)", origin="wazuh")
+    return _register_session(df.copy(), analysis, "Alertas de Wazuh (en vivo)", origin="wazuh", owner=_client_ip(request))
 
 
 @app.get("/api/context/status")

@@ -177,3 +177,99 @@ def test_un_archivo_rechazado_devuelve_el_cupo():
     for _ in range(main.MAX_PARALLEL_ANALYSES + 2):
         assert client.post("/api/upload", files={"file": ("x.csv", b"MZ\x90\x00binario", "text/csv")}).status_code == 422
     assert client.post("/api/sample").status_code == 200
+
+
+# ---------------------------------------------------------------- forma exacta del nombre de host
+@pytest.mark.parametrize("host", ["[::1].evil.example", "127.0.0.1:8000, evil.example", "localhost evil.example", "localhost:8000:1", "localhost:",
+                                  "localhost:abc", "localhost/evil.example", "localhost@evil.example", "[::1]x:8000", "[localhost]", "127.0.0.1:999999"])
+def test_un_host_mal_formado_se_rechaza_aunque_empiece_por_un_nombre_propio(host):
+    assert client.get("/api/health", headers={"Host": host}).status_code == 400
+
+
+# ---------------------------------------------------------------- vida de las sesiones
+@pytest.fixture
+def sesiones(monkeypatch):
+    monkeypatch.delenv("SESSION_TTL_MINUTES", raising=False)
+    main.SESSIONS.clear()
+    main.PHISH.clear()
+    yield
+    main.SESSIONS.clear()
+    main.PHISH.clear()
+
+
+def _nueva() -> str:
+    return client.post("/api/sample").json()["session_id"]
+
+
+def test_quien_crea_sesiones_en_serie_se_desaloja_a_si_mismo_y_no_a_los_demas(sesiones):
+    victima = _nueva()
+    main.SESSIONS[victima].owner = "10.0.0.7"
+    main._hits.clear()
+    for _ in range(main.MAX_SESSIONS + 4):             # el mismo cliente, muy por encima del cupo
+        _nueva()
+        main._hits.clear()
+    assert len(main.SESSIONS) == main.MAX_SESSIONS
+    assert victima in main.SESSIONS                    # antes salía la más antigua de todas: la de la víctima
+    assert client.get(f"/api/sessions/{victima}").status_code == 200
+
+
+def test_con_un_solo_cliente_sale_la_mas_antigua(sesiones):
+    ids = []
+    for _ in range(main.MAX_SESSIONS + 2):
+        ids.append(_nueva())
+        main._hits.clear()
+    assert set(main.SESSIONS) == set(ids[2:])
+
+
+def test_las_sesiones_sin_uso_vencen_y_las_que_se_usan_no(sesiones, monkeypatch):
+    monkeypatch.setenv("SESSION_TTL_MINUTES", "30")
+    vieja, usada = _nueva(), _nueva()
+    pid = client.post("/api/phishing/sample").json()["phishing_id"]
+    for obj in (main.SESSIONS[vieja], main.SESSIONS[usada], main.PHISH[pid]):
+        obj.touched -= 29 * 60
+    assert client.get(f"/api/sessions/{usada}").status_code == 200           # usarla renueva el plazo
+    for obj in (main.SESSIONS[vieja], main.SESSIONS[usada], main.PHISH[pid]):
+        obj.touched -= 2 * 60
+    assert client.get("/api/health").status_code == 200                      # el healthcheck hace de temporizador
+    assert vieja not in main.SESSIONS and pid not in main.PHISH and usada in main.SESSIONS
+    assert client.get(f"/api/sessions/{vieja}").status_code == 404
+    assert client.get(f"/api/phishing/{pid}/intel").status_code == 404
+
+
+def test_el_plazo_tiene_limites_razonables(monkeypatch):
+    for value, minutes in (("", 240), ("abc", 240), ("0", 5), ("1", 5), ("90", 90), ("9999999", 7 * 24 * 60)):
+        monkeypatch.setenv("SESSION_TTL_MINUTES", value)
+        assert main._session_ttl() == minutes * 60
+
+
+def test_borrar_la_sesion_la_quita_de_la_memoria(sesiones):
+    sid = _nueva()
+    pid = client.post("/api/phishing/sample").json()["phishing_id"]
+    assert client.delete(f"/api/sessions/{sid}").json() == {"ok": True, "deleted": True}
+    assert sid not in main.SESSIONS and client.get(f"/api/sessions/{sid}").status_code == 404
+    assert client.delete(f"/api/sessions/{sid}").json() == {"ok": True, "deleted": False}       # idempotente
+    assert client.delete(f"/api/phishing/{pid}").json()["deleted"] is True and pid not in main.PHISH
+
+
+def test_borrar_exige_la_clave_de_acceso(sesiones, monkeypatch):
+    sid = _nueva()
+    monkeypatch.setenv("APP_ACCESS_TOKEN", TOKEN)
+    assert client.delete(f"/api/sessions/{sid}").status_code == 401 and sid in main.SESSIONS
+    assert client.delete(f"/api/sessions/{sid}", headers={"Authorization": f"Bearer {TOKEN}"}).status_code == 200
+
+
+# ---------------------------------------------------------------- cliente y analista acotados
+def test_cliente_y_analista_se_recortan_y_quedan_en_una_linea(sesiones):
+    largo = "A" * 900_000
+    r = client.post("/api/sample", data={"client": largo, "analyst": "  Ana\r\nLópez\x00  "}).json()
+    assert len(r["client"]) == main.MAX_META and r["analyst"] == "Ana  López"
+    sid = r["session_id"]
+    client.post(f"/api/sessions/{sid}/meta", data={"client": largo, "analyst": largo})
+    assert len(main.SESSIONS[sid].client) == main.MAX_META == len(main.SESSIONS[sid].analyst)
+    assert client.post(f"/api/sessions/{sid}/report.html", data={"client": largo}).status_code == 200
+    assert len(main.SESSIONS[sid].client) == main.MAX_META
+    assert client.get(f"/api/sessions/{sid}/report.pdf", params={"analyst": "B" * 5000}).status_code == 200
+    assert len(main.SESSIONS[sid].analyst) == main.MAX_META
+    pid = client.post("/api/phishing/sample").json()["phishing_id"]
+    doc = client.post(f"/api/phishing/{pid}/report.html", data={"client": "Z" * 5000}).text
+    assert "Z" * main.MAX_META in doc and "Z" * (main.MAX_META + 1) not in doc

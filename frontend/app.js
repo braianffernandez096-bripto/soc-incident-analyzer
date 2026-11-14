@@ -231,7 +231,11 @@ function renderRail() {
     `<a href="#/${k}" ${route() === k ? 'aria-current="page"' : ""}><span class="n">${i + 1}</span><span>${l}</span>${cnt[k] !== undefined ? `<span class="count">${num(cnt[k])}</span>` : ""}</a>`).join("");
   const cur = nav.querySelector("[aria-current=page]"); if (cur) nav.scrollLeft = Math.max(0, cur.offsetLeft - 24);   // narrow screens: keep the open section visible
   foot.innerHTML = `<span>Archivo</span><b title="${esc(S.filename)}">${esc(S.filename)}</b><button class="btn ghost" id="newBtn">Cargar otro</button>`;
-  $("#newBtn").onclick = () => { S.a = null; S.sid = null; store.set("sid", ""); location.hash = "#/"; render(); };
+  $("#newBtn").onclick = () => {
+    const old = S.sid;      // se borra también del servidor: los datos no quedan en memoria esperando a que venzan
+    if (old) api(`/api/sessions/${encodeURIComponent(old)}`, { method: "DELETE" }).catch(() => { /* ya no existe o sin conexión */ });
+    S.a = null; S.sid = null; store.set("sid", ""); location.hash = "#/"; render();
+  };
 }
 
 function accessView() {

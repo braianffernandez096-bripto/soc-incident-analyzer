@@ -34,6 +34,15 @@ Se usaron tres máquinas virtuales (servidor, Windows y MISP), pero se puede emp
 | 9 | Feed JSON propio | [FEED.md](FEED.md) | `sample_data/feed_ejemplo.json` genera «Indicador conocido en tu feed» |
 | 10 | Contexto desde el Indexer | [WAZUH.md](WAZUH.md#contexto-desde-el-indexer-opcional) | El botón **Ver contexto en Wazuh (Indexer)** lista registros del hallazgo |
 
+**Si definiste `APP_ACCESS_TOKEN`**, las consultas `GET /api/...` de la tabla piden la clave (solo `/api/health` y `/api/auth/status` responden sin ella). Sin la cabecera la respuesta es `401`. Con la clave:
+
+```bash
+read -rs -p "Clave: " APP_ACCESS_TOKEN; export APP_ACCESS_TOKEN
+curl -s -H "Authorization: Bearer $APP_ACCESS_TOKEN" http://127.0.0.1:8000/api/context/status
+```
+
+`read -s` no muestra lo que escribes ni lo deja en el historial. Cambia `/api/context/status` por la ruta que quieras comprobar. En el navegador no hace falta nada: la app te pide la clave.
+
 Si algo no responde como en la columna de la derecha, mira [SOLUCION_PROBLEMAS.md](SOLUCION_PROBLEMAS.md): reúne los síntomas que aparecieron al montar este laboratorio.
 
 Antes de dejarlo encendido: [ENDURECER_LAB.md](ENDURECER_LAB.md) (contraseñas por defecto, puertos publicados, certificados).

@@ -22,6 +22,7 @@ Solo la rama `main`.
 | Inyección de prompts (IA) | Los logs viajan al modelo como datos no confiables, con `<` y `>` escapados para que no cierren el bloque de datos ni imiten una instrucción. La criticidad la decide siempre el motor de reglas, un verificador descarta las IP y los `Log_ID` inventados, y el texto del modelo se escapa en pantalla y en el PDF. Es opcional: sin clave de Anthropic no se envía nada. |
 | Filtración de claves | Las claves viven en `.env` (fuera de Git) o se pegan en la interfaz; no se guardan, no se registran y no se devuelven al navegador. |
 | Acceso no deseado | La app escucha solo en `127.0.0.1`. Con `APP_ACCESS_TOKEN` toda la API exige una clave, con límite de intentos fallidos por IP y un tope global (100 por minuto) que no depende de la IP. Sin la clave, `/api/health` solo responde que el servicio está vivo. |
+| Datos en memoria | Las sesiones vencen solas, se pueden borrar (`DELETE /api/sessions/{id}`) y quien crea sesiones en serie se desaloja a sí mismo, no a los demás. «Cliente» y «analista» se recortan a 120 caracteres. |
 | DNS rebinding | Solo se atienden peticiones cuyo `Host` sea `127.0.0.1`, `localhost`, el de `APP_BASE_URL` o uno de `ALLOWED_HOSTS`; el resto recibe 400. Así una página web no puede usar el navegador del analista para leer la API local. |
 | Archivos que agotan el servidor | El análisis corre fuera del bucle de eventos (la app sigue respondiendo), con 2 análisis simultáneos como máximo (el resto recibe 503). Las filas y celdas de un `.xlsx` se cuentan al descomprimir y se rechaza antes de abrirlo si pasa de 100.000 filas o 4 millones de celdas. |
 | Límites por IP detrás de un proxy | `X-Forwarded-For` solo se acepta del proxy indicado en `FORWARDED_ALLOW_IPS` (vacío por defecto en Docker y en `make start`: de ninguno). |
@@ -42,7 +43,7 @@ Solo la rama `main`.
 - **La clave de acceso es una sola, compartida.** No hay usuarios, roles ni aislamiento entre personas: quien tenga el identificador de una sesión puede verla.
 - **No incluye HTTPS.** Si la expones en una red, ponla detrás de un proxy inverso con HTTPS; sin él la clave viaja sin cifrar.
 - **No cifra la comunicación con Wazuh, MISP o el Indexer por sí sola.** `MISP_VERIFY=0` y `WAZUH_INDEXER_VERIFY=0` apagan la verificación del certificado (el servicio lo registra como aviso); son para laboratorio. Usa `MISP_CA` o `WAZUH_INDEXER_CA` con la CA de tu servicio. Más en [docs/ENDURECER_LAB.md](docs/ENDURECER_LAB.md).
-- **Las sesiones viven en memoria** (máximo 10) y se pierden al reiniciar.
+- **Las sesiones viven en memoria** (máximo 10) y se pierden al reiniciar. Se borran tras `SESSION_TTL_MINUTES` sin uso (4 h por defecto) y al pulsar «Cargar otro»; al llenarse el cupo sale primero la más antigua de quien más sesiones tiene.
 - **La CSP permite estilos en línea** (`style-src 'unsafe-inline'`) porque la interfaz los usa. Es un riesgo aceptado: los scripts siguen limitados a `'self'`, así que un dato malicioso no puede ejecutar código.
 
 ## Datos que salen de tu equipo

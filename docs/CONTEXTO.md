@@ -28,7 +28,7 @@ Para comprobar la descarga y el formato desde tu red:
 sudo docker exec soc-incident-analyzer-analyzer-1 python -m backend.context --refresh
 ```
 
-Debe mostrar `kev: ok (… registros)` y `epss: ok (… registros)`, y una línea con CVE-2021-44228 (Log4Shell). Estado: `GET /api/context/status`.
+Debe mostrar `kev: ok (… registros)` y `epss: ok (… registros)`, y una línea con CVE-2021-44228 (Log4Shell). Estado: `GET /api/context/status` (con `APP_ACCESS_TOKEN` definido, añade `-H "Authorization: Bearer $APP_ACCESS_TOKEN"`).
 
 ### Cómo decide
 

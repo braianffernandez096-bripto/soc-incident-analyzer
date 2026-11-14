@@ -13,7 +13,7 @@ Apagado por defecto. Nada sale de tu red: el archivo se lee y se compara en el p
    FEED_TTL_DAYS=30
    ```
 3. Recrea el contenedor (con los dos compose si usas Wazuh en vivo: `docker compose -f docker-compose.yml -f docker-compose.wazuh.yml up -d --force-recreate`).
-4. Comprueba con `GET /api/context/status`: el bloque `feed` indica cuántos indicadores hay y cuántos siguen vigentes.
+4. Comprueba con `GET /api/context/status` (con `APP_ACCESS_TOKEN` definido, añade `-H "Authorization: Bearer $APP_ACCESS_TOKEN"`): el bloque `feed` indica cuántos indicadores hay y cuántos siguen vigentes.
 
 Para un feed publicado en tu red, usa `FEED_URL=https://…` (se descarga en segundo plano cada `FEED_REFRESH_HOURS`; si falla se conserva la última copia buena).
 

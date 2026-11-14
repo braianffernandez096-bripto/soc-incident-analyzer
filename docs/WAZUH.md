@@ -186,7 +186,7 @@ curl -s -X POST http://127.0.0.1:8000/api/wazuh/alerts \
   -d '{"id":"t1","timestamp":"2026-11-12T12:00:00.000+0000","rule":{"id":"60122","level":5,"description":"Logon failure"},"agent":{"name":"WS-01"},"data":{"win":{"system":{"eventID":"4625","channel":"Security","severityValue":"AUDIT_FAILURE"},"eventdata":{"targetUserName":"admin","ipAddress":"203.0.113.50","logonType":"3"}}}}'
 ```
 
-El estado se consulta en `GET /api/wazuh/status` (cuántas alertas hay, cuántas se entendieron, si Telegram está configurado).
+El estado se consulta en `GET /api/wazuh/status` (cuántas alertas hay, cuántas se entendieron, si Telegram está configurado). Con `APP_ACCESS_TOKEN` definido hay que añadir `-H "Authorization: Bearer $APP_ACCESS_TOKEN"` al `curl`, y el panel «Abrir alertas de Wazuh» exige además esa clave (sin ella responde 403). Solo `POST /api/wazuh/alerts` sigue usando `X-Wazuh-Token`.
 
 ## Límites
 

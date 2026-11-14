@@ -19,8 +19,25 @@ y abrir `http://localhost:8000`. Primero comprueba que el contenedor está sano:
 | El manager no dice `Enabling integration for: 'custom-soc-analyzer'` | Permisos incorrectos (`root:wazuh` y `750`) o `ossec.conf` editado fuera del contenedor. Ver [WAZUH.md](WAZUH.md). |
 | `401` al enviar | `api_key` de la integración distinta de `WAZUH_INGEST_TOKEN`. |
 | `404` al enviar | `WAZUH_INGEST` no está en `on` o el token tiene menos de 16 caracteres (el endpoint queda cerrado). |
-| Llegan alertas pero no hay hallazgo de fuerza bruta | El `<level>` es demasiado alto: con 7 o más solo llega la alerta agregada. Usa 5 (o 3). |
+| Llegan alertas pero no hay hallazgo de fuerza bruta (en **Eventos** solo ves «Multiple Windows Logon Failures») | El `<level>` es demasiado alto: con 7 o más solo llega la alerta agregada. Usa 5 (o 3). En Docker, cambiarlo en tu archivo del host **no basta**: ver [abajo](#el-nivel-de-la-integración-no-cambia-en-docker). |
 | El agente de Windows figura `Disconnected` (por ejemplo tras reiniciar la VM) | En esa máquina, PowerShell como administrador: `Restart-Service WazuhSvc`. Comprueba con `agent_control -l` en el manager. |
+
+### El nivel de la integración no cambia en Docker
+
+El compose monta tu `wazuh_manager.conf` como `/wazuh-config-mount/etc/ossec.conf`, pero la imagen de Wazuh solo lo copia a `/var/ossec/etc/ossec.conf` la primera vez. Después el contenedor conserva su propia copia: reiniciar el manager no la actualiza. Comprueba qué nivel usa de verdad (sin mostrar la clave de la integración):
+
+```
+docker exec single-node-wazuh.manager-1 grep -A4 "custom-soc-analyzer" /var/ossec/etc/ossec.conf | grep -E "<name>|<level>"
+```
+
+Si dice un nivel mayor que 5, cámbialo dentro del contenedor y recarga Wazuh (no toca Filebeat):
+
+```
+docker exec single-node-wazuh.manager-1 sed -i 's|<level>7</level>|<level>5</level>|' /var/ossec/etc/ossec.conf
+docker exec single-node-wazuh.manager-1 /var/ossec/bin/wazuh-control restart
+```
+
+Cambia el `7` por el valor que viste. Deja también el nivel nuevo en tu archivo del host para que un contenedor nuevo parta bien. Para comparar lo que genera Wazuh con lo que recibe el analizador: las alertas de nivel 5 o más del Indexer en los últimos 10 minutos (`rule.level:>=5`) frente a `docker logs --since 10m soc-incident-analyzer-analyzer-1 | grep -c "POST /api/wazuh/alerts"`.
 
 ## Telegram: no llega el aviso
 

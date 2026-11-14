@@ -96,6 +96,77 @@ app = FastAPI(title="SOC Incident Analyzer", version="1.11.0", default_response_
               docs_url="/docs" if _DOCS else None, redoc_url="/redoc" if _DOCS else None, openapi_url="/openapi.json" if _DOCS else None)
 
 
+# ---- hard limit on the whole request body (resource exhaustion) --------------------------------------
+# The per-route checks (/api/upload: 25 MB; /api/phishing: 5 MB per .eml) only run AFTER FastAPI has read the
+# multipart body, and Starlette spools every file part to a SpooledTemporaryFile on disk as it parses. So the
+# body is fully written to /tmp BEFORE those checks fire: a 1 GB "upload" lands on disk only to be rejected as
+# ">25 MB". On bare uvicorn that is a disk-fill DoS; in Docker it churns the 128 MB tmpfs. This ASGI middleware
+# caps the body before a single part is spooled: Content-Length over the cap is refused outright, and a request
+# with no/under-stated length is counted as it streams and aborted the moment it crosses the cap.
+MAX_REQUEST_BYTES = 28 * 1024 * 1024      # backstop above the 25 MB upload cap (leaves room for multipart overhead)
+
+
+class _BodyTooLarge(Exception):
+    pass
+
+
+class MaxBodySizeMiddleware:
+    """Rejects an over-sized request body before it is parsed or spooled to disk."""
+
+    def __init__(self, app, max_body: int) -> None:
+        self.app = app
+        self.max_body = max_body
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        for name, value in scope.get("headers") or ():
+            if name == b"content-length":
+                try:
+                    if int(value) > self.max_body:
+                        return await self._reject(send)
+                except ValueError:
+                    pass
+                break
+        seen = 0
+        too_large = False
+        started = False
+
+        async def rcv():
+            nonlocal seen, too_large
+            message = await receive()
+            if message["type"] == "http.request":
+                seen += len(message.get("body", b""))
+                if seen > self.max_body:
+                    too_large = True
+                    raise _BodyTooLarge
+            return message
+
+        async def snd(message):
+            nonlocal started
+            if too_large and not started:    # FastAPI turns a failed body read into its own 400: drop it, the 413 below replaces it
+                return
+            if message["type"] == "http.response.start":
+                started = True
+            await send(message)
+
+        try:
+            await self.app(scope, rcv, snd)
+        except _BodyTooLarge:
+            if started:                      # response already on the wire: can only drop the connection
+                raise
+        if too_large and not started:
+            log.warning("request_too_large path=%s", scope.get("path", "")[:80])
+            await self._reject(send)
+
+    async def _reject(self, send) -> None:
+        body = b'{"detail":"El cuerpo de la peticion supera el limite permitido."}'
+        headers = [(b"content-type", b"application/json; charset=utf-8"), (b"content-length", str(len(body)).encode())]
+        headers += [(k.encode("latin-1"), v.encode("latin-1")) for k, v in SECURITY_HEADERS.items()]
+        await send({"type": "http.response.start", "status": 413, "headers": headers})
+        await send({"type": "http.response.body", "body": body})
+
+
 SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
                                "font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
@@ -184,6 +255,11 @@ async def security_headers(request: Request, call_next):
     if request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https":
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
     return response
+
+
+# Added last so it is the OUTERMOST middleware: the body cap runs before host/token checks and before any
+# multipart parsing, so an over-sized body is refused without ever being spooled to disk.
+app.add_middleware(MaxBodySizeMiddleware, max_body=MAX_REQUEST_BYTES)
 
 
 # Límite de peticiones por IP (ventana deslizante en memoria). Protege los endpoints costosos.

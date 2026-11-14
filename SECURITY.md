@@ -16,6 +16,7 @@ Solo la rama `main`.
 | Riesgo | Cómo se mitiga |
 |---|---|
 | Archivos subidos hostiles | El tipo se decide por el contenido, no por la extensión. Se rechazan ejecutables y archivos renombrados, rutas internas sospechosas y declaraciones XML peligrosas. Se avisa de macros, objetos incrustados, vínculos externos e inyección de fórmulas. Nada se ejecuta ni se evalúa. |
+| Peticiones con cuerpo enorme (llenar el disco) | Tope de 28 MB para todo el cuerpo: se rechaza con 413 por `Content-Length` o contando los bytes mientras llegan, antes de que se vuelque nada a un archivo temporal. |
 | Archivos enormes o "bombas" de compresión | 25 MB de subida, 300 MB descomprimidos, 100.000 filas, 500 columnas y límite de peticiones por IP. |
 | XSS | Todo dato del archivo se escapa antes de mostrarse y antes de entrar al PDF. La CSP restringe los scripts a `'self'`. |
 | IA local (Ollama) | La dirección de Ollama la define solo el servidor (`OLLAMA_HOST`); el navegador solo elige un modelo que Ollama lista, así que la app no sirve para consultar otras direcciones de la red. Sin redirecciones ni proxies del entorno. Si Ollama no está en este equipo, la pantalla lo avisa. |

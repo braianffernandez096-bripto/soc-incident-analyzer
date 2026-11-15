@@ -2,13 +2,15 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
-## [Sin publicar]
+## [1.15.0] - 2026-11-15
 
 ### Novedades
 - **La exactitud se mide en cada cambio («la vara» del CI).** Nuevo trabajo «Exactitud (OTRF + SSH real)»: descarga los 107 ataques etiquetados de OTRF y el log real de SSH de Loghub, fijados a un commit (y el log con su huella SHA-256), y compara el resultado dataset por dataset con `tests/validation/linea_base.json`. Falla si un dataset deja de acertar la técnica o la táctica, si alguno da error o si SSH pierde una IP o suma un falso positivo; las mejoras y los cambios dudosos (ruido nuevo o menos ruido) se informan sin fallar, en una tabla en el resumen de Actions. `scripts/validar_datasets.py` suma `--base`, `--actualizar-base` y `--resumen-md`. Comprobado apagando a propósito una regla: el CI falla y señala el dataset. Línea base actual: 41 técnica, 3 táctica, 26 otra técnica, 37 sin hallazgos; SSH 11 de 11 sin falsos positivos. 8 pruebas nuevas de la comparación (sin red).
 
 ### Cambios
 - **Matriz MITRE ATT&CK rediseñada:** arriba, un resumen (técnicas, tácticas con actividad y cuántas hay por criticidad máxima) y una tira con las 15 tácticas en orden de ataque; las que tienen actividad se colorean por criticidad y llevan al detalle al pulsarlas, las demás quedan en gris. Las celdas se tiñen según su criticidad y suman una barra que compara cuántos hallazgos sustentan cada técnica. La exportación para Navigator pasa al final. El backend agrega `coverage` a `attack` (las 15 tácticas, con técnicas y criticidad máxima). Funciona en tema claro y oscuro y en móvil.
+- La versión que declara la API pasa a 1.15.0.
+- Pruebas: 1.363 (10 nuevas), cobertura 95,3 %.
 
 ## [1.14.0] - 2026-11-15
 

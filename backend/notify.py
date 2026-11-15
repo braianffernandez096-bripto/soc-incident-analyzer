@@ -2,7 +2,7 @@
 
 Telegram es un servicio en la nube y los mensajes de un bot **no** van cifrados de extremo a extremo, así que por defecto el aviso lleva lo mínimo
 para que el analista sepa qué mirar en el panel: severidad, recomendación del motor, tipo de hallazgo (genérico, p. ej. «Fuerza bruta»), cantidad de
-eventos, hora (UTC), táctica y técnica MITRE y un enlace. **No** incluye usuarios, IPs, comandos, rutas ni logs. El nombre del equipo solo se agrega si
+eventos, hora (UTC), táctica y técnica MITRE y un enlace, ordenados en bloques con título (📌 HALLAZGO, 🎯 MITRE ATT&CK). **No** incluye usuarios, IPs, comandos, rutas ni logs. El nombre del equipo solo se agrega si
 lo pides con ``TELEGRAM_INCLUDE_HOST=1``.
 
 ``TELEGRAM_DETAIL=full`` es una opción **explícita** para quien acepta que esos datos pasen por Telegram: suma el título del hallazgo, el equipo, las
@@ -24,6 +24,7 @@ log = logging.getLogger("soc.notify")
 
 API = "https://api.telegram.org/bot{token}/sendMessage"
 MAX_LINES = 10
+MAX_CHARS = 3600
 EMOJI = {"Crítico": "🔴", "Alto": "🟠", "Medio": "🟡", "Bajo": "🟢"}
 REC = {"Crítico": "Escalar", "Alto": "Escalar", "Medio": "Falta información", "Bajo": "Probable falso positivo"}
 _SAFE = re.compile(r"[^\w .\-]", re.UNICODE)
@@ -75,38 +76,51 @@ class TelegramNotifier:
 
     # -- formato ---------------------------------------------------------------------------------
     def line(self, f: dict) -> str:
+        """Un hallazgo en bloques con título (HALLAZGO, MITRE ATT&CK y, en modo ``full``, CONTEXTO). Las secciones sin datos se omiten."""
         sev = f.get("severity", "")
-        head = f"{EMOJI.get(sev, '⚪')} {REC.get(sev, 'Revisar')} · {sev}"
-        tech = ", ".join(_plain(m, 14) for m in (f.get("mitre") or [])[:2])
-        detail = _plain(f.get("tactic", "")) + (f" · {tech}" if tech else "")
+        out = [f"{EMOJI.get(sev, '⚪')} {REC.get(sev, 'Revisar')} · {sev}"]
         n = len(f.get("evidence_ids") or [])
         when = str(f.get("time_start") or "")[11:16]
         src = source_label(f)
-        cat = _plain(f.get("category", ""), 40) + (f" ({src})" if src else "")
-        what = " · ".join(x for x in (cat, f"{n} evento(s)" if n else "", f"{when} UTC" if when else "") if x)
-        lines = [head]
+        tipo = (_plain(f.get("category", ""), 40) + (f" ({src})" if src else "")).strip()
+        cuenta = " · ".join(x for x in (f"Eventos: {n}" if n else "", f"Primero: {when} UTC" if when else "") if x)
+        hallazgo = []
         if self.full and f.get("title"):
-            lines.append("   " + _text(f["title"]))
-        if what:
-            lines.append("   " + what)
-        host = ""
+            hallazgo.append("• Detalle: " + _text(f["title"]))
+        if tipo:
+            hallazgo.append(f"• Tipo: {tipo}")
+        if cuenta:
+            hallazgo.append("• " + cuenta)
         if (self.include_host or self.full) and f.get("hosts"):
-            host = " · Equipo: " + (_text(", ".join(f["hosts"][:3]), 80) if self.full else _plain(f["hosts"][0], 40))
-        lines.append(f"   {detail}{host}".rstrip())
+            hallazgo.append("• Equipo: " + (_text(", ".join(f["hosts"][:3]), 80) if self.full else _plain(f["hosts"][0], 40)))
+        if hallazgo:
+            out += ["📌 HALLAZGO"] + hallazgo
+        tactica = _plain(f.get("tactic", ""))
+        tech = ", ".join(_plain(m, 14) for m in (f.get("mitre") or [])[:2])
+        mitre = ([f"• Táctica: {tactica}"] if tactica else []) + ([f"• Técnica: {tech}"] if tech else [])
+        if mitre:
+            out += ["🎯 MITRE ATT&CK"] + mitre
         if self.full:
             who = ", ".join(list(f.get("actor_users") or f.get("users") or [])[:3])
             ips = ", ".join((f.get("ips") or [])[:3])
-            extra = " · ".join(x for x in (f"Cuentas: {_text(who, 80)}" if who else "", f"IP: {_text(ips, 80)}" if ips else "") if x)
-            if extra:
-                lines.append("   " + extra)
-        return "\n".join(lines)
+            ctx = ([f"• Cuentas: {_text(who, 80)}"] if who else []) + ([f"• IP: {_text(ips, 80)}"] if ips else [])
+            if ctx:
+                out += ["👤 CONTEXTO"] + ctx
+        return "\n".join(out)
 
     def format(self, findings: list[dict], title: str) -> str:
-        lines = [self.line(f) for f in findings[:MAX_LINES]]
-        extra = len(findings) - MAX_LINES
-        body = "\n".join(lines) + (f"\n… y {extra} más." if extra > 0 else "")
-        tail = f"\nPanel: {self.base_url}" if self.base_url else "\nAbre el panel de la app para ver el detalle."
-        return f"{title}\n{body}{tail}"
+        tail = f"\n\n🔗 Panel: {self.base_url}" if self.base_url else "\n\nAbre el panel de la app para ver el detalle."
+        blocks: list[str] = []
+        size = len(title) + len(tail) + 40
+        for f in findings[:MAX_LINES]:
+            b = self.line(f)
+            if blocks and size + len(b) + 2 > MAX_CHARS:        # Telegram corta a 4096: mejor menos bloques que perder el enlace
+                break
+            blocks.append(b)
+            size += len(b) + 2
+        extra = len(findings) - len(blocks)
+        body = "\n\n".join(blocks) + (f"\n\n… y {extra} más." if extra > 0 else "")
+        return f"{title}\n\n{body}{tail}"
 
     # -- envío -----------------------------------------------------------------------------------
     def send(self, text: str) -> bool:

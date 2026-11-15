@@ -163,7 +163,7 @@ class LiveState:
         self._digest += [(fp, f) for fp, f in fresh if f.get("severity") not in IMMEDIATE]
         if urgent:
             kind = "nuevo(s) o con mayor severidad" if raised else "nuevo(s) para revisar"
-            self.notifier.send(self.notifier.format([f for _, f in urgent], f"🛡️ Wazuh · {len(urgent)} hallazgo(s) {kind}"))
+            self.notifier.send(self.notifier.format([f for _, f in urgent], f"🚨 ALERTA DE SEGURIDAD WAZUH 🚨\n{len(urgent)} hallazgo(s) {kind}"))
 
     def _maybe_digest(self) -> None:
         now = self.clock()
@@ -171,7 +171,7 @@ class LiveState:
             return
         batch, self._digest, self._last_digest = self._digest, [], now
         self.notifier.send(self.notifier.format(
-            [f for _, f in batch], f"🛡️ Wazuh · resumen: {len(batch)} hallazgo(s) de severidad media o baja (posibles falsos positivos, revisar)"))
+            [f for _, f in batch], f"📋 WAZUH · resumen\n{len(batch)} hallazgo(s) de severidad media o baja (posibles falsos positivos, revisar)"))
 
     def status(self) -> dict:
         return {"enabled": True, "rows": self.size, "received": self.received, "interpreted": dict(self.stats),

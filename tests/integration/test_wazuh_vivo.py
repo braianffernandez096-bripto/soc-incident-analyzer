@@ -221,14 +221,26 @@ def test_formato_basico_dice_que_es_sin_datos_sensibles_y_full_es_opcional():
          "time_start": "2026-11-12 21:41:00", "evidence_ids": [str(i) for i in range(12)], "title": "Fuerza bruta por SSH desde 10.0.0.9",
          "hosts": ["SRV-1"], "users": ["falso"], "actor_users": [], "ips": ["10.0.0.9"]}
     basico = notify.TelegramNotifier("t", "1").format([f], "T")
-    assert "Fuerza bruta · 12 evento(s) · 21:41 UTC" in basico and "T1110.001" in basico
+    assert "• Tipo: Fuerza bruta" in basico and "• Eventos: 12 · Primero: 21:41 UTC" in basico and "• Técnica: T1110.001" in basico
+    assert "📌 HALLAZGO" in basico and "🎯 MITRE ATT&CK" in basico and "👤 CONTEXTO" not in basico
     assert not any(x in basico for x in ("10.0.0.9", "falso", "SRV-1", "por SSH"))          # el título lleva datos: solo en modo full
     completo = notify.TelegramNotifier("t", "1", full=True).format([f], "T")
     assert "Fuerza bruta por SSH desde 10.0.0.9" in completo and "Equipo: SRV-1" in completo
-    assert "Cuentas: falso" in completo and "IP: 10.0.0.9" in completo
+    assert "• Cuentas: falso" in completo and "• IP: 10.0.0.9" in completo and "👤 CONTEXTO" in completo
     hostil = dict(f, title="x\x00\x1b[31m" + "A" * 500, hosts=["h\n\rQ"])
     out = notify.TelegramNotifier("t", "1", full=True).format([hostil], "T")
     assert "\x00" not in out and "\x1b" not in out and len(out) < 900
+
+
+def test_formato_en_bloques_separados_y_sin_perder_el_enlace_si_es_largo():
+    f = {"severity": "Alto", "category": "Fuerza bruta", "tactic": "Acceso a credenciales", "mitre": ["T1110.001"], "time_start": "2026-11-12 21:41:00",
+         "evidence_ids": ["a"] * 12, "title": "T" * 400, "hosts": ["H" * 200], "users": ["u" * 200], "ips": ["1" * 200]}
+    n = notify.TelegramNotifier("t", "1", base_url="https://soc.example", full=True)
+    out = n.format([f] * 10, "TITULO")
+    assert len(out) <= 3800 and out.endswith("🔗 Panel: https://soc.example")        # entra entero en un mensaje de Telegram y conserva el enlace
+    assert "más." in out and out.count("📌 HALLAZGO") < 10                              # los bloques que no caben se resumen en «… y N más»
+    dos = notify.TelegramNotifier("t", "1").format([dict(f, severity="Crítico"), f], "T")
+    assert "\n\n🟠" in dos and dos.index("🔴") < dos.index("🟠")                       # un bloque por hallazgo, separados por una línea en blanco
 
 
 def test_telegram_nunca_lanza_ni_filtra_el_token(monkeypatch, caplog):

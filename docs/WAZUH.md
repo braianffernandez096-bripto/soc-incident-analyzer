@@ -97,19 +97,31 @@ Dos cosas que conviene saber al leer el panel:
 Un aviso tiene este aspecto:
 
 ```
-🛡️ Wazuh · 2 hallazgo(s) nuevo(s) para revisar
+🚨 ALERTA DE SEGURIDAD WAZUH 🚨
+2 hallazgo(s) nuevo(s) para revisar
+
 🔴 Escalar · Crítico
-   Credenciales · 3 evento(s) · 12:02 UTC
-   Acceso a credenciales · T1003
+📌 HALLAZGO
+• Tipo: Credenciales (Windows)
+• Eventos: 3 · Primero: 12:02 UTC
+🎯 MITRE ATT&CK
+• Táctica: Acceso a credenciales
+• Técnica: T1003
+
 🟠 Escalar · Alto
-   Fuerza bruta · 12 evento(s) · 12:00 UTC
-   Acceso a credenciales · T1110
-Panel: http://127.0.0.1:8000
+📌 HALLAZGO
+• Tipo: Fuerza bruta (Windows)
+• Eventos: 12 · Primero: 12:00 UTC
+🎯 MITRE ATT&CK
+• Táctica: Acceso a credenciales
+• Técnica: T1110.001
+
+🔗 Panel: http://127.0.0.1:8000
 ```
 
 ![Dos avisos de Telegram de fuerza bruta: severidad, tipo de hallazgo, cantidad de eventos, hora, táctica y técnica MITRE](../img/telegram-aviso.png)
 
-Cada hallazgo muestra su severidad y la recomendación del motor, el **tipo** (genérico: «Fuerza bruta», «Credenciales»…), cuántos eventos lo sustentan, la hora del primero (UTC), la táctica y la técnica MITRE.
+Cada hallazgo es un bloque con su severidad y la recomendación del motor, y las secciones **📌 HALLAZGO** y **🎯 MITRE ATT&CK**: el **tipo** (genérico: «Fuerza bruta», «Credenciales»…), cuántos eventos lo sustentan, la hora del primero (UTC), la táctica y la técnica MITRE.
 
 > **Privacidad.** Telegram es un servicio en la nube y los mensajes de un bot no van cifrados de extremo a extremo. Por eso, por defecto, el aviso **no** lleva usuarios, IPs, comandos, rutas ni logs, ni siquiera el nombre del equipo; ese solo se agrega con `TELEGRAM_INCLUDE_HOST=1`. El detalle se ve en el panel, que corre en tu red. El token del bot nunca se escribe en los registros.
 >

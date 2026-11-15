@@ -1,0 +1,93 @@
+name: Publicar imagen
+
+# Publica la imagen en GitHub Container Registry (ghcr.io) cuando se crea una release, para usar el proyecto sin compilar:
+#   docker run --rm -p 127.0.0.1:8000:8000 -e WAZUH_DEMO=on ghcr.io/<usuario>/soc-incident-analyzer:latest
+# También se puede lanzar a mano desde la pestaña Actions indicando la versión (por ejemplo 1.14.0).
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versión a publicar, sin la «v» (por ejemplo 1.14.0)"
+        required: true
+
+# Mínimo privilegio: leer el código y escribir solo el paquete de este repositorio
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publicar:
+    name: Construir, comprobar y publicar
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || format('v{0}', inputs.version) }}
+
+      - name: Calcular nombre y versión
+        id: meta
+        env:
+          # Los valores externos entran por variables de entorno, nunca pegados dentro del script
+          RAW: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.version }}
+          PRERELEASE: ${{ github.event_name == 'release' && github.event.release.prerelease || 'false' }}
+        run: |
+          version="${RAW#v}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "Versión no válida: $version"; exit 1
+          fi
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          # «latest» solo para versiones finales
+          if [[ "$version" == *-* || "$PRERELEASE" == "true" ]]; then echo "latest=false" >> "$GITHUB_OUTPUT"; else echo "latest=true" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Construir la imagen
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          docker build \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.version=${VERSION}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --label "org.opencontainers.image.licenses=MIT" \
+            -t "${IMAGE}:${VERSION}" .
+
+      # No se publica nada que no arranque: se levanta en modo demo y se comprueba que el panel de Wazuh responde y detecta la historia de ejemplo
+      - name: Probar la imagen antes de publicarla
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          docker run -d --name prueba -p 127.0.0.1:8000:8000 -e WAZUH_DEMO=on -e WAZUH_DEMO_SECONDS=1 "${IMAGE}:${VERSION}"
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8000/api/health >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS http://127.0.0.1:8000/api/health
+          for i in $(seq 1 30); do
+            rows=$(curl -fsS http://127.0.0.1:8000/api/wazuh/status | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['rows'] if d.get('demo') and d.get('has_analysis') else 0)")
+            [ "$rows" -ge 24 ] && break
+            sleep 2
+          done
+          echo "alertas de la demo: $rows"
+          [ "$rows" -ge 24 ] || { docker logs prueba; exit 1; }
+          curl -fsS http://127.0.0.1:8000/api/wazuh/session | python3 -c "import json,sys; d=json.load(sys.stdin); r={f['rule'] for f in d['analysis']['findings']}; print(sorted(r)); sys.exit(0 if {'brute_force','external_logon','cred_lsass'} <= r else 1)"
+          docker rm -f prueba
+
+      - name: Iniciar sesión en ghcr.io
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      - name: Publicar
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          LATEST: ${{ steps.meta.outputs.latest }}
+        run: |
+          docker push "${IMAGE}:${VERSION}"
+          if [ "$LATEST" = "true" ]; then
+            docker tag "${IMAGE}:${VERSION}" "${IMAGE}:latest"
+            docker push "${IMAGE}:latest"
+          fi
+          echo "Publicada: ${IMAGE}:${VERSION}" >> "$GITHUB_STEP_SUMMARY"

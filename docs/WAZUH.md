@@ -119,7 +119,7 @@ Un aviso tiene este aspecto:
 🔗 Panel: http://127.0.0.1:8000
 ```
 
-![Dos avisos de Telegram de fuerza bruta: severidad, tipo de hallazgo, cantidad de eventos, hora, táctica y técnica MITRE](../img/telegram-aviso.png)
+![Aviso de Telegram de fuerza bruta con secciones: severidad y recomendación, HALLAZGO (tipo, eventos y hora del primero), MITRE ATT&CK (táctica y técnica) y enlace al panel](../img/telegram-aviso.png)
 
 Cada hallazgo es un bloque con su severidad y la recomendación del motor, y las secciones **📌 HALLAZGO** y **🎯 MITRE ATT&CK**: el **tipo** (genérico: «Fuerza bruta», «Credenciales»…), cuántos eventos lo sustentan, la hora del primero (UTC), la táctica y la técnica MITRE.
 

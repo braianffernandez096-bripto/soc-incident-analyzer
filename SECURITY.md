@@ -32,6 +32,7 @@ Solo la rama `main`.
 | Cadena de suministro | Dependencias con versión exacta y hash (`requirements.lock`), Dependabot, y en cada cambio `bandit`, `pip-audit` y Trivy. |
 | Superficie expuesta | Documentación de la API desactivada por defecto, contenedor sin privilegios, de solo lectura y sin capacidades. |
 | Alertas de Wazuh en vivo | La instantánea del panel solo se abre con `APP_ACCESS_TOKEN` definido: sin él las alertas se reciben y se avisan por Telegram, pero no se sirven a nadie (403). |
+| Modo demo (`WAZUH_DEMO=on`) | Alertas ficticias generadas por la app; sin endpoint de ingesta, sin Indexer y sin mezclarse con una ingesta real (se ignora si `WAZUH_INGEST=on`). Como no hay datos reales, el panel se abre sin `APP_ACCESS_TOKEN`: no lo publiques fuera de `127.0.0.1`. |
 | Ingesta de Wazuh | Clave propia en `X-Wazuh-Token` (16 caracteres o más, comparación en tiempo constante; sin clave el endpoint queda cerrado), 10 intentos fallidos por minuto y 429, máximo 1 MB y 200 alertas por llamada, campos recortados y limpios. |
 | Contexto del Indexer de Wazuh | Usuario de solo lectura; la consulta la arma el servidor (el navegador no envía consultas); solo disponible en las alertas de Wazuh en vivo, **no en archivos subidos**; 30 consultas por minuto; la contraseña no se muestra ni se registra. |
 | Avisos de Telegram | Sin usuarios, IPs, comandos ni logs por defecto; el token no se registra. |

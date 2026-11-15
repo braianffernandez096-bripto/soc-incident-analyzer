@@ -43,6 +43,7 @@ from . import senderreview
 from . import triage as triage_mod
 from . import notify as notify_mod
 from . import wazuh_indexer
+from . import wazuh_demo
 from . import wazuh_live
 from . import siemqueries
 from .analysis import analyze, rows_for
@@ -92,7 +93,7 @@ class SafeJSON(JSONResponse):
 
 
 _DOCS = os.environ.get("ENABLE_DOCS", "").strip().lower() in ("1", "true", "yes")      # API docs reveal the full surface: opt-in
-app = FastAPI(title="SOC Incident Analyzer", version="1.11.0", default_response_class=SafeJSON,
+app = FastAPI(title="SOC Incident Analyzer", version="1.14.0", default_response_class=SafeJSON,
               docs_url="/docs" if _DOCS else None, redoc_url="/redoc" if _DOCS else None, openapi_url="/openapi.json" if _DOCS else None)
 
 
@@ -1109,7 +1110,9 @@ def _live() -> wazuh_live.LiveState:
     global _LIVE
     with _LIVE_LOCK:
         if _LIVE is None:
-            _LIVE = wazuh_live.LiveState(notifier=notify_mod.TelegramNotifier.from_env())
+            _LIVE = wazuh_live.LiveState(notifier=notify_mod.TelegramNotifier.from_env(), label=wazuh_demo.LABEL if wazuh_live.demo() else "")
+            if wazuh_live.demo():
+                threading.Thread(target=wazuh_demo.replay, args=(_LIVE, _live_cycle), daemon=True).start()
             if os.environ.get("WAZUH_AUTOCYCLE", "on").strip().lower() not in ("0", "off", "false", "no"):
                 every = wazuh_live._int_env("WAZUH_ANALYZE_SECONDS", 60, 10, 3600)
                 threading.Thread(target=_live_loop, args=(_LIVE, every), daemon=True).start()
@@ -1133,7 +1136,7 @@ def _live_loop(live: wazuh_live.LiveState, every: int) -> None:
 
 @app.post("/api/wazuh/alerts", status_code=202)
 async def wazuh_alerts(request: Request):
-    if not wazuh_live.usable():
+    if not wazuh_live.ingest_usable():          # en modo demo el endpoint no existe: las alertas las genera la propia app
         raise HTTPException(404, "No encontrado.")
     if not secrets.compare_digest(request.headers.get("x-wazuh-token", "").encode(), wazuh_live.token().encode()):
         _rate_limit(request, "/wazuh-auth-fail", 10, 60)
@@ -1158,10 +1161,14 @@ async def wazuh_alerts(request: Request):
     return _live().ingest(alerts)
 
 
+if wazuh_live.demo():
+    _live()          # la historia de ejemplo arranca con el servicio, no al primer clic
+
+
 WAZUH_LOCKED_MSG = ("Las alertas de Wazuh en vivo solo se abren con APP_ACCESS_TOKEN definido en el servidor: "
                      "sin él, cualquiera que llegue al puerto podría leerlas.")
 
-if wazuh_live.usable() and not _access_token():
+if wazuh_live.ingest_usable() and not _access_token():
     log.warning("wazuh_panel_locked: WAZUH_INGEST is on without APP_ACCESS_TOKEN; alerts are ingested but the live snapshot stays closed")
 
 
@@ -1169,7 +1176,7 @@ if wazuh_live.usable() and not _access_token():
 def wazuh_status():
     if not wazuh_live.usable():
         return {"enabled": False}
-    return {**_live().status(), "needs_token": not _access_token()}
+    return {**_live().status(), "needs_token": not _access_token() and not wazuh_live.demo()}
 
 
 @app.get("/api/wazuh/session")
@@ -1177,7 +1184,7 @@ def wazuh_session(request: Request):
     """Abre una instantánea del último análisis de las alertas de Wazuh (una sesión normal: se puede pedir triaje, informe, etc.)."""
     if not wazuh_live.usable():
         raise HTTPException(404, "El modo Wazuh no está activado en este servidor.")
-    if not _access_token():      # live alerts are real data that nobody uploaded: never served without the access key
+    if not _access_token() and not wazuh_live.demo():      # live alerts are real data that nobody uploaded: never served without the access key (the demo ones are made up)
         raise HTTPException(403, WAZUH_LOCKED_MSG)
     _live_cycle()
     latest = _live().latest
@@ -1188,8 +1195,10 @@ def wazuh_session(request: Request):
     analysis["limitations"] = list(analysis.get("limitations", [])) + [
         "Instantánea de las alertas de Wazuh de las últimas %d h (hasta %d filas). Es una foto: las alertas nuevas aparecen al volver a abrirla y las "
         "decisiones que tomes viven en esta foto." % (_live().window // 3600, _live().max_rows)]
-    analysis["wazuh_context"] = wazuh_indexer.configured()
-    return _register_session(df.copy(), analysis, "Alertas de Wazuh (en vivo)", origin="wazuh", owner=_client_ip(request))
+    analysis["wazuh_context"] = wazuh_indexer.configured() and not wazuh_live.demo()
+    if wazuh_live.demo():
+        analysis["limitations"].append("MODO DEMO: estas alertas son de ejemplo y las genera la propia aplicación (WAZUH_DEMO=on). No vienen de ningún Wazuh ni describen un ataque real.")
+    return _register_session(df.copy(), analysis, "Alertas de Wazuh (demo)" if wazuh_live.demo() else "Alertas de Wazuh (en vivo)", origin="wazuh", owner=_client_ip(request))
 
 
 @app.get("/api/context/status")

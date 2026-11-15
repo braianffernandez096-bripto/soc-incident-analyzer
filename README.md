@@ -23,6 +23,41 @@ Un motor de reglas determinista detecta fuerza bruta, movimiento lateral, escala
 
 Acepta Excel, CSV/TSV, JSON/NDJSON y `auth.log` de Linux; solo exige `Timestamp` y `Event_ID`. Formatos y ejemplos: [docs/FORMATOS.md](docs/FORMATOS.md).
 
+## Arquitectura
+
+```mermaid
+flowchart LR
+  subgraph FUENTES["Fuentes"]
+    W["Wazuh<br/>agentes y manager"]
+    A["Archivos<br/>Excel, CSV, JSON, auth.log, .eml"]
+    D["Modo demo<br/>alertas de ejemplo"]
+  end
+  subgraph APP["SOC Incident Analyzer"]
+    I["Ingesta y traductor<br/>(datos tratados como no confiables)"]
+    M["Motor de reglas<br/>determinista"]
+    H["Hallazgos, incidentes,<br/>MITRE ATT&CK y triaje"]
+    P["Panel web e informes<br/>PDF y HTML"]
+  end
+  subgraph CTX["Contexto opcional, solo lectura"]
+    X["Indexer de Wazuh"]
+    K["CISA KEV y EPSS"]
+    G["MISP y feed propio"]
+    AI["IA opcional<br/>solo redacta"]
+  end
+  T["Telegram<br/>aviso sin datos sensibles"]
+  W -->|"integratord + clave"| I
+  A --> I
+  D -.-> I
+  I --> M --> H --> P
+  H -->|"hallazgo nuevo"| T
+  K -.-> M
+  G -.-> M
+  X -.->|"contexto de un hallazgo"| P
+  AI -.-> H
+```
+
+La severidad la fija siempre el motor de reglas; la IA y el contexto no la cambian. Todo lo que está con línea punteada es opcional y está apagado por defecto.
+
 ## Resultado con el Excel de ejemplo
 
 `sample_data/SOC_L2_Logs_Ampliados_Multiples_Incidentes.xlsx` (715 eventos, ~6 h; también en `.csv` y `.ndjson`, con el mismo resultado) produce **25 hallazgos** agrupados en **6 incidentes**:
@@ -100,6 +135,8 @@ En Windows, la activación del entorno es `.venv\Scripts\activate`.
 
 ### Con Docker
 
+La imagen ya compilada se publica con cada versión: `docker pull ghcr.io/braianffernandez096-bripto/soc-incident-analyzer:latest` (sin compilar; para uso real pásale tus variables, ver [.env.example](.env.example)). Para compilarla tú:
+
 Si prefieres no instalar Python, con Docker y Docker Compose alcanza:
 
 ```bash
@@ -110,6 +147,16 @@ docker compose up --build
 ```
 
 Abre http://127.0.0.1:8000. El puerto queda publicado solo en tu equipo (`127.0.0.1`) porque la app no tiene login. La imagen corre con un usuario sin privilegios y no incluye tu `.env`: las claves se pasan como variables de entorno.
+
+### Probarlo en un minuto (modo demo)
+
+Sin instalar Python, sin clonar y sin Wazuh. La imagen publicada trae un modo demo que reproduce solo una historia de ataque de ejemplo (fuerza bruta, acceso desde una IP pública, privilegios, lectura de `lsass` y persistencia) y la analiza con el mismo motor:
+
+```bash
+docker run --rm -p 127.0.0.1:8000:8000 -e WAZUH_DEMO=on ghcr.io/braianffernandez096-bripto/soc-incident-analyzer:latest
+```
+
+Abre http://127.0.0.1:8000 y, tras unos 80 segundos (la historia llega por etapas, para ver cómo sube la severidad), recarga y pulsa **Abrir alertas de ejemplo**. Si ya clonaste el repositorio: `make demo`. Los datos son ficticios (IP de documentación) y el aviso de Telegram, si lo configuras, lleva la marca «DEMO». [Detalle y límites](docs/WAZUH.md#modo-demo).
 
 ## Más funciones
 

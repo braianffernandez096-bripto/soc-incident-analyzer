@@ -2,6 +2,21 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [1.14.0] - 2026-11-15
+
+### Novedades
+- **Modo demo (`WAZUH_DEMO=on`):** la app genera sola una historia de ataque de ejemplo (fuerza bruta, acceso desde una IP pública, privilegios, lectura de `lsass` y persistencia en la clave `Run`, más ruido de SSH) y la pasa por el mismo camino que una alerta real: traductor, ventana en memoria, motor de reglas y aviso. Llega en cinco etapas (`WAZUH_DEMO_SECONDS`, 20 por defecto) para ver cómo crece el caso y sube la severidad. Permite probar el panel, el incidente y el aviso sin Wazuh. `make demo` lo arranca sin Docker. Módulo `backend/wazuh_demo.py`.
+- **Imagen Docker publicada:** el flujo `publicar-imagen.yml` construye la imagen al crear una release, la prueba en modo demo (que arranque, que el panel responda y que detecte la historia) y recién entonces la sube a `ghcr.io/<usuario>/soc-incident-analyzer` con la versión y `latest`. También se puede lanzar a mano indicando la versión. Se usa sin compilar: `docker run --rm -p 127.0.0.1:8000:8000 -e WAZUH_DEMO=on ghcr.io/braianffernandez096-bripto/soc-incident-analyzer:latest`.
+- **Diagrama de arquitectura** (Mermaid, se ve en GitHub) en el README: fuentes, motor, contexto opcional y aviso.
+
+### Seguridad
+- En modo demo no existe el endpoint de ingesta (se separó «ingesta real activa» de «panel disponible» para que una clave vacía nunca coincida), no se ofrece el Indexer y la demo se ignora si `WAZUH_INGEST=on`: nunca se mezclan alertas inventadas con reales. Como los datos son ficticios, el panel se abre sin `APP_ACCESS_TOKEN`; la sesión se llama «Alertas de Wazuh (demo)», los límites del análisis lo dicen y el aviso de Telegram lleva la marca «🧪 DEMO».
+
+### Cambios
+- El botón del panel dice «Abrir alertas de ejemplo» en modo demo. `GET /api/wazuh/status` incluye `demo`.
+- La versión que declara la API pasa de 1.11.0 a 1.14.0 (no se había actualizado en las versiones anteriores).
+- Pruebas: 1.353 (13 nuevas del modo demo), cobertura 95,3 %.
+
 ## [1.13.0] - 2026-11-13
 
 ### Novedades

@@ -46,9 +46,19 @@ def token() -> str:
     return os.environ.get("WAZUH_INGEST_TOKEN", "").strip()
 
 
-def usable() -> bool:
-    """Activo y con una clave decente: sin clave el endpoint queda cerrado, no abierto."""
+def ingest_usable() -> bool:
+    """Ingesta real activa y con una clave decente: sin clave el endpoint queda cerrado, no abierto."""
     return enabled() and len(token()) >= MIN_TOKEN
+
+
+def demo() -> bool:
+    """Modo demo (``WAZUH_DEMO=on``): alertas de ejemplo generadas por la app. Nunca convive con la ingesta real."""
+    return os.environ.get("WAZUH_DEMO", "").strip().lower() in ("1", "true", "yes", "on") and not enabled()
+
+
+def usable() -> bool:
+    """El panel de Wazuh existe: con ingesta real o en modo demo."""
+    return ingest_usable() or demo()
 
 
 def fingerprint(f: dict) -> str:
@@ -59,11 +69,11 @@ def fingerprint(f: dict) -> str:
 
 class LiveState:
     def __init__(self, *, max_rows: int | None = None, window_hours: int | None = None, digest_minutes: int | None = None,
-                 notifier=None, clock: Callable[[], float] = time.time):
+                 notifier=None, clock: Callable[[], float] = time.time, label: str = ""):
         self.max_rows = max_rows or _int_env("WAZUH_MAX_ROWS", 5000, 100, 20000)
         self.window = (window_hours or _int_env("WAZUH_WINDOW_HOURS", 24, 1, 168)) * 3600
         self.digest_secs = (digest_minutes or _int_env("WAZUH_DIGEST_MINUTES", 60, 1, 1440)) * 60
-        self.notifier, self.clock = notifier, clock
+        self.notifier, self.clock, self.label = notifier, clock, label
         self.lock = threading.Lock()
         self._rows: deque = deque()            # (llegada, fila)
         self._ids: set[str] = set()
@@ -163,7 +173,7 @@ class LiveState:
         self._digest += [(fp, f) for fp, f in fresh if f.get("severity") not in IMMEDIATE]
         if urgent:
             kind = "nuevo(s) o con mayor severidad" if raised else "nuevo(s) para revisar"
-            self.notifier.send(self.notifier.format([f for _, f in urgent], f"🚨 ALERTA DE SEGURIDAD WAZUH 🚨\n{len(urgent)} hallazgo(s) {kind}"))
+            self.notifier.send(self.notifier.format([f for _, f in urgent], f"{self.label}🚨 ALERTA DE SEGURIDAD WAZUH 🚨\n{len(urgent)} hallazgo(s) {kind}"))
 
     def _maybe_digest(self) -> None:
         now = self.clock()
@@ -171,9 +181,9 @@ class LiveState:
             return
         batch, self._digest, self._last_digest = self._digest, [], now
         self.notifier.send(self.notifier.format(
-            [f for _, f in batch], f"📋 WAZUH · resumen\n{len(batch)} hallazgo(s) de severidad media o baja (posibles falsos positivos, revisar)"))
+            [f for _, f in batch], f"{self.label}📋 WAZUH · resumen\n{len(batch)} hallazgo(s) de severidad media o baja (posibles falsos positivos, revisar)"))
 
     def status(self) -> dict:
         return {"enabled": True, "rows": self.size, "received": self.received, "interpreted": dict(self.stats),
                 "updated": self.updated, "has_analysis": self.latest is not None, "telegram": bool(self.notifier),
-                "window_hours": self.window // 3600, "max_rows": self.max_rows}
+                "window_hours": self.window // 3600, "max_rows": self.max_rows, "demo": bool(self.label)}

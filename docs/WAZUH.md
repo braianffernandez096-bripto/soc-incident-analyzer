@@ -177,6 +177,8 @@ Es opcional y consume disco (del orden de 100 MB por día en un equipo de labora
 |---|---|---|
 | `WAZUH_INGEST` | apagado | `on` activa el modo |
 | `WAZUH_INGEST_TOKEN` | — | Clave de la integración (16+ caracteres) |
+| `WAZUH_DEMO` | apagado | `on` reproduce alertas de ejemplo, sin Wazuh (ver Modo demo). Se ignora si `WAZUH_INGEST=on` |
+| `WAZUH_DEMO_SECONDS` | 20 | Pausa entre las etapas de la demo (1 a 300) |
 | `WAZUH_ANALYZE_SECONDS` | 60 | Cada cuánto se analiza si hay alertas nuevas (10 a 3600) |
 | `WAZUH_WINDOW_HOURS` | 24 | Cuánto se conservan en memoria (1 a 168) |
 | `WAZUH_MAX_ROWS` | 5000 | Máximo de alertas en la ventana (100 a 20000) |
@@ -189,6 +191,25 @@ Es opcional y consume disco (del orden de 100 MB por día en un equipo de labora
 | `APP_BASE_URL` | — | Enlace al panel en el aviso (solo `http://` o `https://`) |
 | `TELEGRAM_INCLUDE_HOST` | no | `1` agrega el nombre del equipo al aviso |
 | `TELEGRAM_DETAIL` | básico | `full` suma título, equipo, cuentas e IPs al aviso (ver Privacidad) |
+
+## Modo demo
+
+Para ver el panel, el incidente y el aviso **sin tener Wazuh**, la app puede generar ella misma alertas de ejemplo:
+
+```bash
+docker run --rm -p 127.0.0.1:8000:8000 -e WAZUH_DEMO=on ghcr.io/braianffernandez096-bripto/soc-incident-analyzer:latest
+# o, con el repositorio clonado:
+make demo
+```
+
+Reproduce una historia en cinco etapas, `WAZUH_DEMO_SECONDS` segundos entre una y otra (20 por defecto, unos 80 s en total): fuerza bruta contra `admin` desde `203.0.113.50`, acceso exitoso desde esa IP, privilegios de depuración y lectura de la memoria de `lsass.exe`, persistencia en la clave `Run` y, aparte, ruido de SSH contra un Linux. Cada etapa pasa por el traductor, la ventana en memoria y el motor, igual que una alerta real, así que el caso crece y la severidad sube etapa a etapa. Al terminar, recarga la página y pulsa **Abrir alertas de ejemplo**.
+
+Qué conviene saber:
+
+- **Es ficticio y se nota:** la sesión se llama «Alertas de Wazuh (demo)», los límites del análisis lo dicen y el aviso de Telegram, si lo configuras (`TELEGRAM_BOT_TOKEN` y `TELEGRAM_CHAT_ID`), empieza con «🧪 DEMO». Las IP son de documentación (RFC 5737).
+- **No necesita `APP_ACCESS_TOKEN`:** como los datos no son de nadie, el panel se abre sin clave. Aun así, no publiques el puerto fuera de `127.0.0.1`.
+- **Nunca se mezcla con alertas reales:** si `WAZUH_INGEST=on`, el modo demo se ignora. En demo el endpoint `POST /api/wazuh/alerts` no existe y el contexto del Indexer no se ofrece.
+- Se repite al reiniciar el servicio (la ventana vive en memoria).
 
 ## Probarlo sin Wazuh
 

@@ -337,7 +337,7 @@ async function bindWazuh() {
   try {
     const st = await api("/api/wazuh/status");
     if (!st.enabled || !btn.isConnected) return;
-    btn.hidden = false; btn.textContent = `Abrir alertas de Wazuh (${num(st.rows)})`;
+    btn.hidden = false; btn.textContent = st.demo ? `Abrir alertas de ejemplo (demo, ${num(st.rows)})` : `Abrir alertas de Wazuh (${num(st.rows)})`;
     btn.onclick = async () => {
       busy(true, "Analizando las alertas de Wazuh…");
       try { const res = await api("/api/wazuh/session"); adopt(res); location.hash = "#/dashboard"; render(); }

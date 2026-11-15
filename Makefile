@@ -11,7 +11,7 @@ LOG_FILE := $(RUN_DIR)/app.log
 MIN_COV  ?= 85
 
 .DEFAULT_GOAL := help
-.PHONY: help install start stop restart status test test-cov logs clean backup lint audit
+.PHONY: help install start stop restart status demo test test-cov logs clean backup lint audit
 
 help: ## Show this help
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-10s %s\n", $$1, $$2}'
@@ -47,6 +47,10 @@ restart: stop start ## Stop and start again
 
 status: ## Show whether the app is running
 	@if [ -f $(PID_FILE) ] && kill -0 $$(cat $(PID_FILE)) 2>/dev/null; then echo "🟢 CORRIENDO (PID $$(cat $(PID_FILE)))"; else echo "⚪ DETENIDA"; fi
+
+demo: ## Start the app in demo mode (made-up Wazuh alerts, no Wazuh needed)
+	@WAZUH_DEMO=on $(MAKE) --no-print-directory start
+	@echo "🧪 Demo: abre http://127.0.0.1:$(PORT) y, en ~80 s, recarga y pulsa «Abrir alertas de ejemplo». Para salir: make stop"
 
 test: $(PY) ## Run the test suite
 	@echo "🧪 Ejecutando tests..."

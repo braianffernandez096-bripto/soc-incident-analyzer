@@ -48,6 +48,39 @@ jobs:
       - name: Vulnerabilidades conocidas en dependencias
         run: pip-audit -r requirements.lock --require-hashes --disable-pip
 
+  exactitud:
+    name: Exactitud (OTRF + SSH real)
+    runs-on: ubuntu-24.04
+    # Los datos de prueba se fijan a un commit concreto: si las fuentes cambian, la medición no se mueve sola.
+    env:
+      OTRF_COMMIT: d9d40ef123d2c87d5d3df28c96bcab4f0faccc87
+      LOGHUB_COMMIT: dd61d0952749ee7963bde24220d1be5ede023033
+      LOGHUB_SHA256: 1e4912727fa88245113d41b16a0cd25ceadba7f931e1c406542885b91254264f
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.lock
+      - run: pip install --require-hashes -r requirements-dev.lock
+      - name: Descargar los ataques etiquetados de OTRF (107 datasets de Windows)
+        run: |
+          git init -q "$RUNNER_TEMP/otrf"
+          cd "$RUNNER_TEMP/otrf"
+          git remote add origin https://github.com/OTRF/Security-Datasets
+          git sparse-checkout set --no-cone 'datasets/atomic/_metadata/*' 'datasets/atomic/windows/*/host/*'
+          git fetch -q --depth 1 --filter=blob:none origin "$OTRF_COMMIT"
+          git checkout -q FETCH_HEAD
+      - name: Descargar el log de SSH real (Loghub) y comprobar su huella
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/OpenSSH_2k.log" "https://raw.githubusercontent.com/logpai/loghub/$LOGHUB_COMMIT/OpenSSH/OpenSSH_2k.log"
+          echo "$LOGHUB_SHA256  $RUNNER_TEMP/OpenSSH_2k.log" | sha256sum -c -
+      # Falla si un dataset deja de detectar la técnica o la táctica, si alguno da error o si SSH pierde una IP o suma un falso positivo.
+      # La tabla completa (mejoras y cambios para revisar) queda en el resumen de esta ejecución.
+      - name: Comparar con la línea base
+        run: python scripts/validar_datasets.py "$RUNNER_TEMP/otrf" --loghub "$RUNNER_TEMP/OpenSSH_2k.log" --base tests/validation/linea_base.json --resumen-md "$GITHUB_STEP_SUMMARY"
+
   docker:
     name: Imagen Docker (build + Trivy)
     runs-on: ubuntu-24.04

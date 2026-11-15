@@ -731,24 +731,35 @@ function techTag(id, extra) {   // extra: técnicas de otra fuente (correos), po
   return `<a class="tag tag-link" href="${esc(t.url)}" target="_blank" rel="noopener noreferrer" title="Ver ${esc(id)} en attack.mitre.org">${esc(id)} ${esc(t.name)}</a>`;
 }
 function attack() {
-  const A = S.a.attack, head = `<div class="page-head"><div><h1>Matriz MITRE ATT&amp;CK</h1><p>Técnicas que los hallazgos sugieren, agrupadas por táctica (ATT&amp;CK Enterprise v${esc(A.version)}).</p></div></div>`;
+  const A = S.a.attack, head = `<div class="page-head"><div><h1>Matriz MITRE ATT&amp;CK</h1><p>Técnicas que los hallazgos sugieren, agrupadas por táctica en orden de ataque (ATT&amp;CK Enterprise v${esc(A.version)}).</p></div></div>`;
   if (!A.tactics.length) return head + `<div class="panel"><p class="muted">Ningún hallazgo de este archivo tiene técnicas ATT&amp;CK asociadas.</p></div>`;
-  const cols = A.tactics.map((t) => `<section class="mx-col" aria-label="${esc(t.name_es)}">
+  const cov = A.coverage || [], seen = new Map(), maxCount = Math.max(1, ...A.tactics.flatMap((t) => t.techniques.map((c) => c.count)));
+  A.tactics.forEach((t) => t.techniques.forEach((c) => seen.set(c.id, c.severity)));
+  const bySev = ["Crítico", "Alto", "Medio", "Bajo"].map((s) => [s, [...seen.values()].filter((v) => v === s).length]).filter(([, n]) => n);
+  const stats = `<div class="mx-stats"><div class="mx-stat"><b>${A.techniques_total}</b><span>${A.techniques_total === 1 ? "técnica" : "técnicas"}</span></div>
+      <div class="mx-stat"><b>${A.tactics.length}<small> de ${cov.length || A.tactics.length}</small></b><span>tácticas con actividad</span></div>
+      <div class="mx-stat mx-stat-sev">${bySev.map(([s, n]) => `<span class="mx-chip ${esc(s)}"><b>${n}</b> ${esc(s)}</span>`).join("")}<span>por criticidad máxima</span></div></div>`;
+  const strip = cov.length ? `<ol class="mx-strip" aria-label="Recorrido del ataque por táctica">${cov.map((c, i) => c.techniques
+      ? `<li><button class="mx-seg on ${esc(c.severity)}" data-mxs="${esc(c.key)}" title="${esc(c.name_es)} · ${plural(c.techniques, "técnica", "técnicas")} · máx. ${esc(c.severity)}"><i>${i + 1}</i><span>${esc(c.name_es)}</span><b>${c.techniques}</b></button></li>`
+      : `<li><span class="mx-seg off" title="${esc(c.name_es)} · sin actividad"><i>${i + 1}</i><span>${esc(c.name_es)}</span></span></li>`).join("")}</ol>` : "";
+  const cols = A.tactics.map((t) => `<section class="mx-col" id="mx-${esc(t.key)}" aria-label="${esc(t.name_es)}">
       <h3>${esc(t.name_es)}<small>${esc(t.id)} · ${esc(t.name)}</small></h3>
       ${t.techniques.map((c) => `<article class="mx-cell ${esc(c.severity)}">
         ${MITRE_URL.test(c.url) ? `<a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer"><span class="mono">${esc(c.id)}</span> ${esc(c.name)}</a>` : `<span class="mono">${esc(c.id)}</span> ${esc(c.name)}`}
         <div class="mx-meta">${sevPill(c.severity)}<span class="muted">${plural(c.count, "hallazgo", "hallazgos")}</span></div>
+        <div class="mx-bar" role="img" aria-label="${plural(c.count, "hallazgo", "hallazgos")} de ${maxCount} como máximo"><i style="width:${Math.round(100 * c.count / maxCount)}%"></i></div>
         <div>${c.finding_ids.map((f) => `<button class="tag tag-btn" data-mxf="${esc(c.id)}" title="Ver hallazgos con ${esc(c.id)}">${esc(f)}</button>`).join("")}</div>
       </article>`).join("")}</section>`).join("");
-  return `${head}
-    <div class="notice">La asignación es <b>orientativa</b>: indica técnicas consistentes con la evidencia, no prueba que el atacante las haya usado, y no cambia la criticidad. Una técnica que pertenece a varias tácticas aparece en cada una.</div>
+  return `${head}${stats}${strip}
+    <div class="mx" role="region" aria-label="Matriz ATT&amp;CK">${cols}</div>
+    <p class="muted">${A.findings_without_mapping ? `${plural(A.findings_without_mapping, "hallazgo sin técnica asociada", "hallazgos sin técnica asociada")} (por ejemplo, calidad de datos). ` : ""}Una técnica que pertenece a varias tácticas aparece en cada una.</p>
+    <div class="notice">La asignación es <b>orientativa</b>: indica técnicas consistentes con la evidencia, no prueba que el atacante las haya usado, y no cambia la criticidad. La barra de cada técnica compara cuántos hallazgos la sustentan.</div>
     <div class="panel" style="margin-top:16px"><h3>Exportar</h3>
       <p class="muted">Descarga una capa para <b>ATT&amp;CK Navigator</b> (el color indica la criticidad máxima). En Navigator: <i>Open Existing Layer</i> → <i>Upload from local</i>. El archivo se genera aquí; no se envía a ningún servicio.</p>
-      <button class="btn primary" id="navLayer">Descargar capa para Navigator (.json)</button></div>
-    <div class="mx" role="region" aria-label="Matriz ATT&amp;CK">${cols}</div>
-    <p class="muted">${A.techniques_total} ${A.techniques_total === 1 ? "técnica" : "técnicas"} en ${A.tactics.length} ${A.tactics.length === 1 ? "táctica" : "tácticas"}.${A.findings_without_mapping ? ` ${plural(A.findings_without_mapping, "hallazgo sin técnica asociada", "hallazgos sin técnica asociada")} (por ejemplo, calidad de datos).` : ""}</p>`;
+      <button class="btn primary" id="navLayer">Descargar capa para Navigator (.json)</button></div>`;
 }
 function bindAttack() {
+  document.querySelectorAll("[data-mxs]").forEach((b) => b.onclick = () => { const c = document.getElementById("mx-" + b.dataset.mxs); if (c) { c.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" }); c.classList.add("mx-flash"); setTimeout(() => c.classList.remove("mx-flash"), 1400); } });
   document.querySelectorAll("[data-mxf]").forEach((b) => b.onclick = () => { S.findingQ = b.dataset.mxf; S.findingFilter = "Todos"; S.findingCat = ""; location.hash = "#/findings"; });
   const btn = $("#navLayer"); if (!btn) return;
   btn.onclick = async () => {

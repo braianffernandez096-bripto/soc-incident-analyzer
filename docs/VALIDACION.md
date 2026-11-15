@@ -258,7 +258,24 @@ los traduce antes de comparar (tabla `RENOMBRADAS`).
 - **Ofuscación: lo que se resuelve y lo que no.** Se normalizan estáticamente: IP numéricas en URL (decimal, hexadecimal, octal, abreviada, IPv6 mapeada), `%XX` en el host o repetido, caracteres invisibles y entidades en el esquema, `^` de cmd, acentos graves, comillas intercaladas, concatenación `'a'+'b'`, `.Replace()`, `[char]`, `-join` y `FromBase64String` con literales; en HTML, `atob`/`unescape`/`fromCharCode`/`\x` con literales, `meta refresh`, texto oculto y «HTML smuggling». Un comando ofuscado solo se reporta si la ofuscación **escondía** un programa o técnica relevante (no por usar `+` o comillas). Queda fuera todo lo que exige **ejecutar** el código: claves construidas en tiempo de ejecución, cadenas invertidas (`[-1..-n]`), variables de entorno con subcadenas (`%COMSPEC:~0,1%`), empaquetadores de JavaScript, varias capas de cifrado y la desofuscación de macros VBA o scripts largos. No se hizo una medición sobre un corpus etiquetado de ofuscación; la verificación son pruebas unitarias con técnicas conocidas y con comandos normales que no deben alertar.
 - Los resultados dependen de la versión de la app (1.6.0) y de la versión de los datasets; se pueden regenerar.
 
-## 6. Cómo reproducirlo
+## 6. La vara en el CI (regresiones de exactitud)
+
+Las cifras de las secciones 1 y 2 no son una foto de un día: el CI las vuelve a medir **en cada cambio** (trabajo «Exactitud (OTRF + SSH real)»
+de `.github/workflows/tests.yml`) y las compara, dataset por dataset, con la línea base guardada en `tests/validation/linea_base.json`.
+
+- **Datos fijos.** OTRF y Loghub se descargan fijados a un commit, y el log de SSH además se comprueba con su huella SHA-256. Si las fuentes
+  cambian, la medición no se mueve sola.
+- **Falla el CI** si un dataset que acertaba la técnica o la táctica baja de nivel, si un dataset da error o desaparece, o si SSH pierde una
+  IP o suma un falso positivo. Se comprobó apagando a propósito la regla de LSASS: el CI falla y señala el dataset afectado.
+- **No falla, pero se informa**, cuando un dataset sube de nivel (mejora) o pasa entre «sin hallazgos» y «otra técnica» (puede ser ruido
+  nuevo o ruido menos: lo decide una persona).
+- **El piso solo sube.** Una mejora se fija regenerando la línea base (`--actualizar-base`) después de revisarla. Un test comprueba que la
+  base guardada nunca baje de las 41 técnicas publicadas.
+- Cada ejecución deja una tabla en el resumen de GitHub Actions: totales, regresiones, mejoras y cambios para revisar.
+
+Tarda unos dos minutos (la descarga, unos segundos; el análisis de los 107 datasets, un minuto y medio).
+
+## 7. Cómo reproducirlo
 
 ```bash
 # Ataques de Windows etiquetados (OTRF)
@@ -279,6 +296,10 @@ python scripts/validar_ofuscacion.py atomic-red-team --json ofuscacion.json
 
 # Pruebas con tráfico normal
 python -m pytest tests/unit/test_negativos.py
+
+# Comparar con la línea base, igual que el CI (y fijar una mejora como nuevo piso)
+python scripts/validar_datasets.py Security-Datasets --loghub loghub/OpenSSH/OpenSSH_2k.log --base tests/validation/linea_base.json
+python scripts/validar_datasets.py Security-Datasets --loghub loghub/OpenSSH/OpenSSH_2k.log --base tests/validation/linea_base.json --actualizar-base
 ```
 
 Los datasets son de terceros y **no se incluyen** en el repositorio: cada uno tiene su propia licencia; consúltala en sus repositorios antes de redistribuirlos.

@@ -87,8 +87,11 @@ def build_matrix(findings: list[D.Finding]) -> dict:
         tactics.append({"key": key, "id": d["tactics"].get(key, {}).get("id", ""),
                         "name": d["tactics"].get(key, {}).get("name", key), "name_es": TACTIC_ES.get(key, key),
                         "techniques": cells})
+    coverage = [{"key": key, "id": d["tactics"].get(key, {}).get("id", ""), "name": d["tactics"].get(key, {}).get("name", key),
+                 "name_es": TACTIC_ES.get(key, key), "techniques": len(columns.get(key, [])),
+                 "severity": D.max_sev(c["severity"] for c in columns[key]) if key in columns else ""} for key in TACTIC_ORDER]
     return {
-        "version": d["attack_version"], "domain": d["domain"], "tactics": tactics,
+        "version": d["attack_version"], "domain": d["domain"], "tactics": tactics, "coverage": coverage,
         "techniques": {tid: {"name": d["techniques"][tid]["name"], "url": technique_url(tid)}
                        for tid in per_tech if tid in d["techniques"]},
         "techniques_total": len(per_tech) - len(unknown), "unknown": sorted(unknown),

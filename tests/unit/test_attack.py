@@ -90,3 +90,19 @@ def test_navigator_layer_follows_the_layer_format():
 
 def test_layer_name_is_bounded():
     assert len(attack.navigator_layer(attack.build_matrix([]), "x" * 500)["name"]) == 120
+
+
+def test_coverage_lists_every_tactic_in_attack_order_and_marks_the_ones_with_activity():
+    m = attack.build_matrix([_f("F-001", "Alto", ["T1110.001"]), _f("F-002", "Crítico", ["T1003.001"])])
+    cov = m["coverage"]
+    assert [c["key"] for c in cov] == attack.TACTIC_ORDER                  # las 15, en orden de ataque, también las vacías
+    activos = {c["key"]: c for c in cov if c["techniques"]}
+    assert set(activos) == {t["key"] for t in m["tactics"]}
+    assert activos["credential-access"]["techniques"] == 2 and activos["credential-access"]["severity"] == "Crítico"
+    assert all(c["severity"] == "" for c in cov if not c["techniques"])
+    assert all(c["name_es"] for c in cov) and all(c["id"].startswith("TA") for c in activos.values())   # el ID solo se conoce para las tácticas que usan las reglas
+
+
+def test_coverage_with_no_findings_is_all_empty():
+    m = attack.build_matrix([])
+    assert len(m["coverage"]) == len(attack.TACTIC_ORDER) and not any(c["techniques"] for c in m["coverage"])

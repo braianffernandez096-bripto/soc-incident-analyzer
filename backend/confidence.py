@@ -49,7 +49,7 @@ SINGLE_OK = _ALTA | {"persist_run", "persistence", "external_logon", "privilege"
 ORIGIN_RULES = {"brute_force", "g_auth", "web_attack", "g_web", "privilege", "lateral"}
 # Reglas donde la cuenta es quien actúa (y no la víctima, como en la fuerza bruta).
 ACTOR_RULES = {"persistence", "persist_run", "privilege", "mass_access", "sensitive_share", "exfil_proxy", "lat_wmi", "lat_winrm",
-               "g_cmd", "g_persistence", "g_persistence_linux"} | {r for r in ("cmd_encoded_ps", "cmd_download_cradle", "cmd_obfuscated_cmd",
+               "g_cmd", "g_persistence", "g_persistence_linux"} | {r for r in ("cmd_discovery", "cmd_encoded_ps", "cmd_download_cradle", "cmd_obfuscated_cmd",
                "cmd_lolbin_proxy", "cmd_log_tamper", "cmd_fw_change", "cmd_service_binpath", "cmd_logon_script", "cmd_archive_staging")}
 # Tareas que forman parte del trabajo de un administrador.
 ADMIN_TASKS = {"persistence", "privilege", "cmd_fw_change", "cmd_service_binpath", "cmd_log_tamper", "cmd_logon_script",

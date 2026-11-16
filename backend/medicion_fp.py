@@ -10,13 +10,18 @@ Se ejecuta dentro del contenedor del analizador, que ya tiene la conexión al In
     docker exec soc-incident-analyzer-analyzer-1 python -m backend.medicion_fp --agente WIN-A --agente WIN-B \\
         --desde 2026-11-16T09:00-03:00 --hasta 2026-11-17T09:00-03:00
 
-Además informa qué tipos de evento llegaron (Sysmon, 4688 con línea de comandos, 5145…). Si falta alguno, las reglas que dependen de él
-no pudieron medirse y se dice: un «cero falsos positivos» sin esos eventos no probaría nada.
+Además informa qué tipos de evento llegaron (Sysmon, 4688 con línea de comandos, 5145…). Si falta alguno que depende de la configuración
+de auditoría, las reglas que lo usan no pudieron medirse y se dice: un «cero falsos positivos» sin esos eventos no probaría nada.
+
+No consulta servicios externos: durante la medición MISP queda apagado (los datos del laboratorio no salen del servidor), así que
+``ctx_misp`` no forma parte de la medición. El contexto local (CISA KEV/EPSS en caché y el feed propio) sí se usa.
+Las horas se muestran en la zona horaria de ``--desde``.
 """
 from __future__ import annotations
 
 import argparse
 import collections
+import contextlib
 import json
 import os
 import sys
@@ -24,6 +29,7 @@ import sys
 import httpx
 import pandas as pd
 
+from . import misp
 from . import wazuh
 from . import wazuh_indexer as wi
 from .analysis import analyze
@@ -32,17 +38,20 @@ INDICES = {"archives": "wazuh-archives-*", "alertas": "wazuh-alerts-*"}
 MAX_EVENTS = 100_000          # el mismo tope que un archivo cargado a mano (parser.MAX_ROWS)
 PAGE = 2_000
 OBSERVATIONS = {"siem_underclass", "dq_account_lookalike", "dq_host_alias", "dq_logsource"}
-# Tipos de evento de los que dependen las reglas más propensas a ruido. Si no llegan, esas reglas no se midieron.
+# Tipos de evento de los que dependen las reglas más propensas a ruido: (nombre, reglas, tipo).
+# «auditoria»: solo llegan si Windows y el agente están configurados para enviarlos (si faltan, esas reglas NO se midieron).
+# «actividad»: llegan cuando ocurre la acción (en 0 puede ser simplemente que en ese rango no pasó).
 COVERAGE = {
-    "sysmon_1": ("Creación de procesos de Sysmon (evento 1)", "comandos, WMI, PowerShell remoto, DCOM"),
-    "4688_cmd": ("Creación de procesos 4688 con línea de comandos", "comandos, WMI, PowerShell remoto, DCOM (si no hay Sysmon)"),
-    "5145": ("Acceso a recursos compartidos (5145)", "control remoto de servicios y copia por C$/ADMIN$"),
-    "4624": ("Inicios de sesión (4624)", "inicios externos, DCOM, servicio remoto"),
-    "4625": ("Inicios de sesión fallidos (4625)", "fuerza bruta"),
-    "7045_4697": ("Servicios instalados (7045/4697)", "persistencia y servicio remoto"),
-    "4698": ("Tareas programadas creadas (4698)", "persistencia"),
-    "sysmon_13": ("Cambios de registro de Sysmon (evento 13)", "claves Run y apagado de defensas"),
+    "sysmon_1": ("Creación de procesos de Sysmon (evento 1)", "comandos, WMI, PowerShell remoto, DCOM", "auditoria"),
+    "4688_cmd": ("Creación de procesos 4688 con línea de comandos", "comandos, WMI, PowerShell remoto, DCOM (si no hay Sysmon)", "auditoria"),
+    "5145": ("Acceso a recursos compartidos (5145)", "control remoto de servicios y copia por C$/ADMIN$", "auditoria"),
+    "4624": ("Inicios de sesión (4624)", "inicios externos, DCOM, servicio remoto", "actividad"),
+    "4625": ("Inicios de sesión fallidos (4625)", "fuerza bruta", "actividad"),
+    "7045_4697": ("Servicios instalados (7045/4697)", "persistencia y servicio remoto", "actividad"),
+    "4698": ("Tareas programadas creadas (4698)", "persistencia", "actividad"),
+    "sysmon_13": ("Cambios de registro de Sysmon (evento 13)", "claves Run y apagado de defensas", "auditoria"),
 }
+EXAMPLE_KEYS = ("ejemplos", "procesos", "binarios", "archivos", "imagenes", "comandos_ejemplo")
 
 
 class MedicionError(Exception):
@@ -135,7 +144,36 @@ def _coverage(df: pd.DataFrame) -> dict:
     }
 
 
-def measure(docs: list[dict], label: str = "") -> dict:
+@contextlib.contextmanager
+def _without_external_lookups():
+    """MISP apagado mientras se mide: los datos del laboratorio no salen del servidor."""
+    previous = misp.get_client()
+    misp.set_client(None)
+    try:
+        yield
+    finally:
+        misp.set_client(previous)
+
+
+def _local_time(value: str, tz) -> str:
+    """Hora del hallazgo (UTC, como la guardan las alertas de Wazuh) en la zona horaria de la medición."""
+    try:
+        t = pd.Timestamp(value)
+        t = t.tz_localize("UTC") if t.tzinfo is None else t
+        return t.tz_convert(tz).strftime("%Y-%m-%d %H:%M:%S")
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _examples(metrics: dict) -> list[str]:
+    for k in EXAMPLE_KEYS:
+        v = (metrics or {}).get(k)
+        if isinstance(v, (list, tuple)) and v:
+            return [str(x)[:160] for x in v[:3]]
+    return []
+
+
+def measure(docs: list[dict], label: str = "", tz="UTC") -> dict:
     """La medición sobre eventos que se saben legítimos: todo hallazgo es, por definición, un falso positivo a revisar."""
     rows, st = wazuh.normalize_alerts(prepare(docs))
     out = {"etiqueta": label, "eventos_leidos": len(docs), "eventos_interpretados": len(rows), "traductor": {k: st[k] for k in ("windows", "linux_auth", "otro", "descartadas")},
@@ -144,7 +182,8 @@ def measure(docs: list[dict], label: str = "") -> dict:
         return out
     df, meta = wazuh.rows_to_frame(rows)
     out["cobertura"] = _coverage(df)
-    fs = analyze(df, meta)["findings"]
+    with _without_external_lookups():
+        fs = analyze(df, meta)["findings"]
     real = [f for f in fs if f["rule"] not in OBSERVATIONS]
     out["hallazgos"], out["observaciones"] = len(real), len(fs) - len(real)
     out["por_1000_eventos"] = round(1000 * len(real) / len(rows), 3)
@@ -158,8 +197,10 @@ def measure(docs: list[dict], label: str = "") -> dict:
                         for k, v in sorted(per.items(), key=lambda x: -x[1]["n"])}
     out["criticidad"] = dict(collections.Counter(f["severity"] for f in real))
     out["confianza"] = dict(collections.Counter(f["confidence"] for f in real))
+    out["zona_horaria"] = str(tz)
     out["detalle"] = [{"regla": f["rule"], "criticidad": f["severity"], "confianza": f["confidence"], "titulo": f["title"],
-                       "inicio": f["time_start"], "eventos": len(f["evidence_ids"]), "a_favor": f["confidence_for"], "en_contra": f["confidence_against"]}
+                       "inicio": _local_time(f["time_start"], tz), "eventos": len(f["evidence_ids"]), "ejemplos": _examples(f.get("metrics")),
+                       "a_favor": f["confidence_for"], "en_contra": f["confidence_against"]}
                       for f in real]
     return out
 
@@ -168,11 +209,21 @@ def as_text(m: dict, detail: bool = True) -> str:
     L = [f"Medición de falsos positivos{(' · ' + m['etiqueta']) if m['etiqueta'] else ''}",
          f"Eventos leídos: {m['eventos_leidos']:,} · interpretados: {m['eventos_interpretados']:,} · descartados: {m['traductor']['descartadas']:,}".replace(",", "."),
          f"Hallazgos (sin observaciones de calidad de datos): {m['hallazgos']} · por cada 1.000 eventos: {m['por_1000_eventos']}"]
+    if not m["eventos_leidos"]:
+        L += ["", "No se leyó ningún evento. Revisa:",
+              "  - el nombre del agente: tiene que ser exacto (lista: docker exec single-node-wazuh.manager-1 /var/ossec/bin/agent_control -l);",
+              "  - el rango de horas y su zona horaria (por ejemplo, -03:00);",
+              "  - que el índice exista: con --indice archives hace falta el archivado activo en Wazuh; prueba también --indice alertas."]
     if m["cobertura"]:
-        L += ["", "Tipos de evento recibidos (si alguno es 0, las reglas que dependen de él NO se midieron):"]
-        for k, (name, rules) in COVERAGE.items():
+        L += ["", "Tipos de evento recibidos:"]
+        for k, (name, rules, kind) in COVERAGE.items():
             n = m["cobertura"].get(k, 0)
-            L.append(f"  {'✔' if n else '✘'} {name}: {n}" + ("" if n else f"  → sin medir: {rules}"))
+            if n:
+                L.append(f"  ✔ {name}: {n}")
+            elif kind == "auditoria":
+                L.append(f"  ✘ {name}: 0  → requisito sin cumplir (ver la guía): NO se midieron {rules}")
+            else:
+                L.append(f"  · {name}: 0  → no ocurrió en este rango ({rules})")
     if m["por_regla"]:
         L += ["", "Por regla (criticidad · confianza):"]
         for r, v in m["por_regla"].items():
@@ -180,9 +231,11 @@ def as_text(m: dict, detail: bool = True) -> str:
             conf = ", ".join(f"{k} {n}" for k, n in v["confianza"].items())
             L.append(f"  {r}: {v['n']}  ({sev} · confianza {conf})")
     if detail and m["detalle"]:
-        L += ["", "Detalle (revisa cada uno: en actividad legítima, todo hallazgo es un falso positivo):"]
+        L += ["", f"Detalle (horas en {m.get('zona_horaria', 'UTC')}; en actividad legítima, todo hallazgo es un falso positivo):"]
         for d in m["detalle"]:
             L.append(f"  - [{d['criticidad']} · confianza {d['confianza']}] {d['regla']}: {d['titulo']} ({d['inicio']}, {d['eventos']} eventos)")
+            for x in d.get("ejemplos", []):
+                L.append(f"      ejemplo: {x}")
             for x in d["en_contra"]:
                 L.append(f"      en contra: {x}")
     return "\n".join(L)
@@ -207,7 +260,7 @@ def main(argv: list[str] | None = None) -> int:
     except MedicionError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
-    m = measure(docs, a.etiqueta)
+    m = measure(docs, a.etiqueta, tz=pd.Timestamp(a.desde).tzinfo or "UTC")
     m["rango_utc"] = [t0.isoformat(), t1.isoformat()]
     m["agentes"] = a.agente
     m["recortado"] = cut

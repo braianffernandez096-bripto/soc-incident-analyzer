@@ -75,7 +75,9 @@ def test_actividad_normal_no_genera_hallazgos():
     assert m["eventos_interpretados"] == 200 and m["hallazgos"] == 0 and m["por_1000_eventos"] == 0
     assert m["cobertura"]["4624"] == 200 and m["cobertura"]["5145"] == 0
     txt = M.as_text(m)
-    assert "✘ Acceso a recursos compartidos (5145): 0" in txt and "sin medir: control remoto de servicios" in txt
+    # sin 5145 por configuración: requisito sin cumplir; sin 4625 porque no hubo fallos: no es un problema
+    assert "✘ Acceso a recursos compartidos (5145): 0  → requisito sin cumplir" in txt and "NO se midieron control remoto de servicios" in txt
+    assert "· Inicios de sesión fallidos (4625): 0  → no ocurrió en este rango" in txt
 
 
 def test_eventos_de_archives_sin_regla_ni_id_se_analizan():
@@ -106,3 +108,43 @@ def test_main_imprime_medicion_y_json(monkeypatch, capsys):
 def test_fechas_invalidas(desde, hasta, capsys):
     assert M.main(["--agente", "WIN-A", "--desde", desde, "--hasta", hasta]) == 2
     assert "Error:" in capsys.readouterr().err
+
+
+def test_sin_eventos_explica_por_que():
+    txt = M.as_text(M.measure([], "x"))
+    assert "No se leyó ningún evento" in txt and "nombre del agente" in txt and "--indice alertas" in txt
+
+
+def test_no_consulta_misp_y_lo_restaura(monkeypatch):
+    from backend import misp
+    sentinel = object()
+    misp.set_client(sentinel)
+    seen = []
+    monkeypatch.setattr(M, "analyze", lambda df, meta: seen.append(misp.get_client()) or {"findings": []})
+    try:
+        M.measure([{**_hit(1)["_source"], "_doc_id": "doc1"}])
+        assert seen == [None] and misp.get_client() is sentinel        # apagado durante la medición, restaurado después
+    finally:
+        misp.set_client(None)
+
+
+def _discovery_docs():
+    docs = []
+    for i, cmd in enumerate(["whoami /all", "ipconfig /all", "systeminfo", "net user", "tasklist"]):
+        docs.append({"_doc_id": f"d{i}", "timestamp": f"2026-11-16T15:01:0{i}.000+0000", "agent": {"name": "WIN10"},
+                     "data": {"win": {"system": {"eventID": "1", "channel": "Microsoft-Windows-Sysmon/Operational", "computer": "WIN10"},
+                                      "eventdata": {"image": "C:\\Windows\\System32\\cmd.exe", "commandLine": cmd, "user": "NT AUTHORITY\\SYSTEM",
+                                                    "parentImage": "C:\\Windows\\System32\\svchost.exe"}}}})
+    return docs
+
+
+def test_detalle_con_ejemplos_hora_local_y_duda_por_cuenta_de_sistema():
+    m = M.measure(_discovery_docs(), tz=pd.Timestamp("2026-11-16T09:00-03:00").tzinfo)
+    d = [x for x in m["detalle"] if x["regla"] == "cmd_discovery"]
+    assert d, m["detalle"]
+    d = d[0]
+    assert d["inicio"].startswith("2026-11-16 12:01")                 # 15:01 UTC = 12:01 en -03:00
+    assert d["ejemplos"] and any("whoami" in e or "ipconfig" in e for e in d["ejemplos"])
+    assert any("servicio o de máquina" in x for x in d["en_contra"])
+    txt = M.as_text(m)
+    assert "ejemplo:" in txt and "horas en UTC-03:00" in txt

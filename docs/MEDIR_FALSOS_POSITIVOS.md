@@ -10,7 +10,8 @@ tu propio laboratorio de Wazuh, en dos partes:
    Lo que se mide es **con qué criticidad y confianza** aparecen. Una tarea legítima debería quedar en confianza Media o Baja, con su motivo en contra.
 
 La herramienta (`backend/medicion_fp.py`) corre dentro del contenedor del analizador, usa la conexión al Indexer que ya tienes en el `.env`
-y **no guarda los eventos**: lee, analiza en memoria e imprime la medición.
+y **no guarda los eventos**: lee, analiza en memoria e imprime la medición. Tampoco consulta servicios externos: MISP queda apagado
+mientras mide (los datos del laboratorio no salen del servidor), así que la regla de indicadores de MISP no entra en la medición.
 
 > Todos los comandos son de una línea. Los de Windows van en **PowerShell como administrador**; los del servidor, por SSH en el Ubuntu Server.
 > La guía usa un laboratorio con **un Windows 10** (el equipo medido, `WIN10` en los ejemplos) y un **Linux de escritorio** que hace de
@@ -52,7 +53,20 @@ Comprueba que funciona con una medición corta de la última hora (cambia las fe
 sudo docker exec soc-incident-analyzer-analyzer-1 python -m backend.medicion_fp --agente WIN10 --desde 2026-11-16T09:00-03:00 --hasta 2026-11-16T10:00-03:00 --sin-detalle
 ```
 En «Tipos de evento recibidos» tienen que aparecer con ✔ al menos el 4624, el 4688 con línea de comandos y, después de usar un recurso
-compartido, el 5145. Si usas Sysmon, también su evento 1.
+compartido, el 5145. Si usas Sysmon, también su evento 1. Cómo leer esa lista:
+
+- **✔**: llegaron eventos de ese tipo.
+- **✘ requisito sin cumplir**: es un tipo que solo llega si Windows y el agente lo auditan (5145, 4688 con línea de comandos, Sysmon). Las
+  reglas que dependen de él **no se midieron**: revisa la configuración de esta sección.
+- **· no ocurrió en este rango**: es un tipo que aparece cuando pasa la acción (inicios fallidos, servicios o tareas nuevas). En una hora
+  tranquila es normal que esté en 0.
+
+Las horas del detalle se muestran en la zona horaria que pongas en `--desde`. Si sale «No se leyó ningún evento», el nombre del agente
+no coincide (tiene que ser exacto: `sudo docker exec single-node-wazuh.manager-1 /var/ossec/bin/agent_control -l` los lista) o el rango
+no tiene datos.
+
+Ojo con los `:` de las horas: si por error escribes `-03>00`, la terminal guarda la salida en un archivo llamado `00` en vez de mostrarla
+(se lee con `cat 00` y se borra con `rm 00`).
 
 ## 2. Jornada normal
 
@@ -156,7 +170,8 @@ y la medición es de actividad **legítima**. Kali sirve para otra medición: at
 
 ## 4. Qué compartir y cómo se usa
 
-La salida tiene los totales, la cobertura y el detalle de cada hallazgo: regla, criticidad, confianza, título y los motivos en contra.
+La salida tiene los totales, la cobertura y el detalle de cada hallazgo: regla, criticidad, confianza, título, hasta tres ejemplos de lo
+que lo disparó (por ejemplo, los comandos) y los motivos en contra.
 Los títulos nombran equipos y cuentas de tu laboratorio; los eventos crudos nunca salen del servidor.
 
 Con cada hallazgo se decide una de dos cosas:

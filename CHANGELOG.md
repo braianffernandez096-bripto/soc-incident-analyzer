@@ -6,11 +6,17 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ### Novedades
 - **Medición de falsos positivos con actividad legítima real** (`python -m backend.medicion_fp`). Lee del Indexer de Wazuh los eventos de uno o más agentes en un rango de horas (todos los eventos de *archives*, o solo las alertas), los pasa por el mismo camino que una alerta en vivo y da los hallazgos por cada 1.000 eventos, por regla, criticidad y confianza, con el detalle y los motivos en contra de cada uno. Corre dentro del contenedor con la conexión al Indexer del `.env`: no pide contraseñas ni guarda los eventos. Avisa qué tipos de evento no llegaron (Sysmon, 4688 con línea de comandos, 5145…) y qué reglas quedaron sin medir por eso, para que un «cero» no engañe.
+- **Ajustes tras la primera medición real** (un Windows 10 con Sysmon, 1.682 eventos en dos horas, 3 hallazgos: comandos de reconocimiento ejecutados por SYSTEM y por la cuenta de máquina, en confianza Baja):
+  - la medición ya no consulta MISP (los datos del laboratorio no salen del servidor);
+  - muestra hasta tres ejemplos de lo que disparó cada hallazgo (los comandos, en este caso) y las horas en la zona horaria de `--desde`, no en UTC;
+  - distingue un tipo de evento que falta por configuración («requisito sin cumplir»: esas reglas no se midieron) de uno que simplemente no ocurrió en el rango;
+  - si no lee ningún evento, explica las causas probables (nombre del agente, rango, índice);
+  - la confianza de los comandos de reconocimiento suma la duda «cuenta de servicio o de máquina» cuando los ejecuta SYSTEM o una cuenta `EQUIPO$`, que antes no se aplicaba a esa regla.
 - **Guía paso a paso** (`docs/MEDIR_FALSOS_POSITIVOS.md`): requisitos previos en Windows y en el agente de Wazuh (que por defecto descarta el 5145), una jornada normal y tareas de administración legítimas (locales en el Windows y remotas desde un Linux con Samba, más PowerShell y WMI remotos si hay un segundo Windows), con sus comandos y su limpieza.
 
 ### Cambios
 - `docs/VALIDACION.md`, sección 3.1: la medición en un laboratorio real, en curso.
-- Pruebas: 11 nuevas (`tests/unit/test_medicion_fp.py`), con el Indexer simulado.
+- Pruebas: 14 nuevas (`tests/unit/test_medicion_fp.py`), con el Indexer simulado.
 
 ## [1.17.0] - 2026-11-15
 

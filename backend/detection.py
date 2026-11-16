@@ -535,6 +535,11 @@ def rule_commands(st: State) -> None:
         p = _match_cmd(r)
         if p:
             hits.append((p["key"], r.Hostname, r.User, r.Log_ID))
+    if any(h[0] == "discovery" for h in hits):
+        # Calibración (medición en un laboratorio real, docs/VALIDACION.md 3.1): el módulo SCA del agente de Wazuh ejecuta como SYSTEM
+        # «net user», «wmic useraccount» o «secedit /export» para evaluar el endurecimiento. Es la herramienta de seguridad, no reconocimiento.
+        agent = agent_spawned(d)
+        hits = [h for h in hits if not (h[0] == "discovery" and h[3] in agent)]
     if not hits:
         return
     key_by_id = {h[3]: h[0] for h in hits}
@@ -718,6 +723,56 @@ def _proc(r) -> tuple[str, str, str]:
     parent = _field(t, "ParentImage") or _field(t, r"Creator\s*Process\s*Name") or _field(t, r"Parent\s*Process\s*Name")
     cmd = _field(t, "CommandLine") or _field(t, r"Process\s*Command\s*Line") or (r.Process_CommandLine or "")
     return image, parent, cmd
+
+
+# Agente de Wazuh en su carpeta de instalación oficial. Solo el camino completo: el mismo nombre en otra carpeta no cuenta.
+WAZUH_AGENT_RE = re.compile(r"^[a-z]:\\program files(?: \(x86\))?\\ossec-agent\\[\w\-]+\.exe$", re.I)
+AGENT_CHAIN_PID_WINDOW_S = 600
+
+
+def _norm_path(p: str) -> str:
+    return re.sub(r"\\+", r"\\", str(p or "").strip().strip('"'))
+
+
+def agent_spawned(d: pd.DataFrame) -> set[str]:
+    """Log_ID de los procesos que descienden del agente de Wazuh (por ejemplo, las comprobaciones de su módulo SCA: net user, wmic,
+    secedit). Sigue el árbol por el ProcessGuid de Sysmon y, en el 4688, por el número de proceso dentro de una ventana corta
+    (los números se reutilizan). Sirve para no confundir las comprobaciones de la propia herramienta de seguridad con reconocimiento."""
+    p = d[d["Event_ID"].isin(["1", "4688"])]
+    if p.empty:
+        return set()
+    rows = []
+    for r in p.itertuples():
+        t = r.Event_Description or ""
+        image, parent, _ = _proc(r)
+        guid = _field(t, "ProcessGuid").lower()
+        pguid = _field(t, "ParentProcessGuid").lower()
+        pid = (_field(t, r"New\s*Process\s*I[Dd]") or _field(t, "NewProcessId") or _field(t, "ProcessId")).lower()
+        ppid = (_field(t, r"Creator\s*Process\s*I[Dd]") or _field(t, "ParentProcessId")
+                or (_field(t, "ProcessId") if r.Event_ID == "4688" and _field(t, "NewProcessId") else "")).lower()
+        rows.append((r.Log_ID, r.Hostname, r.Timestamp, image, parent, guid, pguid, pid, ppid))
+    tainted_ids: set[str] = set()
+    tainted_guids: set[str] = set()
+    tainted_pids: dict[tuple[str, str], object] = {}
+    for _ in range(6):                      # profundidad máxima del árbol que se sigue (agente → cmd → net → net1 …)
+        grew = False
+        for lid, host, ts, image, parent, guid, pguid, pid, ppid in rows:
+            if lid in tainted_ids:
+                continue
+            by_agent = bool(WAZUH_AGENT_RE.match(_norm_path(parent)))
+            by_guid = bool(pguid) and pguid in tainted_guids
+            t_parent = tainted_pids.get((host, ppid)) if ppid else None
+            by_pid = t_parent is not None and abs((ts - t_parent).total_seconds()) <= AGENT_CHAIN_PID_WINDOW_S
+            if by_agent or by_guid or by_pid:
+                tainted_ids.add(lid)
+                if guid:
+                    tainted_guids.add(guid)
+                if pid:
+                    tainted_pids[(host, pid)] = ts
+                grew = True
+        if not grew:
+            break
+    return tainted_ids
 
 
 def _remote_logons(d: pd.DataFrame) -> pd.DataFrame:

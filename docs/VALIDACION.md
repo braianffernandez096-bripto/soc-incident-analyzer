@@ -225,7 +225,24 @@ Otros casos que se observaron y **no** se marcaron como errores porque son decis
 Los casos de arriba son sintéticos. Para medir el ruido con actividad legítima real (una jornada normal y tareas de administración
 etiquetadas), la app trae `python -m backend.medicion_fp`, que lee los eventos del Indexer de Wazuh, los analiza en memoria y
 da los hallazgos por cada 1.000 eventos, por regla, criticidad y confianza, y qué tipos de evento faltaron para poder medir cada regla.
-Procedimiento: [MEDIR_FALSOS_POSITIVOS.md](MEDIR_FALSOS_POSITIVOS.md). Los resultados se publicarán aquí, solo agregados.
+Procedimiento: [MEDIR_FALSOS_POSITIVOS.md](MEDIR_FALSOS_POSITIVOS.md). Los resultados se publican aquí, solo agregados.
+
+**Laboratorio:** un Windows 10 con Sysmon y el agente de Wazuh, con la auditoría de creación de procesos (4688 con línea de
+comandos) y de recursos compartidos (5145) activadas.
+
+**Primera medición (dos horas de uso normal, 2.020 eventos):** 3 hallazgos, 1,5 por cada 1.000 eventos, los tres «Comandos de
+reconocimiento» en criticidad Media y **confianza Baja**, con la duda «cuenta de servicio o de máquina». Los comandos eran `net user`,
+`net1 user`, `wmic useraccount where (sid like "S-1-5-21-%-501") get Disabled` y `secedit /export`, ejecutados como SYSTEM y por la
+cuenta de máquina justo al arrancar el agente de Wazuh: son las comprobaciones de su **módulo SCA** (evaluación de la configuración),
+no reconocimiento.
+
+**Calibración:** se sigue el árbol de procesos (el `ProcessGuid` de Sysmon o, en el 4688, el número de proceso dentro de 10 minutos) y
+se ignora el reconocimiento que **desciende del agente de Wazuh instalado en su carpeta oficial**
+(`C:\Program Files (x86)\ossec-agent\`). Solo se exime el reconocimiento: si el agente lanzara PowerShell codificado, seguiría
+alertando. Un ejecutable con el mismo nombre en otra carpeta no se exime, y los mismos comandos lanzados por una persona siguen alertando
+(`tests/unit/test_agente_wazuh.py`). La vara de OTRF no cambió.
+
+Pendiente: la jornada completa de 24 horas y las tareas de administración legítimas.
 
 ## 3b. Correos reales (phishing y legítimos) y comandos ofuscados
 

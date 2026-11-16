@@ -178,7 +178,7 @@ python -m pytest                                           # ~1.290 pruebas
 python -m pytest --cov=backend --cov-report=term-missing   # con cobertura (95 %)
 ```
 
-Hay pruebas unitarias, de integración, de extremo a extremo con navegador real y casos de actividad normal que no deben alertar; atajos con `make` (`make help`). Las reglas se midieron con datos que no escribí yo: las 11 IPs de fuerza bruta de un SSH real (Loghub) sin falsos positivos, la técnica correcta en 41 de 107 ataques de Windows (antes de calibrar: 13) y 86,4 % de 12.864 correos de phishing reales con criticidad Medio o más. Esas cifras de OTRF y SSH se vuelven a medir en cada cambio: el CI falla si alguna regla deja de detectar lo que detectaba ([la vara en el CI](docs/VALIDACION.md#6-la-vara-en-el-ci-regresiones-de-exactitud)). Método y límites: [docs/VALIDACION.md](docs/VALIDACION.md); pruebas: [docs/DESARROLLO.md](docs/DESARROLLO.md#pruebas).
+Hay pruebas unitarias, de integración, de extremo a extremo con navegador real y casos de actividad normal que no deben alertar; atajos con `make` (`make help`). Las reglas se midieron con datos que no escribí yo: las 11 IPs de fuerza bruta de un SSH real (Loghub) sin falsos positivos, la técnica correcta en 60 de 107 ataques de Windows (antes de calibrar: 13; en movimiento lateral, 21 de 26) y 86,4 % de 12.864 correos de phishing reales con criticidad Medio o más. Esas cifras de OTRF y SSH se vuelven a medir en cada cambio: el CI falla si alguna regla deja de detectar lo que detectaba ([la vara en el CI](docs/VALIDACION.md#6-la-vara-en-el-ci-regresiones-de-exactitud)). Método y límites: [docs/VALIDACION.md](docs/VALIDACION.md); pruebas: [docs/DESARROLLO.md](docs/DESARROLLO.md#pruebas).
 
 ## Privacidad y seguridad
 

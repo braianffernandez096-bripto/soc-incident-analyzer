@@ -210,9 +210,36 @@ class Finding:
         return asdict(self)
 
 
+def unify_accounts(df: pd.DataFrame) -> pd.DataFrame:
+    """Una sola grafía por cuenta para agrupar: Sysmon escribe «DOMINIO\\usuario» y el registro de Seguridad solo «usuario».
+    Si el nombre corto corresponde a una única cuenta calificada del archivo, se usa esa; si hay ambigüedad (el mismo nombre en dos
+    dominios), no se toca. Las cuentas de máquina («EQUIPO$») son cuentas distintas y quedan como están."""
+    if df.empty or "User" not in df.columns:
+        return df
+    users = set(df["User"])
+    qualified: dict[str, dict[str, str]] = defaultdict(dict)
+    for u in users:
+        if "\\" in str(u):
+            qualified[short_user(u).lower()].setdefault(str(u).lower(), u)
+    mapping = {}
+    for u in users:
+        if u in ("", "-"):
+            continue
+        q = qualified.get(short_user(u).lower())
+        if q and len(q) == 1:
+            canon = next(iter(q.values()))
+            if u != canon:
+                mapping[u] = canon
+    if not mapping:
+        return df
+    out = df.copy()
+    out["User"] = out["User"].map(lambda u: mapping.get(u, u))
+    return out
+
+
 class State:
     def __init__(self, df: pd.DataFrame):
-        self.df = df
+        self.df = unify_accounts(df)
         self.findings: list[Finding] = []
         self.compromised: dict[str, dict] = {}   # usuario -> {ip, log_id, ts}
         self.brute: list[dict] = []              # ráfagas de fuerza bruta detectadas
@@ -346,7 +373,8 @@ def rule_external_logon(st: State) -> None:
                     reasons, expl, c, actor_ips=[ip], actor_users=[user],
                     metrics={"ip_origen": ip, "usuario": user, "tras_fuerza_bruta": bool(prior), "rdp": bool(rdp)},
                     iocs=[_ioc("IP", ip, "IP externa con sesión exitosa"), _ioc("Cuenta", user, "Cuenta usada desde IP externa")])
-            st.compromised.setdefault(user, {"ip": ip, "log_id": first.Log_ID, "ts": t0})
+            if user not in ("", "-"):          # sin cuenta no hay a quién marcar: una clave vacía haría «comprometidos» a todos los eventos sin usuario
+                st.compromised.setdefault(user, {"ip": ip, "log_id": first.Log_ID, "ts": t0})
 
 
 def rule_privilege(st: State) -> None:
@@ -376,7 +404,7 @@ def rule_privilege(st: State) -> None:
                     f"sesión) para {user} en {r.Hostname}, con origen {ip} ({r.Log_ID}). Este evento indica que la sesión recibió "
                     f"privilegios sensibles (p. ej. SeDebugPrivilege, SeBackupPrivilege); combinado con un origen externo "
                     f"sugiere uso de la cuenta con privilegios elevados por parte de un tercero (T1078, escalamiento).")
-            _mk(st, "privilege", f"Asignación de privilegios especiales a {short_user(user)} desde {ip}",
+            _mk(st, "privilege", f"Asignación de privilegios especiales a {short_user(user)}" + (f" desde {ip}" if ip else ""),
                 "Escalamiento", "Escalamiento de privilegios", ["T1078", "T1134"], sev, reasons, expl, c,
                 actor_ips=[ip] if is_external(ip) else [], actor_users=[user],
                 metrics={"usuario": user, "host": r.Hostname, "ip_origen": ip},
@@ -642,6 +670,283 @@ def rule_lateral(st: State) -> None:
                       _ioc("Cuenta", user, "Cuenta usada para el salto")])
 
 
+# --- Movimiento lateral con eventos nativos de Windows (calibrado contra OTRF, ver docs/VALIDACION.md) ---
+# Las reglas leen los campos en los dos formatos que llegan: el mensaje de Windows exportado («Share Name:», «Logon Type:»,
+# «New Process Name:») y el de Wazuh/Sysmon («ShareName:», «LogonType=», «ParentImage:»). Se apoyan en cómo funciona la técnica,
+# no en nombres de herramientas.
+LAT_EXEC_EXT = re.compile(r"\.(?:exe|dll|ps1|psm1|bat|cmd|vbs|vbe|js|jse|hta|xml|xll|scr|sys|msi|wsf|cpl|ocx)$", re.I)
+LAT_WRITE_RE = re.compile(r"WriteData|AppendData|AddFile|%%4417|%%4418", re.I)
+LAT_DCOM_APPS = {"excel.exe", "winword.exe", "powerpnt.exe", "outlook.exe", "mspub.exe", "visio.exe", "mmc.exe", "iexplore.exe"}
+LAT_WMI_BENIGN_CHILDREN = {"wmiprvse.exe", "werfault.exe", "wmiadap.exe", "wmiapsrv.exe", "conhost.exe"}
+LAT_LOLBINS = re.compile(r"^(?:cmd|powershell|pwsh|rundll32|regsvr32|mshta|msbuild|wscript|cscript|certutil|bitsadmin|net|net1|whoami|"
+                         r"installutil|regasm|regsvcs|msiexec|schtasks|sc|reg|wmic)\.exe$", re.I)
+LAT_ODD_PATH = re.compile(r"\\(?:ProgramData|Temp|Users\\Public|AppData|Windows\\Tasks|PerfLogs)\\|^\\\\", re.I)
+LAT_PS_HIDDEN = re.compile(r"\s-(?:e|ec|enc|encodedcommand)\s|\s-w(?:indowstyle)?\s+(?:1|hidden)\b|frombase64string|downloadstring|\biex\b", re.I)
+LAT_SVC_CMD = re.compile(r"%COMSPEC%|\bcmd(?:\.exe)?\s+/c\b|powershell|pwsh|\\\\[\w.\-]+\\(?:ADMIN|[A-Z])\$|\\ADMIN\$\\", re.I)
+
+
+def _remote_ip(ip: str) -> bool:
+    """IP de otro equipo: válida y que no sea loopback, link-local ni sin especificar (las conexiones del equipo consigo mismo no son laterales)."""
+    try:
+        a = ipaddress.ip_address(str(ip or "").strip().split("%")[0])
+    except ValueError:
+        return False
+    return not (a.is_loopback or a.is_link_local or a.is_unspecified)
+
+
+def _logon_type(text: str) -> str:
+    m = re.search(r"Logon\s*Type\s*[:=]\s*(\d+)", text or "", re.I)
+    return m.group(1) if m else ""
+
+
+def _base(path: str) -> str:
+    return str(path or "").strip().strip('"').replace("/", "\\").rsplit("\\", 1)[-1].lower()
+
+
+def _proc(r) -> tuple[str, str, str]:
+    """(imagen, imagen del padre, línea de comandos) de un evento de creación de proceso (Sysmon 1 o 4688)."""
+    t = r.Event_Description or ""
+    image = _field(t, "Image") or _field(t, r"New\s*Process\s*Name")
+    parent = _field(t, "ParentImage") or _field(t, r"Creator\s*Process\s*Name") or _field(t, r"Parent\s*Process\s*Name")
+    cmd = _field(t, "CommandLine") or _field(t, r"Process\s*Command\s*Line") or (r.Process_CommandLine or "")
+    return image, parent, cmd
+
+
+def _remote_logons(d: pd.DataFrame) -> pd.DataFrame:
+    """Inicios de sesión de red (4624 tipo 3) desde otro equipo. Base de las reglas que piden «llegó alguien por la red»."""
+    s = d[d["Event_ID"] == "4624"]
+    if s.empty:
+        return s
+    s = s[s["Event_Description"].map(_logon_type).eq("3") & s["Source_IP"].map(_remote_ip)]
+    return s
+
+
+def _near(logons: pd.DataFrame, host: str, t0, t1, before_s: int = 300, after_s: int = 60) -> pd.DataFrame:
+    if logons.empty:
+        return logons
+    return logons[(logons["Hostname"] == host) & (logons["Timestamp"] >= t0 - timedelta(seconds=before_s))
+                  & (logons["Timestamp"] <= t1 + timedelta(seconds=after_s))]
+
+
+def _share_rows(d: pd.DataFrame) -> pd.DataFrame:
+    """5145 desde otro equipo y con cuenta de usuario (las de máquina, «EQUIPO$», son tráfico del dominio)."""
+    s = d[d["Event_ID"] == "5145"].copy()
+    if s.empty:
+        return s
+    s["_share"] = s["Event_Description"].map(lambda t: _field(t, r"Share\s*Name"))
+    s["_target"] = s["Event_Description"].map(lambda t: _field(t, r"Relative\s*Target\s*Name"))
+    s["_acct"] = s["Event_Description"].map(lambda t: _field(t, r"Account\s*Name") or _field(t, "SubjectUserName"))
+    s = s[s["Source_IP"].map(_remote_ip) & ~s["_acct"].str.endswith("$")]
+    return s
+
+
+def rule_lat_svcctl(st: State) -> None:
+    """Alguien abre el administrador de servicios de este equipo desde otro (canal svcctl por SMB): sc \\\\equipo, PsExec, smbexec."""
+    d = st.df
+    s = _share_rows(d)
+    if s.empty:
+        return
+    s = s[s["_share"].str.upper().str.endswith("IPC$") & s["_target"].str.lower().str.strip("\\").str.endswith("svcctl")]
+    svc = d[d["Event_ID"].isin(["7045", "4697"])]
+    for (host, ip), g in _groups(s, ["Hostname", "Source_IP"]):
+        for c in clusters(g, 900):
+            t0, t1 = c["Timestamp"].min(), c["Timestamp"].max()
+            new = svc[(svc["Hostname"] == host) & (svc["Timestamp"] >= t0 - timedelta(seconds=60)) & (svc["Timestamp"] <= t1 + timedelta(seconds=600))] if not svc.empty else svc
+            accts = [a for a in dict.fromkeys(c["_acct"]) if a]
+            sev = "Crítico" if len(new) else "Alto"
+            reasons = [f"{ip} abrió el administrador de servicios de {host} por la red (canal svcctl sobre IPC$) {pl(len(c), 'vez', 'veces')}."]
+            if accts:
+                reasons.append(f"Cuenta usada: {', '.join(accts)}.")
+            if len(new):
+                reasons.append(f"En la misma ventana se instaló un servicio nuevo ({', '.join(new['Log_ID'])}): consultar, crear o arrancar servicios en otro equipo es la base de PsExec y smbexec.")
+            expl = (f"Registros 5145 {', '.join(f'{r.Log_ID} ({hhmmss(r.Timestamp)})' for r in c.itertuples())}: desde {ip} se accedió a la canalización "
+                    f"«svcctl» de {host}, que es la interfaz remota del administrador de servicios. Un administrador puede hacerlo con «sc \\\\equipo», "
+                    "pero también es el paso que usan PsExec, smbexec o SharpSC para crear o arrancar un servicio y ejecutar código (T1021.002, T1569.002).")
+            _mk(st, "lat_svcctl", f"Control remoto de servicios en {host} desde {ip}", "Movimiento lateral", "Movimiento lateral",
+                ["T1021.002", "T1569.002"], sev, reasons, expl, pd.concat([c, new]), actor_ips=[ip], actor_users=accts,
+                metrics={"host": host, "origen": ip, "accesos": int(len(c)), "servicios_nuevos": int(len(new))},
+                iocs=[_ioc("IP", ip, f"Origen del control remoto de servicios en {host}")] + [_ioc("Cuenta", a, "Cuenta usada") for a in accts])
+
+
+def rule_lat_admin_write(st: State) -> None:
+    """Se escribe un ejecutable, librería o script en un recurso administrativo (C$, ADMIN$) desde otro equipo: copia de herramientas."""
+    s = _share_rows(st.df)
+    if s.empty:
+        return
+    s = s[s["_share"].str.upper().str.contains(r"\\(?:[A-Z]|ADMIN)\$$", regex=True)
+          & s["_target"].str.contains(LAT_EXEC_EXT, regex=True)
+          & s["Event_Description"].str.contains(LAT_WRITE_RE, regex=True)]
+    for (host, ip), g in _groups(s, ["Hostname", "Source_IP"]):
+        for c in clusters(g, 900):
+            files = list(dict.fromkeys(f"{sh}\\{tg}" for sh, tg in zip(c["_share"], c["_target"])))
+            accts = [a for a in dict.fromkeys(c["_acct"]) if a]
+            system_dir = any(re.search(r"\\Windows\\System32\\|\\Program Files", f, re.I) for f in files)
+            reasons = [f"Desde {ip} se escribieron {pl(len(files), 'archivo ejecutable o script', 'archivos ejecutables o scripts')} en un recurso administrativo de {host}: "
+                       + ", ".join(trunc(f, 90) for f in files[:4]) + ("…" if len(files) > 4 else "") + "."]
+            if system_dir:
+                reasons.append("El destino es una carpeta del sistema o de programas: un archivo ahí puede cargarse en lugar de uno legítimo (secuestro de DLL).")
+            if accts:
+                reasons.append(f"Cuenta usada: {', '.join(accts)}.")
+            expl = (f"Registros 5145 {', '.join(f'{r.Log_ID} ({hhmmss(r.Timestamp)})' for r in c.itertuples())}: {ip} pidió acceso de escritura sobre "
+                    f"{', '.join(files[:4])} a través de un recurso administrativo (C$/ADMIN$). Copiar herramientas a otro equipo por SMB es el paso previo "
+                    "a ejecutarlas allí (T1021.002, T1570). Algunas herramientas de despliegue lo hacen; conviene confirmar quién y para qué.")
+            _mk(st, "lat_admin_write", f"Copia de ejecutables por recurso administrativo a {host} desde {ip}", "Movimiento lateral", "Movimiento lateral",
+                ["T1021.002", "T1570"], "Alto", reasons, expl, c, actor_ips=[ip], actor_users=accts,
+                metrics={"host": host, "origen": ip, "archivos": files[:20], "carpeta_sistema": system_dir},
+                iocs=[_ioc("IP", ip, f"Origen de la copia a {host}")] + [_ioc("Ruta/archivo", f, "Archivo copiado por recurso administrativo") for f in files[:10]])
+
+
+def rule_lat_wmi(st: State) -> None:
+    """Procesos lanzados por el proveedor de WMI (WmiPrvSE.exe) o consumidores de eventos WMI con script (scrcons.exe)."""
+    d = st.df
+    p = d[d["Event_ID"].isin(["1", "4688"])]
+    if p.empty:
+        return
+    hits = []
+    for r in p.itertuples():
+        image, parent, cmd = _proc(r)
+        child, par = _base(image), _base(parent)
+        if child == "scrcons.exe" or (par == "wmiprvse.exe" and child and child not in LAT_WMI_BENIGN_CHILDREN):
+            hits.append((r.Log_ID, image, cmd, child))
+    if not hits:
+        return
+    info = {h[0]: h for h in hits}
+    sub = p[p["Log_ID"].isin(info)]
+    logons = _remote_logons(d)
+    for host, g in _groups(sub, "Hostname"):
+        for c in clusters(g, 900):
+            items = [info[i] for i in c["Log_ID"]]
+            consumer = any(h[3] == "scrcons.exe" for h in items)
+            risky = [h for h in items if LAT_LOLBINS.match(h[3]) or LAT_ODD_PATH.search(h[1]) or LAT_PS_HIDDEN.search(" " + h[2] + " ")]
+            near = _near(logons, host, c["Timestamp"].min(), c["Timestamp"].max())
+            remote_ips = list(dict.fromkeys(near["Source_IP"]))
+            sev = "Alto" if (risky or consumer) else "Medio"
+            reasons = [f"WMI lanzó {pl(len(items), 'proceso', 'procesos')} en {host}: " + ", ".join(trunc(h[2] or h[1], 80) for h in items[:3]) + ("…" if len(items) > 3 else "") + "."]
+            if consumer:
+                reasons.append("Se activó un consumidor de eventos WMI con script (scrcons.exe): ejecuta código cuando ocurre un evento, a menudo como persistencia.")
+            if risky:
+                reasons.append("Lo lanzado es un intérprete o herramienta del sistema, está en una carpeta escribible o es PowerShell oculto o codificado.")
+            if remote_ips:
+                reasons.append(f"Minutos antes hubo un inicio de sesión de red desde {', '.join(remote_ips[:3])}: es consistente con ejecución remota por WMI (wmic /node, Invoke-WmiMethod).")
+            else:
+                reasons.append("No hay inicio de sesión de red cercano: puede ser WMI local (inventario o administración); verificar.")
+            mitre = ["T1047"] + (["T1546.003"] if consumer else [])
+            expl = (f"En {host}, " + "; ".join(f"{i} ({hhmmss(t)}): {trunc(info[i][2] or info[i][1], 120)}" for i, t in zip(c["Log_ID"], c["Timestamp"]))
+                    + ". El padre es el proveedor de WMI (WmiPrvSE.exe) o su consumidor de scripts (scrcons.exe), así que el proceso no lo abrió un usuario "
+                      "sino una petición WMI, local o desde otro equipo (T1047" + (", T1546.003" if consumer else "") + ").")
+            _mk(st, "lat_wmi", f"Ejecución por WMI en {host}", "Movimiento lateral" if remote_ips else "Comandos y procesos", "Ejecución",
+                mitre, sev, reasons, expl, pd.concat([c, near]), actor_ips=remote_ips,
+                metrics={"host": host, "procesos": [trunc(h[2] or h[1], 160) for h in items[:10]], "origen_red": remote_ips, "consumidor_wmi": consumer},
+                iocs=[_ioc("Comando", trunc(h[2] or h[1], 200), "Proceso lanzado por WMI") for h in items[:5]])
+
+
+def rule_lat_winrm(st: State) -> None:
+    """Sesión de PowerShell remoto (WinRM): arranca wsmprovhost.exe y, a veces, procesos hijos."""
+    d = st.df
+    p = d[d["Event_ID"].isin(["1", "4688"])]
+    if p.empty:
+        return
+    hosts, kids = [], []
+    for r in p.itertuples():
+        image, parent, cmd = _proc(r)
+        if _base(image) == "wsmprovhost.exe":
+            hosts.append(r.Log_ID)
+        elif _base(parent) == "wsmprovhost.exe":
+            kids.append((r.Log_ID, cmd or image))
+    if not hosts and not kids:
+        return
+    kid_cmd = dict(kids)
+    sub = p[p["Log_ID"].isin(hosts + list(kid_cmd))]
+    logons = _remote_logons(d)
+    for host, g in _groups(sub, "Hostname"):
+        for c in clusters(g, 900):
+            ck = [(i, kid_cmd[i]) for i in c["Log_ID"] if i in kid_cmd]
+            hidden = [k for k in ck if LAT_PS_HIDDEN.search(" " + k[1] + " ")]
+            near = _near(logons, host, c["Timestamp"].min(), c["Timestamp"].max())
+            remote_ips = list(dict.fromkeys(near["Source_IP"]))
+            sev = "Alto" if hidden else "Medio"
+            reasons = [f"Se abrió una sesión de PowerShell remoto (WinRM) en {host}" + (f" desde {', '.join(remote_ips[:3])}" if remote_ips else "") + "."]
+            if ck:
+                reasons.append(f"Dentro de la sesión se ejecutaron {pl(len(ck), 'proceso', 'procesos')}: " + ", ".join(trunc(k[1], 80) for k in ck[:3]) + ".")
+            if hidden:
+                reasons.append("Al menos uno es PowerShell oculto, codificado o que descarga código: no es el uso típico de un administrador.")
+            else:
+                reasons.append("PowerShell remoto es una herramienta habitual de administración: confirmar que la sesión era esperada.")
+            expl = (f"En {host}, {', '.join(f'{r.Log_ID} ({hhmmss(r.Timestamp)})' for r in c.itertuples())}: el proceso wsmprovhost.exe aloja las "
+                    "sesiones de PowerShell remoto (Enter-PSSession, Invoke-Command). Que aparezca indica que alguien ejecutó comandos en este equipo desde otro (T1021.006).")
+            _mk(st, "lat_winrm", f"PowerShell remoto (WinRM) en {host}", "Movimiento lateral", "Movimiento lateral",
+                ["T1021.006"], sev, reasons, expl, pd.concat([c, near]), actor_ips=remote_ips,
+                metrics={"host": host, "origen_red": remote_ips, "procesos": [trunc(k[1], 160) for k in ck[:10]], "oculto": bool(hidden)},
+                iocs=[_ioc("Comando", trunc(k[1], 200), "Ejecutado en la sesión remota") for k in hidden[:5]])
+
+
+def rule_lat_dcom(st: State) -> None:
+    """Office, MMC o Internet Explorer arrancados por COM («-Embedding», «/automation») justo después de un inicio de sesión de red."""
+    d = st.df
+    p = d[d["Event_ID"].isin(["1", "4688"])]
+    logons = _remote_logons(d)
+    if p.empty or logons.empty:
+        return
+    hits = {}
+    for r in p.itertuples():
+        image, parent, cmd = _proc(r)
+        if _base(image) in LAT_DCOM_APPS and re.search(r"[-/]embedding\b|/automation\b", cmd, re.I) and _base(parent) in ("svchost.exe", ""):
+            hits[r.Log_ID] = (image, cmd)
+    if not hits:
+        return
+    sub = p[p["Log_ID"].isin(hits)]
+    for host, g in _groups(sub, "Hostname"):
+        for c in clusters(g, 900):
+            near = _near(logons, host, c["Timestamp"].min(), c["Timestamp"].max(), before_s=120, after_s=30)
+            if near.empty:
+                continue          # sin llegada por la red es automatización local (un complemento, una macro del propio usuario)
+            remote_ips = list(dict.fromkeys(near["Source_IP"]))
+            apps = list(dict.fromkeys(_base(hits[i][0]) for i in c["Log_ID"]))
+            reasons = [f"{', '.join(apps)} arrancó en {host} por COM, sin ventana de usuario, segundos después de un inicio de sesión de red desde {', '.join(remote_ips[:3])}."]
+            reasons.append("Excel, MMC o Internet Explorer pueden instanciarse desde otro equipo por DCOM y usarse para ejecutar código (macros XLM, ExecuteShellCommand, carga de DLL).")
+            expl = (f"En {host}: " + "; ".join(f"{i} ({hhmmss(t)}): {trunc(hits[i][1], 110)}" for i, t in zip(c["Log_ID"], c["Timestamp"]))
+                    + f". Antes: inicios de sesión de red (4624 tipo 3) {', '.join(near['Log_ID'][:5])}. La aplicación la lanzó el servicio de COM (svchost, DcomLaunch) "
+                      "y no un usuario, y la sesión vino de otro equipo: es la huella del movimiento lateral por DCOM (T1021.003).")
+            _mk(st, "lat_dcom", f"Aplicación lanzada por DCOM en {host}", "Movimiento lateral", "Movimiento lateral",
+                ["T1021.003"], "Alto", reasons, expl, pd.concat([c, near]), actor_ips=remote_ips,
+                metrics={"host": host, "aplicaciones": apps, "origen_red": remote_ips},
+                iocs=[_ioc("IP", ip, f"Origen de la sesión previa a DCOM en {host}") for ip in remote_ips[:3]])
+
+
+def rule_lat_remote_service(st: State) -> None:
+    """Servicio nuevo que ejecuta un intérprete o un binario por recurso compartido, tras un inicio de sesión de red: estilo PsExec/smbexec."""
+    d = st.df
+    svc = d[d["Event_ID"].isin(["7045", "4697"])].copy()
+    logons = _remote_logons(d)
+    if svc.empty or logons.empty:
+        return
+    svc["_bin"] = svc.apply(lambda r: _field(r.Event_Description, r"Service\s*File\s*Name") or _field(r.Event_Description, "ImagePath")
+                            or " ".join(re.findall(r"ImagePath=([^;]+)", r.Process_CommandLine or "")), axis=1)
+    svc["_name"] = svc["Event_Description"].map(lambda t: _field(t, r"Service\s*Name"))
+    svc = svc[svc["_bin"].str.contains(LAT_SVC_CMD, regex=True)]
+    for host, g in _groups(svc, "Hostname"):
+        for c in clusters(g, 600):
+            near = _near(logons, host, c["Timestamp"].min(), c["Timestamp"].max(), before_s=300, after_s=30)
+            if near.empty:
+                continue
+            remote_ips = list(dict.fromkeys(near["Source_IP"]))
+            bins = list(dict.fromkeys(c["_bin"]))
+            names = [n for n in dict.fromkeys(c["_name"]) if n]
+            hidden = any(LAT_PS_HIDDEN.search(" " + b + " ") for b in bins)
+            sev = "Crítico" if hidden else "Alto"
+            reasons = [f"Se instaló un servicio en {host} ({', '.join(names) or 'sin nombre'}) que ejecuta: {trunc(bins[0], 120)}.",
+                       f"Minutos antes hubo un inicio de sesión de red desde {', '.join(remote_ips[:3])}."]
+            if hidden:
+                reasons.append("El servicio lanza PowerShell oculto o codificado: no es un servicio legítimo.")
+            expl = (f"En {host}: {', '.join(f'{r.Log_ID} ({hhmmss(r.Timestamp)})' for r in c.itertuples())} (servicio nuevo), después de los inicios de sesión de red "
+                    f"{', '.join(near['Log_ID'][:5])}. Un servicio cuyo binario es «cmd /c», PowerShell o un ejecutable en un recurso compartido, creado justo "
+                    "después de que alguien entrara por la red, es como PsExec y smbexec ejecutan comandos en otro equipo (T1021.002, T1569.002).")
+            _mk(st, "lat_remote_service", f"Ejecución remota mediante un servicio en {host}", "Movimiento lateral", "Movimiento lateral",
+                ["T1021.002", "T1569.002"], sev, reasons, expl, pd.concat([c, near]), actor_ips=remote_ips,
+                metrics={"host": host, "servicios": names, "binarios": [trunc(b, 200) for b in bins], "origen_red": remote_ips},
+                iocs=[_ioc("Servicio/Tarea", n, "Servicio creado para ejecución remota") for n in names] + [_ioc("Comando", trunc(b, 200), "Binario del servicio") for b in bins[:3]])
+
+
 def _share_label(text: str) -> str:
     m = SENSITIVE_RE.search(text)
     return m.group(1).lower() if m else ""
@@ -827,7 +1132,7 @@ def rule_persistence(st: State) -> None:
                 gaps = [(b - a).total_seconds() for a, b in zip(execs["Timestamp"], execs["Timestamp"].iloc[1:])]
                 periodic = (max(gaps) - min(gaps)) <= max(5, 0.05 * statistics.median(gaps))
             sev = "Alto" if (suspicious_path or len(execs)) else "Medio"
-            reasons = [f"{user} creó persistencia en {host}: " + ", ".join(
+            reasons = [f"{user if user not in ('', '-') else 'Se'} creó persistencia en {host}: " + ", ".join(
                 f"{'tarea programada' if r.Event_ID == '4698' else 'servicio'} ({r.Log_ID})" for r in c.itertuples()) + "."]
             if suspicious_path:
                 reasons.append("El binario/script reside en una ruta no estándar y escribible (ProgramData).")
@@ -1117,7 +1422,7 @@ def rule_dataquality(st: State) -> None:
         if len(k) >= 6:
             by_letters[k].append(u)
     for k, names in by_letters.items():
-        if len(names) > 1:
+        if len({n.lower() for n in names}) > 1:          # «SYSTEM» y «System» son la misma cuenta: Windows no distingue mayúsculas
             full = [u for u in set(d["User"]) if short_user(u) in names]
             rows = d[d["User"].isin(full)].groupby("User").head(2)
             cnt = {n: int(d["User"].map(short_user).eq(n).sum()) for n in names}
@@ -1165,6 +1470,12 @@ RULES: list[tuple[str, str, Callable[[State], None]]] = [
     ("defense_registry", "Registro de eventos desactivado por el registro (Sysmon 13)", rule_defense_registry),
     ("kerberoast", "Kerberoasting: ráfaga de tickets de servicio RC4 (4769) de una misma cuenta", rule_kerberoast),
     ("lateral", "Movimiento lateral: autenticación en un host con origen en otro host (source=…)", rule_lateral),
+    ("lat_svcctl", "Movimiento lateral: control remoto de servicios por SMB (5145, canal svcctl)", rule_lat_svcctl),
+    ("lat_admin_write", "Movimiento lateral: ejecutables o scripts copiados a C$/ADMIN$ desde otro equipo (5145)", rule_lat_admin_write),
+    ("lat_wmi", "Ejecución por WMI: procesos lanzados por WmiPrvSE.exe o consumidores de eventos WMI (scrcons.exe)", rule_lat_wmi),
+    ("lat_winrm", "Movimiento lateral: sesiones de PowerShell remoto (wsmprovhost.exe)", rule_lat_winrm),
+    ("lat_dcom", "Movimiento lateral por DCOM: Office/MMC/IE lanzados por COM tras un inicio de sesión de red", rule_lat_dcom),
+    ("lat_remote_service", "Movimiento lateral: servicio nuevo con cmd/PowerShell tras un inicio de sesión de red (estilo PsExec)", rule_lat_remote_service),
     ("mass_access", "Acceso masivo/secuencial a archivos (4663)", rule_mass_access),
     ("sensitive_share", "Acceso a recursos compartidos sensibles (5140/5145)", rule_sensitive_share),
     ("exfil_proxy", "Exfiltración: ráfaga de POST al proxy hacia IP externa", rule_exfil_proxy),

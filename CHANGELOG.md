@@ -2,6 +2,20 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [Sin publicar]
+
+### Novedades
+- **Movimiento lateral: de 2 a 21 de 26 ataques reales con la técnica exacta** (OTRF). En total, de 41 a 60 de 107, medido con la vara del CI y sin regresiones. Seis reglas nuevas, basadas en el comportamiento de cada técnica y no en nombres de herramientas: control remoto de servicios por SMB (`lat_svcctl`; T1021.002, T1569.002), copia de ejecutables o scripts a `C$`/`ADMIN$` (`lat_admin_write`; T1021.002, T1570), ejecución por WMI y consumidores de eventos WMI (`lat_wmi`; T1047, T1546.003), PowerShell remoto (`lat_winrm`; T1021.006), Office/MMC/IE lanzados por DCOM tras un inicio de sesión de red (`lat_dcom`; T1021.003) y servicios nuevos con `cmd`/PowerShell tras un inicio de sesión de red, al estilo PsExec (`lat_remote_service`; T1021.002, T1569.002). Leen tanto el formato de Windows exportado como el de Wazuh. Datos ATT&CK regenerados desde el bundle oficial v20 (6 técnicas nuevas, ninguna existente cambió).
+
+### Corregido
+- **El parser perdía datos cuando varias columnas aportaban el mismo campo** (habitual en JSON de Windows: «Message» y el «Description» de Sysmon, «Hostname» y el «host» del colector, «IpAddress» y el «SourceIp» de Sysmon): se quedaba con la primera y los eventos que no la traían quedaban vacíos. Ahora se combinan por fila con un orden de preferencia. La cuenta se toma también de `TargetUserName`/`SubjectUserName`.
+- **Hallazgos duplicados por la grafía de la cuenta:** Sysmon escribe `DOMINIO\usuario` y Seguridad solo `usuario`, y la misma actividad salía dos veces. Antes de correr las reglas se unifica la cuenta cuando no hay ambigüedad (unos 27 duplicados menos en OTRF).
+- «SYSTEM» y «System» ya no se informan como cuentas parecidas, y un inicio de sesión externo sin cuenta ya no marca como comprometidos a todos los eventos sin usuario. Títulos sin «desde » vacío y sin cuenta en blanco en la persistencia por servicio.
+
+### Cambios
+- Línea base de exactitud: 60 técnica, 2 táctica, 18 otra técnica, 27 sin hallazgos; SSH 11 de 11 sin falsos positivos. `docs/VALIDACION.md` con el antes y el después, y el riesgo de sobreajuste declarado.
+- Pruebas: 1.397 (34 nuevas), cobertura 95,4 %.
+
 ## [1.15.0] - 2026-11-15
 
 ### Novedades

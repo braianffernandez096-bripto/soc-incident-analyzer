@@ -46,7 +46,7 @@ ALIASES = {
     "eventid": "Event_ID", "evento": "Event_ID", "eventcode": "Event_ID",
     "winlogeventid": "Event_ID",
     "user": "User", "usuario": "User", "account": "User", "username": "User",
-    "cuenta": "User",
+    "cuenta": "User", "targetusername": "User", "subjectusername": "User",
     "sourceip": "Source_IP", "srcip": "Source_IP", "ipaddress": "Source_IP",
     "ip": "Source_IP", "ipv4origen": "Source_IP", "ipdeorigen": "Source_IP",
     "srcaddr": "Source_IP",
@@ -72,6 +72,18 @@ SECONDARY_ALIASES = {
     "action": "Event_ID", "accion": "Event_ID", "eventtype": "Event_ID", "eventaction": "Event_ID",
     "category": "Log_Source", "categoria": "Log_Source",
 }
+
+# Cuando varias columnas aportan el mismo campo (habitual en JSON de Windows: «Message» y el «Description» de Sysmon, «Hostname» y el
+# «host» del colector, «IpAddress» y el «SourceIp» de Sysmon), se combinan fila por fila: gana la primera de esta lista que tenga valor.
+# Antes se conservaba solo la primera columna del archivo y los eventos que no la traían quedaban con el campo vacío.
+FIELD_PRIORITY = {
+    "Event_Description": ["eventdescription", "message", "mensaje", "descripcion", "description", "raw"],
+    "Hostname": ["hostname", "computername", "computer", "winlogcomputername", "equipo", "host"],
+    "Source_IP": ["sourceip", "ipaddress", "srcip", "srcaddr", "ipv4origen", "ipdeorigen", "ip"],
+    "Process_CommandLine": ["processcommandline", "commandline", "comando", "process"],
+    "User": ["user", "usuario", "username", "account", "cuenta", "targetusername", "subjectusername"],
+}
+_EMPTY_CELL = {"", "nan", "none", "null", "-"}
 
 REQUIRED_MIN = ["Timestamp", "Event_ID"]
 
@@ -110,6 +122,26 @@ def _map_columns(cells) -> list[str]:
                 taken.add(sec)
         out.append(n or str(c).strip())
     return out
+
+
+def _coalesce_duplicates(df: pd.DataFrame, headers: list) -> pd.DataFrame:
+    """Una sola columna por campo. Si varias aportan el mismo, se toma por fila el primer valor no vacío según FIELD_PRIORITY
+    (y, para los campos sin prioridad definida, en el orden del archivo)."""
+    cols = list(df.columns)
+    if len(set(cols)) == len(cols):
+        return df
+    out = {}
+    for name in dict.fromkeys(cols):
+        idx = [i for i, c in enumerate(cols) if c == name]
+        if len(idx) > 1:
+            pref = FIELD_PRIORITY.get(name, [])
+            idx.sort(key=lambda i: (pref.index(_norm_header(headers[i])) if _norm_header(headers[i]) in pref else len(pref), i))
+        merged = df.iloc[:, idx[0]]
+        for i in idx[1:]:
+            empty = merged.isna() | merged.astype(str).str.strip().str.lower().isin(_EMPTY_CELL)
+            merged = merged.where(~empty, df.iloc[:, i])
+        out[name] = merged
+    return pd.DataFrame(out, index=df.index)
 
 
 def _find_header_row(raw: pd.DataFrame) -> int:
@@ -498,10 +530,11 @@ def _normalize(raw: pd.DataFrame, label: str) -> tuple[pd.DataFrame, dict]:
             raise ParseError("Este archivo parece un JSON guardado en una hoja de cálculo (una línea por celda) y no se pudo "
                              "reconstruir. Vuelve a exportar el original como .json y súbelo con esa extensión.") from None
         raise
-    columns = _map_columns(raw.iloc[hdr].tolist())
+    headers = raw.iloc[hdr].tolist()
+    columns = _map_columns(headers)
     df = raw.iloc[hdr + 1:].copy()
     df.columns = columns
-    df = df.loc[:, ~pd.Index(df.columns).duplicated()]  # descarta columnas duplicadas (conserva la primera)
+    df = _coalesce_duplicates(df, headers)
 
     missing_min = [c for c in REQUIRED_MIN if c not in df.columns]
     if missing_min:

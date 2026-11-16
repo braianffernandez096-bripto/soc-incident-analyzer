@@ -82,4 +82,4 @@ def test_la_linea_base_guardada_es_coherente():
     assert d["total"] == len(d["datasets"]) == sum(d["resumen"].values())
     assert set(d["datasets"].values()) <= set(V.RANGO) and d["resumen"]["error"] == 0
     assert d["ssh"]["detectadas"] == d["ssh"]["ips_con_rafaga"] and d["ssh"]["falsos_positivos"] == 0
-    assert d["resumen"]["tecnica"] >= 41                               # el piso solo sube: nunca se guarda una base peor que la publicada
+    assert d["resumen"]["tecnica"] >= 60                               # el piso solo sube: nunca se guarda una base peor que la publicada (1.16.0)

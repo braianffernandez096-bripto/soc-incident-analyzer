@@ -109,6 +109,20 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1021/002/"
   },
+  "T1021.003": {
+   "name": "Distributed Component Object Model",
+   "tactics": [
+    "lateral-movement"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1021/003/"
+  },
+  "T1021.006": {
+   "name": "Windows Remote Management",
+   "tactics": [
+    "lateral-movement"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1021/006/"
+  },
   "T1027": {
    "name": "Obfuscated Files or Information",
    "tactics": [
@@ -186,6 +200,13 @@
     "exfiltration"
    ],
    "url": "https://attack.mitre.org/techniques/T1041/"
+  },
+  "T1047": {
+   "name": "Windows Management Instrumentation",
+   "tactics": [
+    "execution"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1047/"
   },
   "T1053.005": {
    "name": "Scheduled Task",
@@ -466,6 +487,14 @@
    ],
    "url": "https://attack.mitre.org/techniques/T1543/003/"
   },
+  "T1546.003": {
+   "name": "Windows Management Instrumentation Event Subscription",
+   "tactics": [
+    "privilege-escalation",
+    "persistence"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1546/003/"
+  },
   "T1547.001": {
    "name": "Registry Run Keys / Startup Folder",
    "tactics": [
@@ -515,6 +544,20 @@
     "initial-access"
    ],
    "url": "https://attack.mitre.org/techniques/T1566/002/"
+  },
+  "T1569.002": {
+   "name": "Service Execution",
+   "tactics": [
+    "execution"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1569/002/"
+  },
+  "T1570": {
+   "name": "Lateral Tool Transfer",
+   "tactics": [
+    "lateral-movement"
+   ],
+   "url": "https://attack.mitre.org/techniques/T1570/"
   },
   "T1598.003": {
    "name": "Spearphishing Link",

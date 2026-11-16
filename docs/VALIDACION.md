@@ -37,19 +37,19 @@ uno declara su técnica en un metadato. Se comparó con las técnicas que cita l
 
 | Resultado | Datasets | % |
 |---|---|---|
-| Misma técnica | 41 | 38 % |
-| Misma táctica | 3 | 3 % |
-| Otra técnica | 26 | 24 % |
-| Sin hallazgos | 37 | 35 % |
+| Misma técnica | 60 | 56 % |
+| Misma táctica | 2 | 2 % |
+| Otra técnica | 18 | 17 % |
+| Sin hallazgos | 27 | 25 % |
 
-(Resultados con las reglas de evasión de defensas, posteriores a 1.5.0. Con 1.5.0: 20 / 3 / 27 / 57; antes de la calibración: 13 / 2 / 39 / 53; ver sección 2.1.)
+(Resultados con las reglas de movimiento lateral, 1.16.0. Antes: 41 / 3 / 26 / 37; con 1.5.0: 20 / 3 / 27 / 57; antes de la calibración: 13 / 2 / 39 / 53; ver sección 2.1.)
 
 Por táctica del dataset:
 
 | Táctica | Datasets | Técnica | Táctica | Otros | Ninguno |
 |---|---|---|---|---|---|
 | Evasión de defensas | 37 | 19 | 0 | 9 | 9 |
-| Movimiento lateral | 26 | 2 | 2 | 10 | 12 |
+| Movimiento lateral | 26 | 21 | 1 | 2 | 2 |
 | Acceso a credenciales | 21 | 9 | 0 | 4 | 8 |
 | Descubrimiento | 9 | 4 | 0 | 0 | 5 |
 | Persistencia | 7 | 5 | 1 | 1 | 0 |
@@ -68,12 +68,48 @@ genuina pero distinta (por ejemplo, un servicio nuevo detectado como persistenci
 | Pass-the-hash | Sin regla a propósito: el inicio de sesión tipo 9 (`seclogo`) que deja es idéntico al de `runas /netonly`, de uso legítimo, y sin telemetría adicional no se distingue |
 | Pass-the-ticket / AS-REP roasting (4768) | Sin reglas |
 | Modificación de tareas programadas | Solo se detecta la creación (4698), no el cambio |
-| Suscripciones WMI persistentes | Se reporta como persistencia (misma táctica), pero no la técnica T1546.003 |
-| Movimiento lateral por red | 12 de 26 sin hallazgos. Los datasets de DCERPC/SMB/WMI de Covenant solo dejan conexiones de red y claves del registro del sistema, sin comando visible: una regla ahí daría ruido y no detectaría el ataque |
+| Movimiento lateral que no deja un proceso ni un acceso a recursos | 5 de 26 sin la técnica: Zerologon (T1210, otra técnica), la exportación de ADFS de AADInternals, DCOM con `ShellWindows` (reutiliza un `explorer.exe` ya abierto: no hay proceso nuevo que distinguir), la modificación de tareas y un secuestro de DLL por servicio (se detecta la copia por `C$`, que es otra técnica) |
 | Credenciales en memoria (Mimikatz, Rubeus, PowerDump) | 8 de 21 sin hallazgos. Los accesos a LSASS de esos datasets son solo de procesos legítimos (`svchost`, `vboxservice`) |
 | Inyección de procesos y otros binarios de confianza | Sin regla: en esos datasets (`purplesharp`, `mavinject`, `CreateRemoteThread`) no se encontró una línea de comandos ni un evento que los distinga del ruido normal |
 
 ### 2.1 Antes y después
+
+#### Movimiento lateral (1.16.0)
+
+Mismos 107 datasets, mismo script, comparado con la línea base del CI (sección 6):
+
+| Resultado | Antes | Ahora |
+|---|---|---|
+| Misma técnica | 41 | **60** |
+| Misma táctica | 3 | 2 |
+| Otra técnica | 26 | 18 |
+| Sin hallazgos | 37 | 27 |
+
+Movimiento lateral, técnica exacta: **de 2 a 21 de 26**. Sin regresiones en ningún dataset y SSH igual (11 de 11, 0 falsos positivos).
+
+Qué cambió y por qué:
+
+- **Seis reglas nuevas**, basadas en cómo funciona cada técnica y no en nombres de herramientas: control remoto de servicios por SMB
+  (5145 sobre la canalización `svcctl`; T1021.002, T1569.002), ejecutables o scripts copiados a `C$`/`ADMIN$` (5145 con escritura; T1021.002,
+  T1570), procesos lanzados por `WmiPrvSE.exe` o por el consumidor de scripts `scrcons.exe` (T1047, T1546.003), sesiones de PowerShell
+  remoto (`wsmprovhost.exe`; T1021.006), Office/MMC/IE arrancados por COM justo después de un inicio de sesión de red (T1021.003) y servicios
+  nuevos con `cmd`/PowerShell tras un inicio de sesión de red, al estilo PsExec (T1021.002, T1569.002).
+- **Un fallo del parser que escondía evidencia.** Cuando un JSON traía varias columnas para el mismo campo («Message» y el «Description» de
+  Sysmon; «Hostname» y el «host» del colector; «IpAddress» y el «SourceIp» de Sysmon) se conservaba solo la primera, y los eventos que no la
+  tenían quedaban vacíos. Ahora se combinan por fila con un orden de preferencia. Sin esto, 5 de los datasets laterales no subían: el dato
+  estaba en el evento pero no llegaba a las reglas. Además la cuenta se toma de `TargetUserName`/`SubjectUserName` cuando no hay otra.
+- **Hallazgos duplicados que ya existían.** Sysmon escribe la cuenta como `DOMINIO\usuario` y el registro de Seguridad solo como `usuario`;
+  las reglas que agrupan por cuenta contaban la misma actividad dos veces. Antes de correr las reglas se unifica la grafía cuando no hay
+  ambigüedad. Eso eliminó unos 27 hallazgos duplicados repartidos en datasets de todas las tácticas, sin cambiar ningún resultado.
+- **Ruido corregido:** «SYSTEM» y «System» ya no se informan como cuentas parecidas (Windows no distingue mayúsculas) y un inicio de sesión
+  externo sin cuenta ya no marca como «comprometidos» a todos los eventos sin usuario.
+- **Controles de falsos positivos:** se descartan los orígenes locales (loopback, link-local) y las cuentas de máquina; una sesión de PowerShell
+  remoto o un proceso de WMI sin señales de abuso quedan en **Medio** («verificar»); DCOM y el servicio remoto exigen un inicio de sesión de
+  red cercano. 34 pruebas nuevas, con negativos legítimos para cada regla y el formato de Wazuh. En los 81 datasets que no son laterales no
+  apareció ningún hallazgo lateral salvo uno correcto: la suscripción WMI local del dataset de persistencia, que ejecuta PowerShell codificado.
+- **Riesgo de sobreajuste, declarado:** las reglas se diseñaron mirando estos mismos datasets y se miden contra ellos, así que la cifra puede ser
+  optimista. Se mitigó evitando nombres de herramientas o rutas propias de los datasets. El paso siguiente es medirlas contra un corpus
+  independiente (EVTX-ATTACK-SAMPLES).
 
 #### Reglas de evasión de defensas (posteriores a 1.5.0)
 
@@ -220,28 +256,28 @@ Sigue sin resolverse todo lo que exige ejecutar código (ver sección 5).
 
 ## 4. Cobertura ATT&CK
 
-La app cita **68 técnicas** de ATT&CK (versión 20.0) en **32 reglas** (19 para exports de Windows y 13 para exports multi-fuente). No cubre la matriz
+La app cita **74 técnicas** de ATT&CK (versión 20.0) en **38 reglas** (25 para exports de Windows y 13 para exports multi-fuente). No cubre la matriz
 completa y no pretende hacerlo:
 
 | Táctica | Técnicas citadas | Cuáles |
 |---|---|---|
 | Reconocimiento | 1 | T1598.003 Spearphishing Link |
 | Acceso inicial | 6 | T1078 Valid Accounts; T1078.004 Cloud Accounts; T1190 Exploit Public-Facing Application; T1566 Phishing; T1566.001 Spearphishing Attachment; T1566.002 Spearphishing Link |
-| Ejecución | 7 | T1053.005 Scheduled Task; T1059 Command and Scripting Interpreter; T1059.001 PowerShell; T1059.007 JavaScript; T1204.001 Malicious Link; T1204.002 Malicious File; T1204.004 Malicious Copy and Paste |
-| Persistencia | 10 | T1037.001 Logon Script (Windows); T1053.005 Scheduled Task; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1098 Account Manipulation; T1098.004 SSH Authorized Keys; T1112 Modify Registry; T1505.003 Web Shell; T1543.003 Windows Service; T1547.001 Registry Run Keys / Startup Folder |
-| Escalamiento de privilegios | 10 | T1037.001 Logon Script (Windows); T1053.005 Scheduled Task; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1098 Account Manipulation; T1098.004 SSH Authorized Keys; T1134 Access Token Manipulation; T1543.003 Windows Service; T1547.001 Registry Run Keys / Startup Folder; T1548.001 Setuid and Setgid |
+| Ejecución | 9 | T1047 Windows Management Instrumentation; T1053.005 Scheduled Task; T1059 Command and Scripting Interpreter; T1059.001 PowerShell; T1059.007 JavaScript; T1204.001 Malicious Link; T1204.002 Malicious File; T1204.004 Malicious Copy and Paste; T1569.002 Service Execution |
+| Persistencia | 11 | T1037.001 Logon Script (Windows); T1053.005 Scheduled Task; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1098 Account Manipulation; T1098.004 SSH Authorized Keys; T1112 Modify Registry; T1505.003 Web Shell; T1543.003 Windows Service; T1546.003 Windows Management Instrumentation Event Subscription; T1547.001 Registry Run Keys / Startup Folder |
+| Escalamiento de privilegios | 11 | T1037.001 Logon Script (Windows); T1053.005 Scheduled Task; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1098 Account Manipulation; T1098.004 SSH Authorized Keys; T1134 Access Token Manipulation; T1543.003 Windows Service; T1546.003 Windows Management Instrumentation Event Subscription; T1547.001 Registry Run Keys / Startup Folder; T1548.001 Setuid and Setgid |
 | Sigilo (evasión de defensas) | 20 | T1027 Obfuscated Files or Information; T1027.006 HTML Smuggling; T1027.010 Command Obfuscation; T1027.013 Encrypted/Encoded File; T1036 Masquerading; T1036.004 Masquerade Task or Service; T1036.007 Double File Extension; T1036.008 Masquerade File Type; T1078 Valid Accounts; T1078.004 Cloud Accounts; T1134 Access Token Manipulation; T1140 Deobfuscate/Decode Files or Information; T1218 System Binary Proxy Execution; T1218.001 Compiled HTML File; T1218.002 Control Panel; T1218.003 CMSTP; T1218.004 InstallUtil; T1218.005 Mshta; T1220 XSL Script Processing; T1684.001 Impersonation |
 | Deterioro de defensas | 4 | T1112 Modify Registry; T1685.001 Disable or Modify Windows Event Log; T1685.005 Clear Windows Event Logs; T1686 Disable or Modify System Firewall |
 | Acceso a credenciales | 8 | T1003 OS Credential Dumping; T1003.001 LSASS Memory; T1003.006 DCSync; T1003.008 /etc/passwd and /etc/shadow; T1110 Brute Force; T1110.001 Password Guessing; T1110.003 Password Spraying; T1558.003 Kerberoasting |
 | Descubrimiento | 3 | T1069 Permission Groups Discovery; T1087 Account Discovery; T1135 Network Share Discovery |
-| Movimiento lateral | 2 | T1021.001 Remote Desktop Protocol; T1021.002 SMB/Windows Admin Shares |
+| Movimiento lateral | 5 | T1021.001 Remote Desktop Protocol; T1021.002 SMB/Windows Admin Shares; T1021.003 Distributed Component Object Model; T1021.006 Windows Remote Management; T1570 Lateral Tool Transfer |
 | Recolección | 4 | T1005 Data from Local System; T1039 Data from Network Shared Drive; T1074.001 Local Data Staging; T1560.001 Archive via Utility |
 | Comando y control | 3 | T1071.001 Web Protocols; T1071.004 DNS; T1105 Ingress Tool Transfer |
 | Exfiltración | 1 | T1041 Exfiltration Over C2 Channel |
 | Impacto | 4 | T1486 Data Encrypted for Impact; T1490 Inhibit System Recovery; T1496 Resource Hijacking; T1496.001 Compute Hijacking |
 
 Sin cobertura (lista parcial): desarrollo de recursos, inyección de procesos (T1055), otros binarios de confianza (T1218 más allá de mshta, cmstp, hh,
-rundll32 con `.cpl`, InstallUtil y Register-CimProvider) y gran parte del movimiento lateral (T1021 sobre WMI/DCOM/WinRM, T1550 pass-the-hash).
+rundll32 con `.cpl`, InstallUtil y Register-CimProvider), pass-the-hash y pass-the-ticket (T1550) y la explotación de servicios remotos (T1210).
 
 **Nota sobre los identificadores.** ATT&CK v20 reorganizó la evasión de defensas y reemplazó varias técnicas: T1562.002 por T1685.001, T1562.004 por
 T1686 y T1070.001 por T1685.005. La app cita los identificadores vigentes; los datasets de OTRF usan los anteriores, y `scripts/validar_datasets.py`
@@ -270,7 +306,7 @@ de `.github/workflows/tests.yml`) y las compara, dataset por dataset, con la lí
 - **No falla, pero se informa**, cuando un dataset sube de nivel (mejora) o pasa entre «sin hallazgos» y «otra técnica» (puede ser ruido
   nuevo o ruido menos: lo decide una persona).
 - **El piso solo sube.** Una mejora se fija regenerando la línea base (`--actualizar-base`) después de revisarla. Un test comprueba que la
-  base guardada nunca baje de las 41 técnicas publicadas.
+  base guardada nunca baje de las técnicas publicadas (60 desde 1.16.0).
 - Cada ejecución deja una tabla en el resumen de GitHub Actions: totales, regresiones, mejoras y cambios para revisar.
 
 Tarda unos dos minutos (la descarga, unos segundos; el análisis de los 107 datasets, un minuto y medio).

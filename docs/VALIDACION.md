@@ -190,8 +190,8 @@ no son detecciones):
   regla no puede distinguirlos de alguien que olvidó su contraseña sin más contexto. Se dejaron así; ajustar la regla para que salieran
   en Alta sería acomodarla al resultado.
 - **Lo que esta medición no prueba:** cuánto baja la confianza en un falso positivo real, porque los datos de tráfico normal de la
-  sección 3 ya no disparan hallazgos. Para medirlo hace falta un corpus de actividad legítima que sí dispare reglas (por ejemplo, un día
-  normal de un dominio de laboratorio con administración real). Queda como paso siguiente.
+  sección 3 ya no disparan hallazgos. Para medirlo hace falta un corpus de actividad legítima que sí dispare reglas: es la medición de la
+  sección 3.1, en curso.
 - El CI muestra esta tabla en cada ejecución (informativa: no hace fallar el CI).
 
 ## 3. Tráfico normal (falsos positivos)
@@ -219,6 +219,13 @@ Otros casos que se observaron y **no** se marcaron como errores porque son decis
 - 30 MB salientes a un servicio legítimo (OneDrive) generan Alto por superar el umbral, sin lista de destinos conocidos.
 - Una administradora que crea su propia clave de acceso en la nube genera Crítico.
 - Un instalador legítimo que agrega una clave Run genera Medio (`persist_run` solo sube a Alto si el binario está en una ruta escribible o lo escribió un intérprete); sigue apareciendo para que el analista lo descarte.
+
+### 3.1 Falsos positivos en un laboratorio real (en curso)
+
+Los casos de arriba son sintéticos. Para medir el ruido con actividad legítima real (una jornada normal y tareas de administración
+etiquetadas), la app trae `python -m backend.medicion_fp`, que lee los eventos del Indexer de Wazuh, los analiza en memoria y
+da los hallazgos por cada 1.000 eventos, por regla, criticidad y confianza, y qué tipos de evento faltaron para poder medir cada regla.
+Procedimiento: [MEDIR_FALSOS_POSITIVOS.md](MEDIR_FALSOS_POSITIVOS.md). Los resultados se publicarán aquí, solo agregados.
 
 ## 3b. Correos reales (phishing y legítimos) y comandos ofuscados
 

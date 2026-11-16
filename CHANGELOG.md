@@ -2,6 +2,16 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [Sin publicar]
+
+### Novedades
+- **Medición de falsos positivos con actividad legítima real** (`python -m backend.medicion_fp`). Lee del Indexer de Wazuh los eventos de uno o más agentes en un rango de horas (todos los eventos de *archives*, o solo las alertas), los pasa por el mismo camino que una alerta en vivo y da los hallazgos por cada 1.000 eventos, por regla, criticidad y confianza, con el detalle y los motivos en contra de cada uno. Corre dentro del contenedor con la conexión al Indexer del `.env`: no pide contraseñas ni guarda los eventos. Avisa qué tipos de evento no llegaron (Sysmon, 4688 con línea de comandos, 5145…) y qué reglas quedaron sin medir por eso, para que un «cero» no engañe.
+- **Guía paso a paso** (`docs/MEDIR_FALSOS_POSITIVOS.md`): requisitos previos en Windows y en el agente de Wazuh (que por defecto descarta el 5145), una jornada normal y tareas de administración legítimas (locales en el Windows y remotas desde un Linux con Samba, más PowerShell y WMI remotos si hay un segundo Windows), con sus comandos y su limpieza.
+
+### Cambios
+- `docs/VALIDACION.md`, sección 3.1: la medición en un laboratorio real, en curso.
+- Pruebas: 11 nuevas (`tests/unit/test_medicion_fp.py`), con el Indexer simulado.
+
 ## [1.17.0] - 2026-11-15
 
 ### Novedades

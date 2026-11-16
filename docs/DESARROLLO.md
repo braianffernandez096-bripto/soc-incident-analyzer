@@ -94,6 +94,7 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 
 - `tests/unit/test_negativos.py`: 35 casos de actividad normal (30 sin ruido y 5 falsos positivos medidos y ya calibrados) que no deben alertar, cerca de los umbrales de cada regla, más pruebas de que la calibración no apaga la detección real.
 
+- `tests/unit/test_medicion_fp.py`: la medición de falsos positivos contra el Indexer de Wazuh (simulado, sin red): paginación y limpieza del scroll, errores sin credenciales, eventos de archives sin regla y aviso de los tipos de evento que faltan.
 - `tests/unit/test_confianza.py`: cada ajuste de la confianza a favor y en contra, que no cambie la criticidad ni los hallazgos, el orden a igual criticidad, los informes, el aviso (solo el nivel) y lo que recibe la IA.
 - `tests/unit/test_movimiento_lateral.py` y `tests/unit/test_parser_columnas.py`: las reglas de movimiento lateral con sus negativos legítimos y el formato de Wazuh, y la combinación de columnas repetidas y de grafías de cuenta.
 - `tests/unit/test_evasion_defensas.py`: programas de confianza (mshta, cmstp, InstallUtil…), registro de eventos y auditoría, firewall, servicios y script de inicio de sesión, con comandos de ataque tomados de OTRF y el uso normal de esos mismos programas, que no debe alertar.

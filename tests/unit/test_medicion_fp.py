@@ -148,3 +148,12 @@ def test_detalle_con_ejemplos_hora_local_y_duda_por_cuenta_de_sistema():
     assert any("servicio o de máquina" in x for x in d["en_contra"])
     txt = M.as_text(m)
     assert "ejemplo:" in txt and "horas en UTC-03:00" in txt
+
+
+def test_opcion_procesos_muestra_el_arbol_sin_cuentas():
+    m = M.measure(_discovery_docs(), processes=True)
+    d = [x for x in m["detalle"] if x["regla"] == "cmd_discovery"][0]
+    assert d["procesos"] and all(p["evento"] == "1" and p["padre"].lower().endswith("svchost.exe") for p in d["procesos"])
+    txt = M.as_text(m)
+    assert "proceso [1]:" in txt and "SYSTEM" not in "".join(str(p) for p in d["procesos"])
+    assert "procesos" not in M.measure(_discovery_docs())["detalle"][0]

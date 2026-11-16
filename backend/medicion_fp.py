@@ -173,7 +173,23 @@ def _examples(metrics: dict) -> list[str]:
     return []
 
 
-def measure(docs: list[dict], label: str = "", tz="UTC") -> dict:
+def _process_rows(df: pd.DataFrame, ids: list[str]) -> list[dict]:
+    """Campos de proceso de la evidencia (programa, padre e identificadores), para revisar por qué una cadena se exime o no.
+    No incluye cuentas ni líneas de comandos completas."""
+    from . import detection as D
+    out = []
+    for r in df[df["Log_ID"].isin(ids) & df["Event_ID"].isin(["1", "4688"])].itertuples():
+        t = r.Event_Description or ""
+        image, parent, _ = D._proc(r)
+        out.append({"evento": r.Event_ID, "programa": image[-90:], "padre": parent[-90:],
+                    "guid": D._field(t, "ProcessGuid"), "guid_padre": D._field(t, "ParentProcessGuid"),
+                    "pid": D._field(t, r"New\s*Process\s*I[Dd]") or D._field(t, "NewProcessId") or D._field(t, "ProcessId"),
+                    "pid_padre": D._field(t, r"Creator\s*Process\s*I[Dd]") or D._field(t, "ParentProcessId")
+                    or (D._field(t, "ProcessId") if r.Event_ID == "4688" else "")})
+    return out[:12]
+
+
+def measure(docs: list[dict], label: str = "", tz="UTC", processes: bool = False) -> dict:
     """La medición sobre eventos que se saben legítimos: todo hallazgo es, por definición, un falso positivo a revisar."""
     rows, st = wazuh.normalize_alerts(prepare(docs))
     out = {"etiqueta": label, "eventos_leidos": len(docs), "eventos_interpretados": len(rows), "traductor": {k: st[k] for k in ("windows", "linux_auth", "otro", "descartadas")},
@@ -200,7 +216,8 @@ def measure(docs: list[dict], label: str = "", tz="UTC") -> dict:
     out["zona_horaria"] = str(tz)
     out["detalle"] = [{"regla": f["rule"], "criticidad": f["severity"], "confianza": f["confidence"], "titulo": f["title"],
                        "inicio": _local_time(f["time_start"], tz), "eventos": len(f["evidence_ids"]), "ejemplos": _examples(f.get("metrics")),
-                       "a_favor": f["confidence_for"], "en_contra": f["confidence_against"]}
+                       "a_favor": f["confidence_for"], "en_contra": f["confidence_against"],
+                       **({"procesos": _process_rows(df, f["evidence_ids"])} if processes else {})}
                       for f in real]
     return out
 
@@ -238,6 +255,9 @@ def as_text(m: dict, detail: bool = True) -> str:
                 L.append(f"      ejemplo: {x}")
             for x in d["en_contra"]:
                 L.append(f"      en contra: {x}")
+            for p in d.get("procesos", []):
+                ids = f"guid {p['guid']} ← {p['guid_padre']}" if p["guid"] or p["guid_padre"] else f"pid {p['pid']} ← {p['pid_padre']}"
+                L.append(f"      proceso [{p['evento']}]: {p['programa']}  ← padre: {p['padre']}  ({ids})")
     return "\n".join(L)
 
 
@@ -251,6 +271,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--etiqueta", default="", help="nombre de la medición, p. ej. «jornada normal» o «tareas de administración»")
     ap.add_argument("--json", action="store_true", help="salida en JSON")
     ap.add_argument("--sin-detalle", action="store_true", help="no listar cada hallazgo (solo los totales)")
+    ap.add_argument("--procesos", action="store_true", help="mostrar el árbol de procesos de la evidencia (programa, padre e identificadores)")
     a = ap.parse_args(argv)
     try:
         t0, t1 = _ts(a.desde), _ts(a.hasta)
@@ -260,7 +281,7 @@ def main(argv: list[str] | None = None) -> int:
     except MedicionError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
-    m = measure(docs, a.etiqueta, tz=pd.Timestamp(a.desde).tzinfo or "UTC")
+    m = measure(docs, a.etiqueta, tz=pd.Timestamp(a.desde).tzinfo or "UTC", processes=a.procesos)
     m["rango_utc"] = [t0.isoformat(), t1.isoformat()]
     m["agentes"] = a.agente
     m["recortado"] = cut

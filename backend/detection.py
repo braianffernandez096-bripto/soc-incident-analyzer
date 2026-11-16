@@ -730,6 +730,15 @@ WAZUH_AGENT_RE = re.compile(r"^[a-z]:\\program files(?: \(x86\))?\\ossec-agent\\
 AGENT_CHAIN_PID_WINDOW_S = 600
 
 
+def _pid(value: str) -> str:
+    """Número de proceso comparable: el 4688 lo escribe en hexadecimal (0x1a94) y Sysmon en decimal (6804)."""
+    v = str(value or "").strip().lower()
+    try:
+        return str(int(v, 16) if v.startswith("0x") else int(v))
+    except ValueError:
+        return ""
+
+
 def _norm_path(p: str) -> str:
     return re.sub(r"\\+", r"\\", str(p or "").strip().strip('"'))
 
@@ -747,9 +756,9 @@ def agent_spawned(d: pd.DataFrame) -> set[str]:
         image, parent, _ = _proc(r)
         guid = _field(t, "ProcessGuid").lower()
         pguid = _field(t, "ParentProcessGuid").lower()
-        pid = (_field(t, r"New\s*Process\s*I[Dd]") or _field(t, "NewProcessId") or _field(t, "ProcessId")).lower()
-        ppid = (_field(t, r"Creator\s*Process\s*I[Dd]") or _field(t, "ParentProcessId")
-                or (_field(t, "ProcessId") if r.Event_ID == "4688" and _field(t, "NewProcessId") else "")).lower()
+        pid = _pid(_field(t, r"New\s*Process\s*I[Dd]") or _field(t, "NewProcessId") or _field(t, "ProcessId"))
+        ppid = _pid(_field(t, r"Creator\s*Process\s*I[Dd]") or _field(t, "ParentProcessId")
+                    or (_field(t, "ProcessId") if r.Event_ID == "4688" and _field(t, "NewProcessId") else ""))
         rows.append((r.Log_ID, r.Hostname, r.Timestamp, image, parent, guid, pguid, pid, ppid))
     tainted_ids: set[str] = set()
     tainted_guids: set[str] = set()

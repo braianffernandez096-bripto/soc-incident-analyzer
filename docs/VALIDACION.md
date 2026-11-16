@@ -242,6 +242,10 @@ se ignora el reconocimiento que **desciende del agente de Wazuh instalado en su 
 alertando. Un ejecutable con el mismo nombre en otra carpeta no se exime, y los mismos comandos lanzados por una persona siguen alertando
 (`tests/unit/test_agente_wazuh.py`). La vara de OTRF no cambió.
 
+Al aplicarla en el laboratorio, los hallazgos bajaron de 3 a 2 (de 14 comandos a 3), y los que quedaban revelaron un segundo detalle: el
+mismo equipo envía Sysmon (número de proceso en decimal, `6804`) y el 4688 (en hexadecimal, `0x1a94`), y una cadena podía empezar en un
+formato y seguir en el otro. Ahora los números se normalizan antes de comparar; hay una prueba con una cadena mixta que fallaba antes.
+
 Pendiente: la jornada completa de 24 horas y las tareas de administración legítimas.
 
 ## 3b. Correos reales (phishing y legítimos) y comandos ofuscados

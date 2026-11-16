@@ -17,12 +17,14 @@ CMD = r"C:\Windows\System32\cmd.exe"
 T0 = datetime(2026, 11, 16, 15, 37, 40)
 
 
-def sysmon(i, image, cmd, parent, guid, pguid, user="NT AUTHORITY\\SYSTEM", t=0):
+def sysmon(i, image, cmd, parent, guid, pguid, user="NT AUTHORITY\\SYSTEM", t=0, pid="", ppid=""):
+    ed = {"image": image, "commandLine": cmd, "parentImage": parent, "user": user, "processGuid": guid, "parentProcessGuid": pguid}
+    if pid:
+        ed.update(processId=pid, parentProcessId=ppid)
     return {"id": f"s{i}", "timestamp": (T0 + timedelta(seconds=t or i)).strftime("%Y-%m-%dT%H:%M:%S.000+0000"),
             "rule": {"id": "61603", "level": 3, "description": "Sysmon - Process creation"}, "agent": {"name": "WIN10"},
             "data": {"win": {"system": {"eventID": "1", "channel": "Microsoft-Windows-Sysmon/Operational", "computer": "WIN10"},
-                             "eventdata": {"image": image, "commandLine": cmd, "parentImage": parent, "user": user,
-                                           "processGuid": guid, "parentProcessGuid": pguid}}}}
+                             "eventdata": ed}}}
 
 
 def sec4688(i, new_name, cmd, creator, new_pid, creator_pid, t=0):
@@ -89,3 +91,14 @@ def test_el_agente_solo_se_exime_del_reconocimiento():
     df["Timestamp"] = pd.to_datetime(df["Timestamp"])
     rules = {f["rule"] for f in analyze(df, {"format": "wazuh"})["findings"]}
     assert "cmd_encoded_ps" in rules and "cmd_discovery" not in rules
+
+
+def test_cadena_que_mezcla_sysmon_decimal_y_4688_hexadecimal():
+    """Lo que se vio en el laboratorio: el cmd.exe del agente lo registra Sysmon (número de proceso 6804) y a su hijo solo el 4688 (0x1a94)."""
+    alerts = [sysmon(0, CMD, "cmd.exe /c net user", AGENT, "{c1}", "{a0}", pid="6804", ppid="512"),
+              sec4688(1, r"C:\Windows\System32\net.exe", "net user", CMD, "0x1c00", "0x1a94"),
+              sec4688(2, r"C:\Windows\System32\net1.exe", r"C:\Windows\system32\net1 user", r"C:\Windows\System32\net.exe", "0x1c10", "0x1c00"),
+              sysmon(3, r"C:\Windows\System32\net1.exe", r"C:\Windows\system32\net1 user", r"C:\Windows\System32\net.exe", "{m1}", "{zz}",
+                     pid="7184", ppid="7168"),
+              sec4688(4, r"C:\Windows\System32\whoami.exe", "whoami /all", CMD, "0x1c20", "0x1a94")]
+    assert findings(alerts) == []

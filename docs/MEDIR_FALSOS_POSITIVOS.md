@@ -193,5 +193,6 @@ confianza), sin nombres de tus equipos ni cuentas.
 | `--indice alertas` | Medir solo lo que generó alerta en Wazuh, en vez de todos los eventos |
 | `--etiqueta` | Nombre de la medición en la salida |
 | `--sin-detalle` | Solo totales y cobertura, sin la lista de hallazgos |
+| `--procesos` | Debajo de cada hallazgo, el árbol de procesos de su evidencia (programa, padre e identificadores; sin cuentas) |
 | `--json` | Salida en JSON |
 | `--max-eventos` | Tope de eventos (100.000 como máximo, el mismo que un archivo cargado a mano) |

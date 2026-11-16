@@ -205,6 +205,12 @@ class Finding:
     iocs: list[dict]
     id: str = ""
     incident_id: str | None = None
+    # confianza: qué tan probable es que sea actividad maliciosa real (la calcula backend/confidence.py; no cambia la criticidad)
+    confidence: str = ""
+    confidence_score: int = 0
+    confidence_basis: str = ""
+    confidence_for: list[str] = field(default_factory=list)
+    confidence_against: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return asdict(self)

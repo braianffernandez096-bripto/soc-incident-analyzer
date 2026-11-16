@@ -10,6 +10,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const plural = (n, one, many) => `${num(n)} ${n === 1 ? one : many}`;
 const sevPill = (s, label) => `<span class="sev ${esc(s)}">${esc(label ?? s)}</span>`;
+const confPill = (c) => c ? `<span class="conf conf-${esc(c)}" title="Confianza: qué tan probable es que sea actividad maliciosa real (no cambia la criticidad)">Confianza ${esc(c.toLowerCase())}</span>` : "";
 const num = (n) => Number(n).toLocaleString("es-AR");
 const hhmm = (t) => (t || "").slice(11, 16);
 const hhmmss = (t) => (t || "").slice(11, 19);
@@ -645,7 +646,7 @@ function incidents() {
       <div>${inc.external_ips.map((i) => `<span class="tag">${esc(i)}</span>`).join("")}${inc.actor_users.map((u) => `<span class="tag">${esc(u)}</span>`).join("")}${inc.hosts.map((h) => `<span class="tag">${esc(h)}</span>`).join("")}</div>
       ${(g.kill_chain || []).length ? `<h4 style="margin-top:12px">Secuencia de eventos</h4><ol class="kc" style="list-style:none">${g.kill_chain.map((s) => `<li><span class="t">${esc(hhmmss(s.time) || s.time)}</span>${esc(s.step)} ${evLinks(s.evidence_ids)}</li>`).join("")}</ol>` : ""}
       <h4 style="margin-top:12px">Hallazgos</h4>
-      ${fs.map((f) => `<div class="finding-row">${sevPill(f.severity)}<button class="title" data-open="${esc(f.id)}">${esc(f.id)} · ${esc(f.title)}</button><span class="muted mono">${hhmm(f.time_start)}</span></div>`).join("")}
+      ${fs.map((f) => `<div class="finding-row">${sevPill(f.severity)}${confPill(f.confidence)}<button class="title" data-open="${esc(f.id)}">${esc(f.id)} · ${esc(f.title)}</button><span class="muted mono">${hhmm(f.time_start)}</span></div>`).join("")}
       ${triageBox(inc.id)}
     </article>`;
   }).join("");
@@ -785,11 +786,14 @@ function findings() {
   const items = list.map((f) => {
     const a = AI[f.id] || {}, ap = a.action_plan || {};
     return `<details class="finding" id="${esc(f.id)}" ${S.openFinding === f.id ? "open" : ""}>
-      <summary>${sevPill(f.severity)}<span class="mono muted">${esc(f.id)}</span><b>${esc(f.title)}</b><span class="muted mono">${hhmm(f.time_start)}</span></summary>
+      <summary>${sevPill(f.severity)}${confPill(f.confidence)}<span class="mono muted">${esc(f.id)}</span><b>${esc(f.title)}</b><span class="muted mono">${hhmm(f.time_start)}</span></summary>
       <div class="f-body">
         <div style="margin-top:12px"><span class="tag">${esc(f.category)}</span><span class="tag">${esc(f.tactic)}</span>${(f.mitre || []).map(techTag).join("")}${f.incident_id ? `<span class="tag">${esc(f.incident_id)}</span>` : '<span class="tag">Observación (fuera de incidentes)</span>'}</div>
         <h4>Explicación técnica</h4><p>${esc(a.technical_explanation || f.explanation)}</p>
         <h4>Criticidad: ${esc(f.severity)}</h4><p>${esc(a.severity_justification || "")}</p><ul>${li(f.reasons)}</ul>
+        ${f.confidence ? `<h4>Confianza: ${esc(f.confidence)}</h4><p class="muted">${esc(f.confidence_basis || "")} La confianza no cambia la criticidad.</p>
+        <div class="conf-grid"><div class="conf-col pro"><h5>A favor</h5>${(f.confidence_for || []).length ? `<ul>${li(f.confidence_for)}</ul>` : '<p class="muted">Ningún dato adicional.</p>'}</div>
+        <div class="conf-col con"><h5>En contra</h5>${(f.confidence_against || []).length ? `<ul>${li(f.confidence_against)}</ul>` : '<p class="muted">No se encontró nada que lo ponga en duda.</p>'}</div></div>` : ""}
         <h4>Impacto en la organización</h4><p>${esc(a.impact || "")}</p>
         <h4>Evidencia (${plural(f.evidence_ids.length, "evento", "eventos")})</h4>
         <div class="evbox" data-fid="${esc(f.id)}"><button class="btn" data-loadev="${esc(f.id)}">Ver eventos de log</button></div>

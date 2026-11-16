@@ -443,6 +443,7 @@ def _group_payload(analysis: dict, df: pd.DataFrame, gid: str, findings: list[di
             "finding_id": f["id"], "regla": f["rule"], "titulo": f["title"], "severidad_motor": f["severity"],
             "categoria": f["category"], "tactica": f["tactic"], "mitre_orientativo": f["mitre"],
             "motivos_severidad": f["reasons"], "explicacion_motor": f["explanation"], "metricas": f["metrics"],
+            "confianza_motor": f.get("confidence", ""), "a_favor": f.get("confidence_for", []), "en_contra": f.get("confidence_against", []),
             "evidencia": [_slim_row(r) for r in rows_for(df, f["evidence_ids"])],
         } for f in findings],
         "limitaciones": analysis["limitations"][:4],

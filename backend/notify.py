@@ -89,6 +89,8 @@ class TelegramNotifier:
             hallazgo.append("• Detalle: " + _text(f["title"]))
         if tipo:
             hallazgo.append(f"• Tipo: {tipo}")
+        if f.get("confidence"):
+            hallazgo.append(f"• Confianza: {_plain(f['confidence'], 8)}")
         if cuenta:
             hallazgo.append("• " + cuenta)
         if (self.include_host or self.full) and f.get("hosts"):

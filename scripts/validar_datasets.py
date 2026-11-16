@@ -77,6 +77,24 @@ def parent(t: str) -> str:
     return t.split(".")[0]
 
 
+def hits_technique(expected: list[str], f: dict) -> bool:
+    """El hallazgo cita la técnica del ataque (o su padre): es un acierto, no una detección incidental."""
+    cited = {parent(t) for t in f["mitre"]}
+    return any(parent(RENOMBRADAS.get(t, t)) in cited for t in expected)
+
+
+def confidence_split(rows: list[dict]) -> dict:
+    """Confianza de los hallazgos que aciertan la técnica del ataque frente a los incidentales (otra técnica), sin las observaciones
+    de calidad de datos o de clasificación del SIEM (no son detecciones). Es informativa: no decide nada del CI. En OTRF todo es
+    actividad de ataque, así que mide que la confianza no hunda ataques reales en «Baja»; no mide falsos positivos."""
+    out = {"aciertos": collections.Counter(), "incidentales": collections.Counter()}
+    for r in rows:
+        for f in r.get("hallazgos", []):
+            if f.get("confianza") and f["regla"] not in OBSERVATIONS:
+                out["aciertos" if f.get("acierta") else "incidentales"][f["confianza"]] += 1
+    return {k: {n: v.get(n, 0) for n in ("Alta", "Media", "Baja")} for k, v in out.items()}
+
+
 def classify(expected: list[str], tactics: list[str], findings: list[dict]) -> str:
     if not findings:
         return "ninguno"
@@ -112,8 +130,12 @@ def validate_ssh(path: Path, year: int = 2016) -> dict:
             truth.add(ip)
     found = {ip for f in findings for ip in f["ips"]}
     return {"eventos": len(events), "fallos": sum(len(v) for v in by.values()), "ips_con_fallos": len(by), "ips_con_rafaga": len(truth),
-            "detectadas": len(found & truth), "falsos_positivos": len(found - truth), "omitidas": len(truth - found), "hallazgos": len(findings)}
+            "detectadas": len(found & truth), "falsos_positivos": len(found - truth), "omitidas": len(truth - found), "hallazgos": len(findings),
+            "confianza": {n: sum(f.get("confidence") == n for f in findings) for n in ("Alta", "Media", "Baja")}}
 
+
+# Observaciones que no son detecciones (calidad de datos, clasificación del SIEM): no entran en la medición de confianza.
+OBSERVATIONS = {"siem_underclass", "dq_account_lookalike", "dq_host_alias", "dq_logsource"}
 
 # Orden de calidad del resultado de un dataset. «error» siempre es regresión.
 RANGO = {"error": -1, "ninguno": 0, "otros": 1, "tactica": 2, "tecnica": 3}
@@ -124,7 +146,7 @@ def build_base(rows: list[dict], ssh: dict | None) -> dict:
     """Lo que se guarda como línea base: el resultado de cada dataset (clave carpeta/dataset) y las cifras de SSH."""
     datasets = {f"{r['carpeta']}/{r['dataset']}": r["resultado"] for r in rows}
     return {"resumen": {k: sum(v == k for v in datasets.values()) for k in ("tecnica", "tactica", "otros", "ninguno", "error")},
-            "total": len(datasets), "ssh": ssh, "datasets": dict(sorted(datasets.items()))}
+            "total": len(datasets), "ssh": ssh, "confianza": confidence_split(rows), "datasets": dict(sorted(datasets.items()))}
 
 
 def compare(base: dict, actual: dict) -> dict:
@@ -170,6 +192,14 @@ def summary_md(base: dict, actual: dict, cmp: dict) -> str:
     s = actual.get("ssh")
     if s:
         out += ["", f"SSH real (Loghub): {s['detectadas']} de {s['ips_con_rafaga']} IPs detectadas, {s['falsos_positivos']} falsos positivos, {s['omitidas']} omitidas."]
+    c = actual.get("confianza")
+    if c and any(sum(v.values()) for v in c.values()):          # sin hallazgos que contar, la tabla no aporta
+        out += ["", "### Confianza de los hallazgos (informativa: no decide el CI)", "",
+                "| Hallazgos | Alta | Media | Baja |", "|---|---|---|---|",
+                f"| Aciertan la técnica del ataque | {c['aciertos']['Alta']} | {c['aciertos']['Media']} | {c['aciertos']['Baja']} |",
+                f"| Incidentales (otra técnica) | {c['incidentales']['Alta']} | {c['incidentales']['Media']} | {c['incidentales']['Baja']} |"]
+        if s and s.get("confianza"):
+            out.append(f"| SSH real (fuerza bruta) | {s['confianza']['Alta']} | {s['confianza']['Media']} | {s['confianza']['Baja']} |")
     for titulo, clave in (("Regresiones (hacen fallar el CI)", "regresiones"), ("Mejoras", "mejoras"), ("Cambios para revisar (no fallan)", "avisos")):
         if cmp[clave]:
             out += ["", f"### {titulo}", "", "| Dataset | Antes | Ahora |", "|---|---|---|"]
@@ -219,7 +249,8 @@ def main() -> int:
             df, fs, error = [], [], f"{type(exc).__name__}: {exc}"[:160]
         rows.append({"dataset": Path(rel).stem, "carpeta": Path(rel).parts[3], "id": info["id"], "titulo": info["title"], "tecnicas": info["techniques"], "tacticas": info["tactics"],
                      "eventos": len(df), "resultado": "error" if error else classify(info["techniques"], info["tactics"], fs), "error": error,
-                     "hallazgos": [{"regla": f["rule"], "criticidad": f["severity"], "mitre": f["mitre"], "titulo": f["title"][:110]} for f in fs],
+                     "hallazgos": [{"regla": f["rule"], "criticidad": f["severity"], "confianza": f.get("confidence", ""), "mitre": f["mitre"],
+                                    "acierta": hits_technique(info["techniques"], f), "titulo": f["title"][:110]} for f in fs],
                      "segundos": round(time.time() - t0, 1)})
     total = len(rows)
     cuenta = {k: sum(r["resultado"] == k for r in rows) for k in ("tecnica", "tactica", "otros", "ninguno", "error")}

@@ -51,6 +51,7 @@ TRIAGE_PROMPT = ("Eres el primer filtro de triaje de un SOC. Un analista humano 
                  "Cómo decidir:\n"
                  "- Los hallazgos y sus motivos son hechos ya verificados por el motor (por ejemplo una salida de datos a una IP externa o una cadena de comandos). No los contradigas ni los ignores: si hay varios hallazgos encadenados, tenlos todos en cuenta.\n"
                  "- La evidencia que ves es un recorte del incidente: que algo no aparezca en ella NO prueba que no ocurrió.\n"
+                 "- Cada hallazgo trae la confianza que calculó el motor y sus motivos a favor y en contra. Tenlos en cuenta, pero un motivo en contra (por ejemplo, un origen interno) señala una duda, no prueba que la actividad sea legítima.\n"
                  "- «Probable falso positivo» exige evidencia POSITIVA de actividad legítima (por ejemplo una cuenta de servicio documentada, una tarea programada conocida o un patrón de mantenimiento visible en los eventos). "
                  "La ausencia de pruebas o frases como «podría ser legítimo si…» no bastan.\n"
                  "- «Falta información» solo si puedes nombrar el dato concreto que falta y por qué cambiaría la decisión. Si hay señales de ataque encadenadas, es «Escalar».\n"
@@ -109,7 +110,8 @@ def _payload(analysis: dict, df: pd.DataFrame, inc: dict, base: dict) -> dict:
         "incidente": {"id": inc["id"], "titulo_motor": inc["title"], "severidad_motor": inc["severity"], "inicio": inc["time_start"], "fin": inc["time_end"],
                       "cuentas": inc["actor_users"], "ips_externas": inc["external_ips"], "hosts": inc["hosts"], "tacticas": inc["tactics"]},
         "hallazgos": [{"finding_id": f["id"], "regla": f["rule"], "titulo": f["title"], "severidad_motor": f["severity"],
-                       "motivos_severidad": f["reasons"][:4], "mitre_orientativo": f["mitre"]} for f in fs],
+                       "motivos_severidad": f["reasons"][:4], "mitre_orientativo": f["mitre"],
+                       "confianza_motor": f.get("confidence", ""), "a_favor": f.get("confidence_for", [])[:3], "en_contra": f.get("confidence_against", [])[:3]} for f in fs],
         "evidencia": [ai_mod._slim_row(r) for r in rows],
         "recomendacion_del_motor": {"recomendacion": base["recommendation"], "confianza": base["confidence"]},
     }

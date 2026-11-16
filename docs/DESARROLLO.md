@@ -10,6 +10,8 @@ Contenido: [Cómo funciona](#cómo-funciona-detalle) · [Análisis de correos](#
 
 2. Cada hallazgo cita los `Log_ID` que lo sustentan y explica por qué tiene esa criticidad. Además de los eventos de Windows (por Event ID), `backend/detection_generic.py` cubre exports de otras fuentes que traen una acción y un mensaje en lugar de Event IDs numéricos: fuerza bruta y password spraying por SSH/RDP/Kerberos, ataques web (inyección SQL, rutas, XSS), exfiltración, phishing con adjuntos de doble extensión, comando y control, persistencia, ransomware, minería de criptomonedas, escalamiento SUID en Linux, túneles DNS y abuso de identidades cloud (IAM).
 
+   **Confianza** (`backend/confidence.py`): cada hallazgo recibe una confianza (Alta / Media / Baja) con sus motivos a favor y en contra. Parte del tipo de señal y se ajusta con datos del propio hallazgo (otra detección independiente, origen interno o externo, cuenta de servicio o de administración, un solo evento, métricas de cada regla). No cambia la criticidad; a igual criticidad, los hallazgos más seguros van primero. Medición y límites: [VALIDACION.md, 2.2](VALIDACION.md#22-confianza-de-cada-hallazgo-1170).
+
 3. **Correlación**: los hallazgos se agrupan en incidentes cuando comparten IP externa o cuenta de actor. Compartir host o recurso no fusiona incidentes; queda como hipótesis de confianza baja.
 
 4. **IA (Claude u Ollama local)** (`backend/ai.py` y `backend/ai_local.py`): redacta la narrativa, la explicación técnica, el impacto y el plan de acción de cada incidente a partir de los hallazgos ya detectados. No puede cambiar la criticidad. Un verificador descarta cualquier `Log_ID` o IP que no exista en el archivo. Sin API key, o si la IA falla, el informe se genera con plantillas deterministas. Con Ollama solo cambia la llamada al modelo (`ai_local.make_call`); la dirección de Ollama se define únicamente en el servidor (`OLLAMA_HOST`), el nombre del modelo debe estar instalado y no se siguen redirecciones ni se usan proxies del entorno.
@@ -92,6 +94,8 @@ Atajos con `make` (Linux/macOS/WSL): `make install`, `make test`, `make test-cov
 
 - `tests/unit/test_negativos.py`: 35 casos de actividad normal (30 sin ruido y 5 falsos positivos medidos y ya calibrados) que no deben alertar, cerca de los umbrales de cada regla, más pruebas de que la calibración no apaga la detección real.
 
+- `tests/unit/test_confianza.py`: cada ajuste de la confianza a favor y en contra, que no cambie la criticidad ni los hallazgos, el orden a igual criticidad, los informes, el aviso (solo el nivel) y lo que recibe la IA.
+- `tests/unit/test_movimiento_lateral.py` y `tests/unit/test_parser_columnas.py`: las reglas de movimiento lateral con sus negativos legítimos y el formato de Wazuh, y la combinación de columnas repetidas y de grafías de cuenta.
 - `tests/unit/test_evasion_defensas.py`: programas de confianza (mshta, cmstp, InstallUtil…), registro de eventos y auditoría, firewall, servicios y script de inicio de sesión, con comandos de ataque tomados de OTRF y el uso normal de esos mismos programas, que no debe alertar.
 
 - `tests/unit/test_reglas_credenciales.py`: acceso a LSASS (Sysmon 10), DCSync (4662), claves Run (Sysmon 13) y Kerberoasting (4769), con casos de ataque y de actividad normal.

@@ -154,6 +154,46 @@ Qué cambió y por qué:
   `kerberoast`: sin falsos positivos en los otros 106.
 - **Los 5 falsos positivos conocidos desaparecen** (sección 3) y se agregaron pruebas de que la calibración no apaga la detección real.
 
+### 2.2 Confianza de cada hallazgo (1.17.0)
+
+Cada hallazgo trae, además de la criticidad, una **confianza** (Alta / Media / Baja): qué tan probable es que sea actividad maliciosa real
+y no un falso positivo. Es un eje aparte: no cambia la criticidad ni qué se detecta (hay una prueba que lo comprueba). El cálculo es
+determinista y está en `backend/confidence.py`:
+
+- **Punto de partida según el tipo de señal:** Alta para lo que casi nunca es legítimo (LSASS, DCSync, Kerberoasting, shell inversa,
+  coincidencia con MISP o el feed, borrado de copias de sombra), Baja para heurísticas (comandos de reconocimiento sueltos), Media para el
+  resto, que también hace un administrador.
+- **A favor:** otra detección independiente (otra regla, sin eventos en común) sobre el mismo equipo en ±2 h o el mismo actor; origen
+  público; éxito posterior a una fuerza bruta; PowerShell oculto en una sesión remota; programa persistente en una carpeta escribible, etc.
+- **En contra:** origen interno en reglas de origen; cuenta de servicio o de máquina; cuenta de administración haciendo una tarea de
+  administración; un solo evento; pocos intentos sobre una sola cuenta; WMI o WinRM sin un inicio de sesión de red cercano; software
+  vulnerable sin señal de explotación.
+- Cada ajuste deja su motivo legible en el hallazgo, en los informes y en lo que recibe el triaje con IA. El aviso de Telegram lleva solo
+  el nivel (los motivos pueden nombrar cuentas o IP).
+
+Medición con los mismos datos de la sección 2 y el SSH real (sin las observaciones de calidad de datos y de clasificación del SIEM, que
+no son detecciones):
+
+| Hallazgos | Alta | Media | Baja |
+|---|---|---|---|
+| Aciertan la técnica del ataque (OTRF) | 37 | 30 | 5 |
+| Incidentales, de otra técnica (OTRF) | 48 | 23 | 4 |
+| Fuerza bruta en SSH real (Loghub) | 9 | 3 | 0 |
+
+**Cómo leerlo, sin maquillar.**
+
+- En OTRF **todo es actividad de ataque**, así que esta tabla mide una sola cosa: que la confianza no hunda ataques reales en «Baja».
+  Lo cumple: 5 de 72 aciertos quedan en Baja, casi todos comandos de reconocimiento (`whoami`, `net group`) que también usa soporte técnico.
+- Los «incidentales» en Alta **no son falsos positivos**: son los *stagers* de Empire (PowerShell codificado, descargas de código,
+  volcado de credenciales) que aparecen en casi todos los datasets aunque no sean la técnica etiquetada. Que queden en Alta es correcto.
+- En el SSH real, 9 de las 12 fuerzas brutas dan Alta y 3 dan Media: son ataques reales con pocos intentos sobre una sola cuenta, y la
+  regla no puede distinguirlos de alguien que olvidó su contraseña sin más contexto. Se dejaron así; ajustar la regla para que salieran
+  en Alta sería acomodarla al resultado.
+- **Lo que esta medición no prueba:** cuánto baja la confianza en un falso positivo real, porque los datos de tráfico normal de la
+  sección 3 ya no disparan hallazgos. Para medirlo hace falta un corpus de actividad legítima que sí dispare reglas (por ejemplo, un día
+  normal de un dominio de laboratorio con administración real). Queda como paso siguiente.
+- El CI muestra esta tabla en cada ejecución (informativa: no hace fallar el CI).
+
 ## 3. Tráfico normal (falsos positivos)
 
 `tests/unit/test_negativos.py` ejecuta actividad corriente cerca de los umbrales de cada regla: un día normal, 2 fallos externos, 9 fallos
@@ -307,7 +347,8 @@ de `.github/workflows/tests.yml`) y las compara, dataset por dataset, con la lí
   nuevo o ruido menos: lo decide una persona).
 - **El piso solo sube.** Una mejora se fija regenerando la línea base (`--actualizar-base`) después de revisarla. Un test comprueba que la
   base guardada nunca baje de las técnicas publicadas (60 desde 1.16.0).
-- Cada ejecución deja una tabla en el resumen de GitHub Actions: totales, regresiones, mejoras y cambios para revisar.
+- Cada ejecución deja una tabla en el resumen de GitHub Actions: totales, regresiones, mejoras y cambios para revisar, y el reparto de la
+  confianza de los hallazgos (sección 2.2), que es informativo y no hace fallar el CI.
 
 Tarda unos dos minutos (la descarga, unos segundos; el análisis de los 107 datasets, un minuto y medio).
 

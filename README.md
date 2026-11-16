@@ -19,7 +19,7 @@ Proyecto personal, hecho para practicar el análisis de incidentes. Lo desarroll
 
 ## Cómo funciona
 
-Un motor de reglas determinista detecta fuerza bruta, movimiento lateral, escalamiento de privilegios, persistencia, exfiltración, ataques web y más (Windows, SSH, web, DNS y nube). Cada hallazgo cita los `Log_ID` que lo sustentan, se agrupa en incidentes y se mapea a MITRE ATT&CK, con consultas para tu SIEM (Splunk, Sentinel, Sigma) y un informe en PDF o HTML. La IA y la reputación son opcionales y nunca cambian la criticidad. Detalle de cada parte: [docs/DESARROLLO.md](docs/DESARROLLO.md#cómo-funciona-detalle).
+Un motor de reglas determinista detecta fuerza bruta, movimiento lateral, escalamiento de privilegios, persistencia, exfiltración, ataques web y más (Windows, SSH, web, DNS y nube). Cada hallazgo cita los `Log_ID` que lo sustentan, trae una confianza (Alta / Media / Baja) con lo que la sostiene y lo que la pone en duda, se agrupa en incidentes y se mapea a MITRE ATT&CK, con consultas para tu SIEM (Splunk, Sentinel, Sigma) y un informe en PDF o HTML. La IA y la reputación son opcionales y nunca cambian la criticidad. Detalle de cada parte: [docs/DESARROLLO.md](docs/DESARROLLO.md#cómo-funciona-detalle).
 
 Acepta Excel, CSV/TSV, JSON/NDJSON y `auth.log` de Linux; solo exige `Timestamp` y `Event_ID`. Formatos y ejemplos: [docs/FORMATOS.md](docs/FORMATOS.md).
 

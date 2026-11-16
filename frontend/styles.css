@@ -498,3 +498,12 @@ body{--head:rgba(240,244,249,.86)}
 .mx-col.mx-flash{animation:mxflash 1.3s ease-out}@keyframes mxflash{0%{box-shadow:0 0 0 3px var(--focus);border-radius:10px}100%{box-shadow:0 0 0 0 transparent}}
 @media (prefers-reduced-motion:reduce){.mx-col.mx-flash{animation:none}.mx-cell{transition:none}}
 .mx-seg span{overflow-wrap:break-word;hyphens:auto;min-width:0}
+
+/* confianza del hallazgo: eje aparte de la criticidad */
+.conf{display:inline-block;font-size:11.5px;font-weight:600;border-radius:999px;padding:2px 8px;margin-left:6px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.conf-Alta{border-style:solid;color:var(--text,inherit)}.conf-Alta::before{content:"●●● ";letter-spacing:-1px}
+.conf-Media::before{content:"●●○ ";letter-spacing:-1px}.conf-Baja{border-style:dashed}.conf-Baja::before{content:"●○○ ";letter-spacing:-1px}
+.conf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:6px 0 4px}
+.conf-col{border:1px solid var(--line);border-radius:8px;padding:8px 12px}.conf-col h5{margin:2px 0 4px;font-size:13px}
+.conf-col ul{margin:0;padding-left:18px}.conf-col li{margin:3px 0;font-size:13.5px}
+.conf-col.pro{border-left:4px solid var(--bajo)}.conf-col.con{border-left:4px solid var(--med)}

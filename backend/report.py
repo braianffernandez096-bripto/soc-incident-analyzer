@@ -187,12 +187,25 @@ def evidence_table(df: pd.DataFrame, ids: list[str]) -> list:
     return out
 
 
+def confidence_block(f: dict) -> list:
+    """Confianza del hallazgo (eje aparte de la criticidad), con lo que la sostiene y lo que la pone en duda."""
+    if not f.get("confidence"):
+        return []
+    out = [P(f"CONFIANZA: {f['confidence'].upper()}", "label"), P(f.get("confidence_basis", "") + " No cambia la criticidad.", "small")]
+    if f.get("confidence_for"):
+        out.append(PR("<b>A favor:</b> " + " ".join(escape(x) for x in f["confidence_for"]), "small"))
+    if f.get("confidence_against"):
+        out.append(PR("<b>En contra:</b> " + " ".join(escape(x) for x in f["confidence_against"]), "small"))
+    return out
+
+
 def finding_block(f: dict, fa: dict, df: pd.DataFrame, ai_mode: bool) -> list:
     items = [Spacer(1, 8), heading_badge(f"{f['title']}", f["severity"], "h3", pre=f["id"]),
              PR(f"<font color='#64748b'>{escape(f['category'])} · {escape(f['tactic'])}"
                 + (f" · MITRE ATT&amp;CK (orientativo): {escape(', '.join(attack.label(t) for t in f['mitre']))}" if f["mitre"] else "")
                 + f" · {escape(f['time_start'][11:])}–{escape(f['time_end'][11:])} · {D.pl(len(f['evidence_ids']), 'evento', 'eventos')}</font>", "small"),
              P("CRITICIDAD Y JUSTIFICACIÓN", "label"), P(fa["severity_justification"] or " ".join(f["reasons"])),
+             *confidence_block(f),
              P("EXPLICACIÓN TÉCNICA", "label"), P(fa["technical_explanation"]),
              P("EVIDENCIAS EN LOS LOGS", "label"), *evidence_table(df, f["evidence_ids"]),
              P("POSIBLE IMPACTO EN LA ORGANIZACIÓN", "label"), P(fa["impact"])]

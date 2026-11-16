@@ -7,6 +7,7 @@ from collections import Counter, defaultdict
 import pandas as pd
 
 from . import attack
+from . import confidence
 from . import detection as D
 from .siemqueries import ALL_SUPPORTED as SIEM_SUPPORTED
 
@@ -189,6 +190,7 @@ def analyze(df: pd.DataFrame, meta: dict) -> dict:
             log.exception("rule_failed rule=%s", key)
             failed_rules.append(desc)
     D.prune_uncorroborated(st)
+    confidence.assess_all(st.findings)          # confianza y evidencia en contra; no toca la criticidad
     incidents, others = D.correlate(st)
 
     n = 1
@@ -199,7 +201,8 @@ def analyze(df: pd.DataFrame, meta: dict) -> dict:
             n += 1
             inc["finding_ids"].append(f.id)
             ordered.append(f)
-    for f in sorted(others, key=lambda f: (-D.SEV_ORDER[f.severity], f.time_start)):
+    # a igual criticidad, primero lo más seguro
+    for f in sorted(others, key=lambda f: (-D.SEV_ORDER[f.severity], -confidence.ORDER[f.confidence], f.time_start)):
         f.id = f"F-{n:03d}"
         n += 1
         ordered.append(f)

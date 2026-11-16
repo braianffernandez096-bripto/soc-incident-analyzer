@@ -163,6 +163,15 @@ def triage_html(t: dict | None) -> str:
     return "".join(out)
 
 
+def confidence_html(f: dict) -> str:
+    """Confianza del hallazgo (eje aparte de la criticidad), con lo que la sostiene y lo que la pone en duda."""
+    if not f.get("confidence"):
+        return ""
+    pro = f'<p><b>A favor:</b></p>{ul(f["confidence_for"])}' if f.get("confidence_for") else ""
+    con = f'<p><b>En contra:</b></p>{ul(f["confidence_against"])}' if f.get("confidence_against") else ""
+    return f'<h4>Confianza: {e(f["confidence"])}</h4><p class="note">{e(f.get("confidence_basis", ""))} No cambia la criticidad.</p>{pro}{con}'
+
+
 def finding_html(f: dict, fa: dict, df: pd.DataFrame, ai_mode: bool, opened: bool = False) -> str:
     mitre = f" · MITRE ATT&amp;CK (orientativo): {e(', '.join(attack.label(t) for t in f['mitre']))}" if f["mitre"] else ""
     ap = fa["action_plan"]
@@ -172,6 +181,7 @@ def finding_html(f: dict, fa: dict, df: pd.DataFrame, ai_mode: bool, opened: boo
     return (f'<details class="fnd"{" open" if opened else ""}><summary>{pill(f["severity"])}<span class="idtag">{e(f["id"])}</span> {e(f["title"])}</summary><div class="dbody">'
             f'<p class="note">{e(f["category"])} · {e(f["tactic"])}{mitre} · {e(f["time_start"][11:])}–{e(f["time_end"][11:])} · {e(D.pl(len(f["evidence_ids"]), "evento", "eventos"))}</p>'
             f'<h4>Criticidad y justificación</h4>{paras(fa["severity_justification"] or " ".join(f["reasons"]))}'
+            f'{confidence_html(f)}'
             f'<h4>Explicación técnica</h4>{paras(fa["technical_explanation"])}'
             f'<h4>Evidencias en los logs</h4>{evidence_html(df, f["evidence_ids"])}'
             f'<h4>Posible impacto en la organización</h4>{paras(fa["impact"])}'

@@ -15,7 +15,24 @@
   "detectadas": 11,
   "falsos_positivos": 0,
   "omitidas": 0,
-  "hallazgos": 12
+  "hallazgos": 12,
+  "confianza": {
+   "Alta": 9,
+   "Media": 3,
+   "Baja": 0
+  }
+ },
+ "confianza": {
+  "aciertos": {
+   "Alta": 37,
+   "Media": 30,
+   "Baja": 5
+  },
+  "incidentales": {
+   "Alta": 48,
+   "Media": 23,
+   "Baja": 4
+  }
  },
  "datasets": {
   "collection/msf_record_mic": "ninguno",

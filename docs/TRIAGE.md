@@ -13,6 +13,18 @@ Por cada incidente:
 
 Sin IA, la recomendación sale del motor (Crítico → Escalar; Alto → Escalar; Medio → Falta información; Bajo → Probable falso positivo). Con IA, se genera desde el panel «Triaje asistido por IA», con Claude o con Ollama (el mismo selector que el informe).
 
+**Tres «confianzas» distintas, para no confundirlas:**
+
+| Dónde | Qué mide | Quién la calcula |
+|---|---|---|
+| Cada **hallazgo** | Qué tan probable es que sea actividad maliciosa real, con sus motivos a favor y en contra | El motor, siempre, sin IA ([VALIDACION.md, 2.2](VALIDACION.md#22-confianza-de-cada-hallazgo-1170)) |
+| La **recomendación de triaje** de cada incidente | Qué tan segura es la recomendación (Escalar / Probable falso positivo / Falta información) | La IA, o el motor si no hay IA (esta página) |
+| La **agrupación** de hallazgos | Si los hallazgos de un incidente pertenecen de verdad al mismo caso | El motor, al correlacionar |
+
+La IA recibe la confianza de cada hallazgo y sus motivos a favor y en contra, los mismos que ve el analista. Se le indica que un motivo
+en contra (por ejemplo, un origen interno) señala una duda y no prueba que la actividad sea legítima: «Probable falso positivo» sigue
+exigiendo evidencia positiva.
+
 ## Garantías
 
 | Riesgo | Cómo se controla |

@@ -2,7 +2,7 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
-## [Sin publicar]
+## [1.16.0] - 2026-11-15
 
 ### Novedades
 - **Movimiento lateral: de 2 a 21 de 26 ataques reales con la técnica exacta** (OTRF). En total, de 41 a 60 de 107, medido con la vara del CI y sin regresiones. Seis reglas nuevas, basadas en el comportamiento de cada técnica y no en nombres de herramientas: control remoto de servicios por SMB (`lat_svcctl`; T1021.002, T1569.002), copia de ejecutables o scripts a `C$`/`ADMIN$` (`lat_admin_write`; T1021.002, T1570), ejecución por WMI y consumidores de eventos WMI (`lat_wmi`; T1047, T1546.003), PowerShell remoto (`lat_winrm`; T1021.006), Office/MMC/IE lanzados por DCOM tras un inicio de sesión de red (`lat_dcom`; T1021.003) y servicios nuevos con `cmd`/PowerShell tras un inicio de sesión de red, al estilo PsExec (`lat_remote_service`; T1021.002, T1569.002). Leen tanto el formato de Windows exportado como el de Wazuh. Datos ATT&CK regenerados desde el bundle oficial v20 (6 técnicas nuevas, ninguna existente cambió).
@@ -14,6 +14,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 
 ### Cambios
 - Línea base de exactitud: 60 técnica, 2 táctica, 18 otra técnica, 27 sin hallazgos; SSH 11 de 11 sin falsos positivos. `docs/VALIDACION.md` con el antes y el después, y el riesgo de sobreajuste declarado.
+- La versión que declara la API pasa a 1.16.0.
 - Pruebas: 1.397 (34 nuevas), cobertura 95,4 %.
 
 ## [1.15.0] - 2026-11-15

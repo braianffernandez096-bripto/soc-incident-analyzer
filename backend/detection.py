@@ -216,7 +216,9 @@ def unify_accounts(df: pd.DataFrame) -> pd.DataFrame:
     dominios), no se toca. Las cuentas de máquina («EQUIPO$») son cuentas distintas y quedan como están."""
     if df.empty or "User" not in df.columns:
         return df
-    users = set(df["User"])
+    counts = Counter(df["User"])
+    # orden determinista: la grafía más frecuente primero y, si empatan, la que aparece antes en el archivo
+    users = sorted(dict.fromkeys(df["User"]), key=lambda u: -counts[u])
     qualified: dict[str, dict[str, str]] = defaultdict(dict)
     for u in users:
         if "\\" in str(u):

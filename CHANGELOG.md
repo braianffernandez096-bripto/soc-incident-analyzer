@@ -2,7 +2,7 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
-## [Sin publicar]
+## [1.17.0] - 2026-11-15
 
 ### Novedades
 - **Confianza de cada hallazgo y evidencia en contra.** Además de la criticidad, cada hallazgo trae una confianza (Alta / Media / Baja): qué tan probable es que sea actividad maliciosa real y no un falso positivo, con la lista de lo que la sostiene y lo que la pone en duda. Es determinista y no usa IA (`backend/confidence.py`): parte del tipo de señal (Alta para lo que casi nunca es legítimo, como LSASS o DCSync; Baja para heurísticas; Media para lo que también hace un administrador) y se ajusta con datos del propio hallazgo: otra detección independiente sobre el mismo equipo o actor, origen público o interno, cuenta de servicio o de administración, un solo evento y métricas de cada regla (éxito tras una fuerza bruta, PowerShell oculto en una sesión remota, programa persistente en una carpeta escribible…). **No cambia la criticidad ni qué se detecta** (hay una prueba que lo comprueba); a igual criticidad, lo más seguro va primero.
@@ -13,6 +13,7 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 ### Cambios
 - `scripts/validar_datasets.py` marca si cada hallazgo acierta la técnica del ataque e informa el reparto de la confianza; la línea base lo guarda.
 - `docs/TRIAGE.md` distingue las tres «confianzas» (del hallazgo, de la recomendación de triaje y de la agrupación).
+- La versión que declara la API pasa a 1.17.0.
 - Pruebas: 1.421 (24 nuevas, en `tests/unit/test_confianza.py`), cobertura 95,4 %.
 
 ## [1.16.0] - 2026-11-15

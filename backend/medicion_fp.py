@@ -114,17 +114,32 @@ def fetch(agents: list[str], t0: pd.Timestamp, t1: pd.Timestamp, index: str = IN
 
 
 def prepare(docs: list[dict]) -> list[dict]:
-    """Los eventos de archives no traen regla ni ``id`` (no generaron alerta): se les da una regla neutra y el identificador del Indexer."""
+    """Los eventos de archives no traen regla (no generaron alerta): se les da una regla neutra.
+
+    El identificador es siempre el del Indexer (``_id``), que es único. El campo ``id`` de Wazuh no sirve en archives: se repite entre
+    eventos distintos, y con identificadores repetidos la evidencia de un hallazgo arrastra eventos ajenos (medición de tareas de
+    administración, docs/VALIDACION.md 3.1)."""
     out = []
     for d in docs:
         d = dict(d)
         did = str(d.pop("_doc_id", "") or "")
-        if not d.get("id"):
+        if did:
             d["id"] = did
         if not isinstance(d.get("rule"), dict):
             d["rule"] = {"id": "0", "level": 0, "description": "Evento sin alerta (archives)"}
         out.append(d)
     return out
+
+
+def repeated_ids(docs: list[dict]) -> int:
+    """Cuántos eventos traen un ``id`` de Wazuh que ya usó otro evento (solo informativo: se analiza con el ``_id`` del Indexer)."""
+    seen, rep = set(), 0
+    for d in docs:
+        i = str(d.get("id") or "")
+        if i:
+            rep += i in seen
+            seen.add(i)
+    return rep
 
 
 def _coverage(df: pd.DataFrame) -> dict:
@@ -166,10 +181,11 @@ def _local_time(value: str, tz) -> str:
 
 
 def _examples(metrics: dict) -> list[str]:
+    """Hasta tres ejemplos, cada uno en una sola línea (un mensaje de Windows trae saltos de línea)."""
     for k in EXAMPLE_KEYS:
         v = (metrics or {}).get(k)
         if isinstance(v, (list, tuple)) and v:
-            return [str(x)[:160] for x in v[:3]]
+            return [" ".join(str(x).split())[:160] for x in v[:3]]
     return []
 
 
@@ -192,7 +208,7 @@ def _process_rows(df: pd.DataFrame, ids: list[str]) -> list[dict]:
 def measure(docs: list[dict], label: str = "", tz="UTC", processes: bool = False) -> dict:
     """La medición sobre eventos que se saben legítimos: todo hallazgo es, por definición, un falso positivo a revisar."""
     rows, st = wazuh.normalize_alerts(prepare(docs))
-    out = {"etiqueta": label, "eventos_leidos": len(docs), "eventos_interpretados": len(rows), "traductor": {k: st[k] for k in ("windows", "linux_auth", "otro", "descartadas")},
+    out = {"etiqueta": label, "eventos_leidos": len(docs), "ids_repetidos": repeated_ids(docs), "eventos_interpretados": len(rows), "traductor": {k: st[k] for k in ("windows", "linux_auth", "otro", "descartadas")},
            "cobertura": {}, "hallazgos": 0, "observaciones": 0, "por_1000_eventos": 0.0, "por_regla": {}, "criticidad": {}, "confianza": {}, "detalle": []}
     if not rows:
         return out
@@ -226,6 +242,8 @@ def as_text(m: dict, detail: bool = True) -> str:
     L = [f"Medición de falsos positivos{(' · ' + m['etiqueta']) if m['etiqueta'] else ''}",
          f"Eventos leídos: {m['eventos_leidos']:,} · interpretados: {m['eventos_interpretados']:,} · descartados: {m['traductor']['descartadas']:,}".replace(",", "."),
          f"Hallazgos (sin observaciones de calidad de datos): {m['hallazgos']} · por cada 1.000 eventos: {m['por_1000_eventos']}"]
+    if m.get("ids_repetidos"):
+        L.append(f"Eventos con el «id» de Wazuh repetido: {m['ids_repetidos']:,} (se analizan con el identificador único del Indexer)".replace(",", "."))
     if not m["eventos_leidos"]:
         L += ["", "No se leyó ningún evento. Revisa:",
               "  - el nombre del agente: tiene que ser exacto (lista: docker exec single-node-wazuh.manager-1 /var/ossec/bin/agent_control -l);",

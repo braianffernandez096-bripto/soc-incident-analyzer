@@ -157,3 +157,30 @@ def test_opcion_procesos_muestra_el_arbol_sin_cuentas():
     txt = M.as_text(m)
     assert "proceso [1]:" in txt and "SYSTEM" not in "".join(str(p) for p in d["procesos"])
     assert "procesos" not in M.measure(_discovery_docs())["detalle"][0]
+
+
+def _proc_doc(n, wazuh_id, image, cmd, user, eid="1"):
+    return {"_doc_id": f"idx{n}", "id": wazuh_id, "timestamp": f"2026-11-17T17:43:{10 + n:02d}.000+0000", "agent": {"name": "WIN-A"},
+            "data": {"win": {"system": {"eventID": eid, "channel": "Microsoft-Windows-Sysmon/Operational", "computer": "WIN-A"},
+                             "eventdata": {"image": image, "commandLine": cmd, "parentImage": r"C:\Windows\System32\cmd.exe", "user": user}}}}
+
+
+def test_id_de_wazuh_repetido_no_mezcla_eventos_ajenos():
+    """En archives, el «id» de Wazuh se repite entre eventos distintos. Antes, la evidencia arrastraba eventos ajenos: aparecía un hallazgo
+    a nombre de SYSTEM con «svchost.exe» de ejemplo. Se analiza con el «_id» del Indexer, que es único."""
+    docs = []
+    for i, c in enumerate(["whoami /all", "ipconfig /all", "systeminfo", "net user"]):
+        docs.append(_proc_doc(2 * i, f"1795.{i}", rf"C:\Windows\System32\{c.split()[0]}.exe", c, "WIN-A\\ana"))
+        docs.append(_proc_doc(2 * i + 1, f"1795.{i}", r"C:\Windows\System32\svchost.exe", r"C:\Windows\System32\svchost.exe -k netsvcs",
+                              "NT AUTHORITY\\SYSTEM"))
+    m = M.measure(docs, processes=True)
+    assert m["ids_repetidos"] == 4
+    disc = [d for d in m["detalle"] if d["regla"] == "cmd_discovery"]
+    assert len(disc) == 1 and "SYSTEM" not in disc[0]["titulo"] and disc[0]["eventos"] == 4
+    assert not any("svchost" in x for x in disc[0]["ejemplos"]) and not any("svchost" in p["programa"] for p in disc[0]["procesos"])
+    assert "id» de Wazuh repetido: 4" in M.as_text(m)
+
+
+def test_ejemplos_en_una_sola_linea():
+    assert M._examples({"ejemplos": ["Service startup type was changed\nParam3: inicio por solicitud\nParam4: BITS"]}) == [
+        "Service startup type was changed Param3: inicio por solicitud Param4: BITS"]

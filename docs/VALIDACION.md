@@ -220,33 +220,65 @@ Otros casos que se observaron y **no** se marcaron como errores porque son decis
 - Una administradora que crea su propia clave de acceso en la nube genera Crítico.
 - Un instalador legítimo que agrega una clave Run genera Medio (`persist_run` solo sube a Alto si el binario está en una ruta escribible o lo escribió un intérprete); sigue apareciendo para que el analista lo descarte.
 
-### 3.1 Falsos positivos en un laboratorio real (en curso)
+### 3.1 Falsos positivos en un laboratorio real (1.18.0)
 
-Los casos de arriba son sintéticos. Para medir el ruido con actividad legítima real (una jornada normal y tareas de administración
-etiquetadas), la app trae `python -m backend.medicion_fp`, que lee los eventos del Indexer de Wazuh, los analiza en memoria y
+Los casos de arriba son sintéticos. Para medir el ruido con actividad legítima real, la app trae `python -m backend.medicion_fp`: lee los
+eventos del Indexer de Wazuh (todos, no solo los que generaron alerta), los analiza en memoria por el mismo camino que una alerta en vivo y
 da los hallazgos por cada 1.000 eventos, por regla, criticidad y confianza, y qué tipos de evento faltaron para poder medir cada regla.
-Procedimiento: [MEDIR_FALSOS_POSITIVOS.md](MEDIR_FALSOS_POSITIVOS.md). Los resultados se publican aquí, solo agregados.
+Procedimiento: [MEDIR_FALSOS_POSITIVOS.md](MEDIR_FALSOS_POSITIVOS.md). Aquí se publican solo los agregados.
 
-**Laboratorio:** un Windows 10 con Sysmon y el agente de Wazuh, con la auditoría de creación de procesos (4688 con línea de
-comandos) y de recursos compartidos (5145) activadas.
+**Laboratorio:** un Windows 10 con Sysmon y el agente de Wazuh, con auditoría de creación de procesos (4688 con línea de comandos) y de
+recursos compartidos (5145), y un Linux como equipo de administración remota. Todas las cifras son de la versión final de las reglas.
 
-**Primera medición (dos horas de uso normal, 2.020 eventos):** 3 hallazgos, 1,5 por cada 1.000 eventos, los tres «Comandos de
-reconocimiento» en criticidad Media y **confianza Baja**, con la duda «cuenta de servicio o de máquina». Los comandos eran `net user`,
-`net1 user`, `wmic useraccount where (sid like "S-1-5-21-%-501") get Disabled` y `secedit /export`, ejecutados como SYSTEM y por la
-cuenta de máquina justo al arrancar el agente de Wazuh: son las comprobaciones de su **módulo SCA** (evaluación de la configuración),
-no reconocimiento.
+| Medición | Eventos | Hallazgos | Por 1.000 eventos |
+|---|---|---|---|
+| Equipo encendido sin uso, 24 horas (incluye la noche y las actualizaciones de Windows) | 5.800 | 0 | 0 |
+| Uso normal, una hora | 728 | 0 | 0 |
+| Tareas de administración legítimas, media hora | 567 | 7 | 12,3 |
 
-**Calibración:** se sigue el árbol de procesos (el `ProcessGuid` de Sysmon o, en el 4688, el número de proceso dentro de 10 minutos) y
-se ignora el reconocimiento que **desciende del agente de Wazuh instalado en su carpeta oficial**
-(`C:\Program Files (x86)\ossec-agent\`). Solo se exime el reconocimiento: si el agente lanzara PowerShell codificado, seguiría
-alertando. Un ejecutable con el mismo nombre en otra carpeta no se exime, y los mismos comandos lanzados por una persona siguen alertando
-(`tests/unit/test_agente_wazuh.py`). La vara de OTRF no cambió.
+**Las tareas de administración** (las de la guía, sección 3) dieron un hallazgo por cada tarea, ninguno duplicado:
 
-Al aplicarla en el laboratorio, los hallazgos bajaron de 3 a 2 (de 14 comandos a 3), y los que quedaban revelaron un segundo detalle: el
-mismo equipo envía Sysmon (número de proceso en decimal, `6804`) y el 4688 (en hexadecimal, `0x1a94`), y una cadena podía empezar en un
-formato y seguir en el otro. Ahora los números se normalizan antes de comparar; hay una prueba con una cadena mixta que fallaba antes.
+| Tarea | Hallazgo | Criticidad · confianza |
+|---|---|---|
+| Consultar un servicio por la red (`net rpc` desde el Linux) | Movimiento lateral; control remoto de servicios | Alto · Alta (los dos) |
+| Copiar un ejecutable por `C$` (`smbclient`) | Copia de ejecutables por recurso administrativo | Alto · Alta |
+| Tarea programada y servicio nuevo | Persistencia | Medio · Alta |
+| `sc.exe create` | Servicio creado desde la línea de comandos | Medio · Alta |
+| `netsh … add rule` | Firewall abierto | Medio · Alta |
+| `whoami`, `ipconfig`, `systeminfo`, `net user` | Comandos de reconocimiento | Medio · Media |
+| Contraseña mal escrita tres veces | Ninguno (no es fuerza bruta) | — |
 
-Pendiente: la jornada completa de 24 horas y las tareas de administración legítimas.
+**Se aceptan y no se calibran.** Con estos eventos, un administrador y un atacante que tiene su contraseña se ven igual: `net rpc` más
+`smbclient` es lo mismo que hace PsExec. Bajar estas reglas solo dejaría pasar ataques reales. La confianza baja cuando la cuenta parece de
+administración por su nombre (por ejemplo, `admin.ana`); con una cuenta personal, como la del laboratorio, queda en Alta. Lo que cambia la
+decisión en un caso real es el contexto que la app no tiene: si había un cambio programado y quién lo hizo.
+
+**Lo que la medición encontró y se corrigió** (cada punto con su prueba):
+
+1. **Las comprobaciones del agente de Wazuh** (su módulo SCA ejecuta como SYSTEM `net user`, `wmic useraccount` y `secedit /export` al
+   arrancar) disparaban «Comandos de reconocimiento». Se sigue el árbol de procesos (el `ProcessGuid` de Sysmon o, en el 4688, el número de
+   proceso dentro de 10 minutos, en decimal o hexadecimal) y se ignora solo el reconocimiento que **desciende del agente instalado en su
+   carpeta oficial**. Un ejecutable con el mismo nombre en otra carpeta, o los mismos comandos lanzados por una persona, siguen alertando
+   (`tests/unit/test_agente_wazuh.py`). En una ocasión quedó 1 hallazgo en confianza Baja porque el evento del proceso padre no llegó al
+   Indexer: sin el padre, la cadena no se puede seguir y el hallazgo se mantiene (es preferible a eximir a ciegas). No se repitió en los días siguientes.
+2. **Un mismo comando daba dos hallazgos.** El agente de Wazuh escapa los campos de Windows (duplica las barras invertidas), así que Sysmon
+   (`EQUIPO\\usuario`) y el registro de Seguridad (`EQUIPO\usuario`) eran dos cuentas distintas. El traductor deshace ese escapado
+   (`tests/unit/test_wazuh_escapado.py`).
+3. **Ese mismo escapado dejaba ciega la regla de claves Run** en el modo Wazuh: la ruta del registro nunca coincidía. Las pruebas no lo
+   veían porque estaban escritas sin el escapado. Al arreglarlo, el día sin uso pasó de 0 a **7 hallazgos**: Edge reescribe su entrada de
+   inicio automático cada cuatro horas. Se exime el **autorregistro** (quien escribe está en `Program Files` y el valor ejecuta ese mismo
+   programa); un valor que apunta a otro programa, a un intérprete o a una ruta del usuario, o escrito por `reg.exe` o PowerShell, sigue
+   alertando (`tests/unit/test_run_autoregistro.py`). Con eso, el día volvió a 0, ahora con la regla funcionando.
+4. **La propia medición mezclaba eventos ajenos:** en *archives* el `id` de Wazuh se repite (hubo 3.849 repetidos en 5.800 eventos), y la
+   evidencia de un hallazgo arrastraba eventos que no tenían nada que ver. Ahora se usa el identificador único del Indexer.
+
+En ningún caso cambió la vara de OTRF (sección 6). La lección más útil: **el «cero» de la primera medición del día sin uso era falso**,
+porque la regla no podía ver nada. Por eso la herramienta separa «no ocurrió» de «falta la auditoría», y por eso hay pruebas con los
+eventos tal como los manda el agente.
+
+**Límites.** Es un solo equipo, de un laboratorio, con poco uso: no es la tasa de una empresa. No se midieron con actividad legítima
+PowerShell remoto ni WMI remoto (hace falta un segundo Windows, guía 3.3), ni un controlador de dominio. Las tareas de administración se
+usaron para calibrar, así que no son una medición independiente.
 
 ## 3b. Correos reales (phishing y legítimos) y comandos ofuscados
 
@@ -357,8 +389,8 @@ los traduce antes de comparar (tabla `RENOMBRADAS`).
 - Los datos de OTRF son eventos crudos de Windows y Sysmon, no un export de SIEM; la app los lee, pero no fue diseñada para todos sus campos.
 - La comparación por técnica es estricta: un hallazgo útil de otra técnica cuenta como «otros». Por eso se reporta también cuántos datasets
   tienen hallazgos y cuáles.
-- No hay un conjunto de **tráfico normal real** equivalente (solo el sintético de las pruebas negativas), así que la tasa de falsos positivos
-  en producción es desconocida. Los casos de la sección 3 son pruebas puntuales, no una tasa.
+- No hay un conjunto de **tráfico normal real** equivalente a OTRF: solo la medición de un laboratorio (sección 3.1) y el sintético de las
+  pruebas negativas, así que la tasa de falsos positivos en producción es desconocida.
 - **Ofuscación: lo que se resuelve y lo que no.** Se normalizan estáticamente: IP numéricas en URL (decimal, hexadecimal, octal, abreviada, IPv6 mapeada), `%XX` en el host o repetido, caracteres invisibles y entidades en el esquema, `^` de cmd, acentos graves, comillas intercaladas, concatenación `'a'+'b'`, `.Replace()`, `[char]`, `-join` y `FromBase64String` con literales; en HTML, `atob`/`unescape`/`fromCharCode`/`\x` con literales, `meta refresh`, texto oculto y «HTML smuggling». Un comando ofuscado solo se reporta si la ofuscación **escondía** un programa o técnica relevante (no por usar `+` o comillas). Queda fuera todo lo que exige **ejecutar** el código: claves construidas en tiempo de ejecución, cadenas invertidas (`[-1..-n]`), variables de entorno con subcadenas (`%COMSPEC:~0,1%`), empaquetadores de JavaScript, varias capas de cifrado y la desofuscación de macros VBA o scripts largos. No se hizo una medición sobre un corpus etiquetado de ofuscación; la verificación son pruebas unitarias con técnicas conocidas y con comandos normales que no deben alertar.
 - Los resultados dependen de la versión de la app (1.6.0) y de la versión de los datasets; se pueden regenerar.
 

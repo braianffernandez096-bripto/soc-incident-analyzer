@@ -102,3 +102,13 @@ def test_cadena_que_mezcla_sysmon_decimal_y_4688_hexadecimal():
                      pid="7184", ppid="7168"),
               sec4688(4, r"C:\Windows\System32\whoami.exe", "whoami /all", CMD, "0x1c20", "0x1a94")]
     assert findings(alerts) == []
+
+
+def test_sin_el_evento_padre_no_se_exime_a_ciegas():
+    """Caso visto en el laboratorio: no llegó el evento de net.exe, así que net1.exe no se puede unir al agente. Se mantiene el hallazgo."""
+    alerts = [sec4688(0, CMD, "cmd.exe /c net user", AGENT, "0x1a0", "0x99"),
+              # falta: cmd (0x1a0) → net.exe (0xbc8)
+              *[sec4688(2 + i, r"C:\Windows\System32\net1.exe", c, r"C:\Windows\SysWOW64\net.exe", f"0x3{i}0", "0xbc8")
+                for i, c in enumerate([r"C:\Windows\system32\net1 user", r"C:\Windows\system32\net1 localgroup administrators",
+                                       r"C:\Windows\system32\net1 user guest", r"C:\Windows\system32\net1 group"])]]
+    assert findings(alerts)

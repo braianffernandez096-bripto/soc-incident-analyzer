@@ -2,11 +2,11 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
-## [Sin publicar]
+## [1.18.0] - 2026-11-17
 
 ### Novedades
 - **Medición de falsos positivos con actividad legítima real** (`python -m backend.medicion_fp`). Lee del Indexer de Wazuh los eventos de uno o más agentes en un rango de horas (todos los eventos de *archives*, o solo las alertas), los pasa por el mismo camino que una alerta en vivo y da los hallazgos por cada 1.000 eventos, por regla, criticidad y confianza, con el detalle y los motivos en contra de cada uno. Corre dentro del contenedor con la conexión al Indexer del `.env`: no pide contraseñas ni guarda los eventos. Avisa qué tipos de evento no llegaron (Sysmon, 4688 con línea de comandos, 5145…) y qué reglas quedaron sin medir por eso, para que un «cero» no engañe.
-- **Ajustes tras la primera medición real** (un Windows 10 con Sysmon, 1.682 eventos en dos horas, 3 hallazgos: comandos de reconocimiento ejecutados por SYSTEM y por la cuenta de máquina, en confianza Baja):
+- **Ajustes tras la primera medición real** (un Windows 10 con Sysmon, dos horas de uso, 3 hallazgos: comandos de reconocimiento ejecutados por SYSTEM y por la cuenta de máquina, en confianza Baja):
   - la medición ya no consulta MISP (los datos del laboratorio no salen del servidor);
   - muestra hasta tres ejemplos de lo que disparó cada hallazgo (los comandos, en este caso) y las horas en la zona horaria de `--desde`, no en UTC;
   - distingue un tipo de evento que falta por configuración («requisito sin cumplir»: esas reglas no se midieron) de uno que simplemente no ocurrió en el rango;
@@ -23,8 +23,9 @@ Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y 
 - La medición suma `--procesos`: muestra el árbol de procesos de la evidencia de cada hallazgo (programa, padre e identificadores, sin cuentas), para revisar por qué una cadena se exime o no.
 
 ### Cambios
-- `docs/VALIDACION.md`, sección 3.1: la medición en un laboratorio real, con la primera medición y su calibración.
-- Pruebas: 14 nuevas (`tests/unit/test_medicion_fp.py`), con el Indexer simulado.
+- `docs/VALIDACION.md`, sección 3.1: resultados de la medición en un laboratorio real (24 horas sin uso: 0 hallazgos en 5.800 eventos; una hora de uso normal: 0 en 728; tareas de administración legítimas: 7 en 567, una por tarea, aceptadas porque un administrador y un atacante con su contraseña se ven igual) y lo que se corrigió por ella.
+- La versión que declara la API pasa a 1.18.0.
+- Pruebas: 43 nuevas (`test_medicion_fp.py`, `test_agente_wazuh.py`, `test_wazuh_escapado.py` y `test_run_autoregistro.py`), con el Indexer simulado y los eventos tal como los manda el agente de Wazuh.
 
 ## [1.17.0] - 2026-11-15
 

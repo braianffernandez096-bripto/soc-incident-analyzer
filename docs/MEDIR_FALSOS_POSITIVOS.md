@@ -13,16 +13,16 @@ La herramienta (`backend/medicion_fp.py`) corre dentro del contenedor del analiz
 y **no guarda los eventos**: lee, analiza en memoria e imprime la medición. Tampoco consulta servicios externos: MISP queda apagado
 mientras mide (los datos del laboratorio no salen del servidor), así que la regla de indicadores de MISP no entra en la medición.
 
-> Todos los comandos son de una línea. Los de Windows van en **PowerShell como administrador**; los del servidor, por SSH en el Ubuntu Server.
+> Todos los comandos son de una línea. Los de Windows van en una **consola como administrador** (sirven igual en `cmd` y en PowerShell); los del servidor, por SSH en el Ubuntu Server.
 > La guía usa un laboratorio con **un Windows 10** (el equipo medido, `WIN10` en los ejemplos) y un **Linux de escritorio** que hace de
 > equipo de administración para las tareas remotas (con las herramientas de Samba). Cambia `WIN10` por el nombre del agente de Wazuh y
-> `IP-WIN10` por la IP del Windows. Si tienes un segundo Windows, la sección 3.3 agrega PowerShell remoto y WMI remoto.
+> `IP-WIN10` por la IP del Windows (`ipconfig`) e `IP-LINUX` por la del Linux (`ip -4 addr`): son marcadores, no se escriben tal cual. Si tienes un segundo Windows, la sección 3.3 agrega PowerShell remoto y WMI remoto.
 
 ## 1. Requisitos previos (una sola vez)
 
 Sin estos eventos, varias reglas no pueden verse y la medición daría un «cero» que no prueba nada. La herramienta avisa de los que falten.
 
-**En el Windows** (PowerShell como administrador):
+**En el Windows** (consola como administrador):
 
 Auditar el acceso a recursos compartidos (evento 5145):
 ```
@@ -41,7 +41,10 @@ reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit" /
 con el Bloc de notas como administrador, busca el bloque `<location>Security</location>` y, en su línea `<query>`, borra el texto
 `EventID != 5145 and ` (con el espacio y el `and`). Guarda y reinicia el agente:
 ```
-Restart-Service -Name WazuhSvc
+net stop WazuhSvc
+```
+```
+net start WazuhSvc
 ```
 
 **En el servidor:** el índice de *archives* tiene que estar activo (`<logall_json>yes</logall_json>` en el manager y los archivos habilitados en
@@ -56,10 +59,19 @@ En «Tipos de evento recibidos» tienen que aparecer con ✔ al menos el 4624, e
 compartido, el 5145. Si usas Sysmon, también su evento 1. Cómo leer esa lista:
 
 - **✔**: llegaron eventos de ese tipo.
-- **✘ requisito sin cumplir**: es un tipo que solo llega si Windows y el agente lo auditan (5145, 4688 con línea de comandos, Sysmon). Las
+- **✘ requisito sin cumplir**: es un tipo que llega siempre que Windows y el agente lo auditen (4688 con línea de comandos, Sysmon). Las
   reglas que dependen de él **no se midieron**: revisa la configuración de esta sección.
-- **· no ocurrió en este rango**: es un tipo que aparece cuando pasa la acción (inicios fallidos, servicios o tareas nuevas). En una hora
+- **? no hubo ninguno o falta su auditoría**: es un tipo que necesita una auditoría **y** que la acción ocurra (5145 al usar un recurso
+  compartido; 4698 al crear una tarea programada). Un cero no distingue las dos cosas: compruébalo haciendo la acción una vez. El 4698
+  necesita además la subcategoría «Otros eventos de acceso a objetos»
+  (`auditpol /set /subcategory:{0CCE9227-69AE-11D9-BED3-505054503030} /success:enable`); sin ella, la persistencia por tarea programada
+  se sigue viendo por el comando `schtasks` y el servicio que la acompaña.
+- **· no ocurrió en este rango**: es un tipo que aparece cuando pasa la acción (inicios fallidos, servicios nuevos). En una hora
   tranquila es normal que esté en 0.
+
+En un Windows con el sistema en otro idioma, `auditpol` puede no reconocer los nombres en inglés de las subcategorías: usa su GUID, como
+en el ejemplo del 4698. El de «Detailed File Share» (5145) es `{0CCE9244-69AE-11D9-BED3-505054503030}` y el de «Process Creation» (4688),
+`{0CCE922B-69AE-11D9-BED3-505054503030}`.
 
 Las horas del detalle se muestran en la zona horaria que pongas en `--desde`. Si sale «No se leyó ningún evento», el nombre del agente
 no coincide (tiene que ser exacto: `sudo docker exec single-node-wazuh.manager-1 /var/ossec/bin/agent_control -l` los lista) o el rango
@@ -106,7 +118,7 @@ Hazlas en una misma sesión, **anotando la hora de inicio y de fin**. Cada una e
    mkdir C:\Temp
    ```
    ```
-   New-NetFirewallRule -DisplayName "SMB desde el Linux del lab" -Direction Inbound -Protocol TCP -LocalPort 445 -RemoteAddress IP-LINUX -Action Allow
+   netsh advfirewall firewall add rule name="SMB desde el Linux del lab" dir=in action=allow protocol=TCP localport=445 remoteip=IP-LINUX
    ```
    ```
    reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\System" /v LocalAccountTokenFilterPolicy /t REG_DWORD /d 1 /f
@@ -138,7 +150,7 @@ sudo docker exec soc-incident-analyzer-analyzer-1 python -m backend.medicion_fp 
 reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\System" /v LocalAccountTokenFilterPolicy /t REG_DWORD /d 0 /f
 ```
 ```
-Remove-NetFirewallRule -DisplayName "SMB desde el Linux del lab"
+netsh advfirewall firewall delete rule name="SMB desde el Linux del lab"
 ```
 ```
 schtasks /delete /tn "Limpieza semanal" /f

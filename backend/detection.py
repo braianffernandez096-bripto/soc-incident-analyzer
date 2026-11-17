@@ -1237,6 +1237,23 @@ LSASS_BENIGN_SOURCES = {"svchost.exe", "vboxservice.exe", "csrss.exe", "wininit.
 LSASS_DUMP_MASKS = {"0x1fffff", "0x1f3fff", "0x1f0fff", "0x143a", "0x1010", "0x1038", "0x1418"}
 DCSYNC_GUIDS = ("1131f6aa-9c07-11d1-f79f-00c04fc2dcd2", "1131f6ad-9c07-11d1-f79f-00c04fc2dcd2", "89e95b76-444d-4c62-991a-0facbeda640c")
 RUNKEY_RE = re.compile(r"\\Software\\(?:Wow6432Node\\)?Microsoft\\Windows\\CurrentVersion\\Run(?:Once)?\\", re.I)
+PROGRAM_FILES_RE = re.compile(r"^[a-z]:\\program files(?: \(x86\))?\\", re.I)
+RUN_DATA_EXE_RE = re.compile(r'^\s*"([^"]+)"|^\s*([a-z]:\\[^"]*?\.exe)\b', re.I)
+
+
+def run_self_registration(image: str, details: str) -> bool:
+    """Un programa instalado en Program Files que se registra a sí mismo para arrancar con la sesión (Edge, OneDrive, Teams…).
+
+    Calibración (medición de 24 horas en un laboratorio real, docs/VALIDACION.md 3.1): Edge reescribe su entrada de inicio automático
+    cada cuatro horas aunque nadie use el equipo, y eso daba 7 hallazgos por día. Solo se exime si **quien escribe** está en Program Files
+    (hace falta ser administrador para instalar ahí) y **el valor ejecuta ese mismo programa**. Si el valor apunta a otro ejecutable, a un
+    intérprete o a una ruta de usuario, o si quien escribe es reg.exe, PowerShell o algo fuera de Program Files, sigue alertando."""
+    img = _norm_path(image).lower()
+    if not PROGRAM_FILES_RE.match(img):
+        return False
+    m = RUN_DATA_EXE_RE.match(str(details or ""))
+    target = _norm_path(m.group(1) or m.group(2)).lower() if m else ""
+    return bool(target) and target == img
 
 
 def _field(text: str, name: str) -> str:
@@ -1314,7 +1331,10 @@ def rule_persist_run(st: State) -> None:
         target = _field(t, "TargetObject")
         if not RUNKEY_RE.search(target):
             continue
-        rows.append((r.Log_ID, target, _field(t, "Image"), _field(t, "Details")))
+        image, details = _field(t, "Image"), _field(t, "Details")
+        if run_self_registration(image, details):
+            continue
+        rows.append((r.Log_ID, target, image, details))
     if not rows:
         return
     info = {x[0]: x for x in rows}

@@ -75,8 +75,8 @@ def test_actividad_normal_no_genera_hallazgos():
     assert m["eventos_interpretados"] == 200 and m["hallazgos"] == 0 and m["por_1000_eventos"] == 0
     assert m["cobertura"]["4624"] == 200 and m["cobertura"]["5145"] == 0
     txt = M.as_text(m)
-    # sin 5145 por configuración: requisito sin cumplir; sin 4625 porque no hubo fallos: no es un problema
-    assert "✘ Acceso a recursos compartidos (5145): 0  → requisito sin cumplir" in txt and "NO se midieron control remoto de servicios" in txt
+    # sin 5145: o no hubo accesos o falta la auditoría (un cero no lo distingue); sin 4625 porque no hubo fallos: no es un problema
+    assert "? Acceso a recursos compartidos (5145): 0  → no hubo ninguno o falta su auditoría" in txt and "no se midieron control remoto de servicios" in txt
     assert "· Inicios de sesión fallidos (4625): 0  → no ocurrió en este rango" in txt
 
 

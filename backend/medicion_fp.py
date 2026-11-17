@@ -44,11 +44,11 @@ OBSERVATIONS = {"siem_underclass", "dq_account_lookalike", "dq_host_alias", "dq_
 COVERAGE = {
     "sysmon_1": ("Creación de procesos de Sysmon (evento 1)", "comandos, WMI, PowerShell remoto, DCOM", "auditoria"),
     "4688_cmd": ("Creación de procesos 4688 con línea de comandos", "comandos, WMI, PowerShell remoto, DCOM (si no hay Sysmon)", "auditoria"),
-    "5145": ("Acceso a recursos compartidos (5145)", "control remoto de servicios y copia por C$/ADMIN$", "auditoria"),
+    "5145": ("Acceso a recursos compartidos (5145)", "control remoto de servicios y copia por C$/ADMIN$", "ocasional"),
     "4624": ("Inicios de sesión (4624)", "inicios externos, DCOM, servicio remoto", "actividad"),
     "4625": ("Inicios de sesión fallidos (4625)", "fuerza bruta", "actividad"),
     "7045_4697": ("Servicios instalados (7045/4697)", "persistencia y servicio remoto", "actividad"),
-    "4698": ("Tareas programadas creadas (4698)", "persistencia", "actividad"),
+    "4698": ("Tareas programadas creadas (4698)", "persistencia por tarea programada", "ocasional"),
     "sysmon_13": ("Cambios de registro de Sysmon (evento 13)", "claves Run y apagado de defensas", "auditoria"),
 }
 EXAMPLE_KEYS = ("ejemplos", "procesos", "binarios", "archivos", "imagenes", "comandos_ejemplo")
@@ -257,6 +257,9 @@ def as_text(m: dict, detail: bool = True) -> str:
                 L.append(f"  ✔ {name}: {n}")
             elif kind == "auditoria":
                 L.append(f"  ✘ {name}: 0  → requisito sin cumplir (ver la guía): NO se midieron {rules}")
+            elif kind == "ocasional":
+                # necesita una auditoría y además que la acción ocurra: un cero no distingue «no pasó» de «no se audita»
+                L.append(f"  ? {name}: 0  → no hubo ninguno o falta su auditoría (ver la guía); si falta, no se midieron {rules}")
             else:
                 L.append(f"  · {name}: 0  → no ocurrió en este rango ({rules})")
     if m["por_regla"]:

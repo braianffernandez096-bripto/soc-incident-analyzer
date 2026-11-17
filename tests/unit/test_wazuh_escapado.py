@@ -29,7 +29,9 @@ def _findings(alerts):
     ("WIN-A" + B2 + "ana", "WIN-A\\ana"),
     ('sc.exe create X binPath= \\"C:' + B2 + 'x.exe\\"', 'sc.exe create X binPath= "C:\\x.exe"'),
     (B2 + B2 + "*" + B2 + "C$" + B2 + "Temp", "\\\\*\\C$\\Temp"),
+    ('netsh advfirewall firewall add rule name=\\"App de prueba\\" dir=in', 'netsh advfirewall firewall add rule name="App de prueba" dir=in'),
     ("C:\\Windows\\cmd.exe", "C:\\Windows\\cmd.exe"),          # ya normal: no se toca
+    ('"C:\\dir\\" /x', '"C:\\dir\\" /x'),                          # comillas normales tras una ruta normal: no se toca
     ("\\\\servidor\\recurso", "\\\\servidor\\recurso"),        # ruta UNC normal: no se toca
 ])
 def test_deshace_el_escapado_solo_si_viene_escapado(raw, clean):

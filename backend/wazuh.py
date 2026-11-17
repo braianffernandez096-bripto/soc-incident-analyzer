@@ -133,7 +133,7 @@ def _unescape(v):
     («C:\\Windows», «\\\\servidor\\recurso») queda igual.
     Sin esto, Sysmon («EQUIPO\\\\usuario») y el registro de Seguridad («EQUIPO» + «usuario») eran dos cuentas distintas y un mismo
     comando daba dos hallazgos (medición de tareas de administración, docs/VALIDACION.md 3.1)."""
-    if not isinstance(v, str) or "\\\\" not in v:
+    if not isinstance(v, str) or ("\\\\" not in v and '\\"' not in v):
         return v
     if any(len(b) % 2 and not q for b, q in _BACKSLASHES.findall(v)):
         return v

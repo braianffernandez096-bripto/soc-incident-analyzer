@@ -124,12 +124,29 @@ def _win_user(ed: dict, eid: str) -> str:
     return f"{dom}\\{name}" if (dom and name and "\\" not in name) else name
 
 
+_BACKSLASHES = re.compile(r'(\\+)("?)')
+
+
+def _unescape(v):
+    """El agente de Wazuh escapa los campos de Windows: duplica las barras invertidas («C:\\\\Windows», «EQUIPO\\\\usuario») y antepone
+    una a las comillas («binPath= \\"C:\\\\…\\"»). Se deshace solo si todo el valor viene escapado así; un valor ya normal
+    («C:\\Windows», «\\\\servidor\\recurso») queda igual.
+    Sin esto, Sysmon («EQUIPO\\\\usuario») y el registro de Seguridad («EQUIPO» + «usuario») eran dos cuentas distintas y un mismo
+    comando daba dos hallazgos (medición de tareas de administración, docs/VALIDACION.md 3.1)."""
+    if not isinstance(v, str) or "\\\\" not in v:
+        return v
+    if any(len(b) % 2 and not q for b, q in _BACKSLASHES.findall(v)):
+        return v
+    return _BACKSLASHES.sub(lambda m: "\\" * (len(m.group(1)) // 2) + m.group(2), v)
+
+
 def _win_row(alert: dict, win: dict, rule: dict) -> dict:
     system, ed = win.get("system") or {}, win.get("eventdata") or {}
     if not isinstance(system, dict):
         system = {}
     if not isinstance(ed, dict):
         ed = {}
+    ed = {k: _unescape(v) for k, v in ed.items()}
     eid = _clean(system.get("eventID"), 12)
     lines = [_clean(rule.get("description"), 200)]
     for k, v in ed.items():

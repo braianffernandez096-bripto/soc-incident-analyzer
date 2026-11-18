@@ -245,9 +245,30 @@ def unify_accounts(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def normalize_local_system(df: pd.DataFrame) -> pd.DataFrame:
+    """La cuenta de máquina del propio equipo («EQUIPO$») es SYSTEM local, no una cuenta aparte.
+
+    Calibración (simulación de ataque en un laboratorio real, docs/VALIDACION.md 3.2): un proceso que corre como SYSTEM llega con dos
+    grafías según la fuente —Sysmon lo registra «NT AUTHORITY\\SYSTEM» y el 4688 como la cuenta de máquina «EQUIPO$»—, y las reglas de
+    comandos, que agrupan por cuenta, generaban cada hallazgo dos veces. Se normaliza a SYSTEM solo cuando «EQUIPO$» coincide con el host
+    del propio evento; la cuenta de máquina de **otro** equipo (autenticación de red del dominio) se deja intacta: sigue siendo señal."""
+    if df.empty or "User" not in df.columns or "Hostname" not in df.columns:
+        return df
+
+    def fix(u, h):
+        su = short_user(u)
+        if su.endswith("$") and norm_host(h) and norm_host(su[:-1]) == norm_host(h):
+            return "NT AUTHORITY\\SYSTEM"
+        return u
+
+    out = df.copy()
+    out["User"] = [fix(u, h) for u, h in zip(df["User"], df["Hostname"])]
+    return out
+
+
 class State:
     def __init__(self, df: pd.DataFrame):
-        self.df = unify_accounts(df)
+        self.df = unify_accounts(normalize_local_system(df))
         self.findings: list[Finding] = []
         self.compromised: dict[str, dict] = {}   # usuario -> {ip, log_id, ts}
         self.brute: list[dict] = []              # ráfagas de fuerza bruta detectadas

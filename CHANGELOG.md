@@ -2,6 +2,11 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [Sin publicar]
+
+### Corregido
+- **Con Sysmon + 4688, la actividad de SYSTEM duplicaba cada hallazgo de comando.** Un proceso que corre como SYSTEM llega con dos grafías según la fuente: Sysmon lo registra como `NT AUTHORITY\SYSTEM` y el evento 4688 como la cuenta de máquina `EQUIPO$`. Las reglas de comandos agrupan por cuenta, así que cada hallazgo (reconocimiento, volcado de credenciales, persistencia, evasión…) aparecía dos veces. Ahora la cuenta de máquina **del propio equipo** se normaliza a SYSTEM; la de otro equipo (autenticación de red del dominio) se deja intacta porque sigue siendo señal. Descubierto en una simulación de ataque real (docs/VALIDACION.md 3.2); la vara de OTRF no cambió.
+
 ## [1.18.0] - 2026-11-17
 
 ### Novedades

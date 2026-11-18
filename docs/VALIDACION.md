@@ -280,6 +280,59 @@ eventos tal como los manda el agente.
 PowerShell remoto ni WMI remoto (hace falta un segundo Windows, guía 3.3), ni un controlador de dominio. Las tareas de administración se
 usaron para calibrar, así que no son una medición independiente.
 
+### 3.2 Detección en el laboratorio propio: simulación de ataque (1.19.0)
+
+La sección 3.1 mide el ruido con actividad legítima; esta mide lo contrario: cuánto detecta la app ante un ataque real de principio a fin,
+ejecutado en el mismo laboratorio. A diferencia de OTRF (datos de terceros), el ataque se corrió contra el Windows 10 del laboratorio desde
+una Kali (192.168.64.128), con una cuenta local de administrador creada para la prueba (`atacante.prueba`), y se midió con la misma
+herramienta (`backend.medicion_fp`) sobre la ventana del ataque. Procedimiento completo en [MEDIR_DETECCION.md](MEDIR_DETECCION.md).
+
+**Resultado: 1.434 eventos, 17 hallazgos, 14 reglas distintas.** Se detectaron todas las fases de la cadena:
+
+| Fase (cadena de ataque) | Técnica ejecutada | Regla | Criticidad · confianza |
+|---|---|---|---|
+| Acceso inicial | Fuerza bruta SMB (11 fallos + 1 acierto, netexec) | `brute_force` | Alto · Alta |
+| Ejecución / lateral | PsExec (servicio + `ADMIN$` + svcctl) | `lat_svcctl` | **Crítico** · Alta |
+| Ejecución / lateral | PsExec/smbexec (binario por recurso administrativo) | `lat_admin_write` | Alto · Alta |
+| Ejecución / lateral | PsExec/smbexec (servicio que ejecuta cmd) | `lat_remote_service` | Alto · Alta |
+| Ejecución / lateral | wmiexec (WmiPrvSE lanza cmd) | `lat_wmi` | Alto · Alta |
+| Ejecución / lateral | dcomexec (MMC20 por DCOM) | `lat_dcom` | Alto · Alta |
+| Descubrimiento | `whoami`, `net user`, `systeminfo`, `ipconfig` | `cmd_discovery` | Medio · Media |
+| Acceso a credenciales | Volcado de LSASS (`comsvcs.dll MiniDump`) | `cmd_cred_dump` | **Crítico** · Alta |
+| Persistencia | Tarea programada + servicio | `persistence` | Alto · Alta |
+| Persistencia | `sc create` con binario `cmd /c` | `cmd_service_binpath` | Alto · Media |
+| Persistencia | Clave Run del registro | `persist_run` | Alto · Media |
+| Ejecución | PowerShell codificado (`-enc`) | `cmd_encoded_ps` | Alto · Alta |
+| Evasión | Firewall desactivado / reglas abiertas | `cmd_fw_change` | Medio · Alta |
+| Evasión | Borrado del log de Seguridad (`wevtutil cl`) | `cmd_log_tamper` | Alto · Media |
+
+**Lo que destapó la medición y se corrigió** (con prueba): la actividad de SYSTEM llega con dos grafías —Sysmon `NT AUTHORITY\SYSTEM` y el
+4688 como la cuenta de máquina `EQUIPO$`—, y cada hallazgo de comando aparecía **duplicado**. Se normaliza la cuenta de máquina del propio
+equipo a SYSTEM (`tests/unit/test_cuenta_maquina_local.py`); la de otro equipo se respeta. La vara de OTRF (sección 6) no cambió.
+
+**Observaciones honestas:**
+
+- **Prevención ≠ detección.** Al primer intento, Windows Defender detectó el PsExec de Impacket (`VirTool:Win32/RemoteExec`) y borró su
+  binario. Es una capa de *prevención* real del endpoint. Para medir la *detección* a partir de los logs (que es lo que hace esta app) se
+  desactivó Defender, como en cualquier laboratorio de detección; un atacante con privilegios de administrador haría lo mismo (de hecho,
+  desactivar defensas es una de las reglas que se probaron).
+- **`cmd_cred_dump` detectó el volcado de LSASS por la línea de comando**, aunque el volcado falló (archivo de 0 bytes, LSASS protegido) y
+  aunque este Sysmon no audita el acceso a procesos. La regla por Sysmon (`cred_lsass`, evento 10) no se disparó por esa falta de
+  configuración; son dos caminos para la misma técnica y con uno alcanzó. Activar `ProcessAccess` sobre lsass en Sysmon sumaría el segundo.
+- **`lateral` (salto host→host por el nombre de equipo de origen del 4624/4625) no se disparó**: las herramientas de Impacket/netexec no
+  pueblan ese campo como lo haría un equipo Windows unido a dominio. El movimiento lateral se detectó igual por cinco reglas basadas en el
+  5145 y en los procesos. Es un límite del método (atacante Linux), no de la regla.
+- **`cmd_fw_change` contó 3**: dos fueron la apertura de puertos de firewall que forma parte del **montaje** del laboratorio (habilitar SMB y
+  DCOM para la Kali), no del ataque; el tercero, la desactivación del firewall, sí lo es. La regla acierta en los tres; se anota que dos
+  fueron preparación.
+
+**Fuera de alcance (laboratorio workgroup, sin Active Directory):** `cred_dcsync` (replicación de un controlador de dominio) y `kerberoast`
+(tickets de servicio Kerberos) no se pudieron probar, como ya se anota para PowerShell/WMI remoto sin un segundo Windows.
+
+**Límites.** Es un solo equipo, con una cuenta local y un atacante Linux; no sustituye una campaña contra un dominio. Las reglas de
+movimiento lateral ya estaban validadas contra OTRF (datos de terceros, sección 6); esta medición confirma que también disparan sobre un
+ataque real de extremo a extremo en el laboratorio propio.
+
 ## 3b. Correos reales (phishing y legítimos) y comandos ofuscados
 
 **Phishing.** Se analizaron los **12.864 correos** del corpus público [phishing_pot](https://github.com/rf-peixoto/phishing_pot) (phishing y spam recibidos de verdad)

@@ -2,7 +2,11 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
-## [Sin publicar]
+## [1.19.0] - 2026-11-18
+
+### Añadido
+- **Simulación de ataque de extremo a extremo en el laboratorio propio** y su medición de detección (docs/VALIDACION.md 3.2): un ataque real desde Kali contra el Windows del laboratorio (fuerza bruta, PsExec/smbexec/wmiexec/dcomexec, reconocimiento, volcado de LSASS, persistencia y evasión) detectado con **14 reglas distintas**, incluido el volcado de credenciales por línea de comando aunque el dump falle. Complementa la medición de falsos positivos (3.1) y OTRF (6): esto no alerta cuando es legítimo, esto sí alerta cuando es un ataque.
+- Guía reproducible: `docs/MEDIR_DETECCION.md`, con el ataque paso a paso, la medición y la limpieza, para un laboratorio aislado.
 
 ### Corregido
 - **Con Sysmon + 4688, la actividad de SYSTEM duplicaba cada hallazgo de comando.** Un proceso que corre como SYSTEM llega con dos grafías según la fuente: Sysmon lo registra como `NT AUTHORITY\SYSTEM` y el evento 4688 como la cuenta de máquina `EQUIPO$`. Las reglas de comandos agrupan por cuenta, así que cada hallazgo (reconocimiento, volcado de credenciales, persistencia, evasión…) aparecía dos veces. Ahora la cuenta de máquina **del propio equipo** se normaliza a SYSTEM; la de otro equipo (autenticación de red del dominio) se deja intacta porque sigue siendo señal. Descubierto en una simulación de ataque real (docs/VALIDACION.md 3.2); la vara de OTRF no cambió.

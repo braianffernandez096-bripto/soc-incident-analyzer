@@ -2,6 +2,18 @@
 
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y versionado semántico.
 
+## [1.19.1] - 2026-11-19
+
+### Seguridad
+- **CSRF sin `APP_ACCESS_TOKEN`.** Una página web cualquiera podía hacer POST/DELETE a `http://127.0.0.1:8000` desde el navegador del analista (el `Host` era legítimo y `multipart/form-data` no pide preflight): crear sesiones, desalojar las del analista y gastar sus cupos. Ahora toda petición que cambia estado con `Sec-Fetch-Site` distinto de `same-origin`/`none` (o, en navegadores que no la envían, con un `Origin` fuera de `ALLOWED_HOSTS`) recibe 403. Funciona igual detrás de un proxy inverso que reescriba el `Host`. curl, scripts y la ingesta de Wazuh no envían esas cabeceras y no cambian.
+- **Volumen de `.xlsx`:** el tope baja a 2 millones de celdas y 150 MB descomprimidos. Medido: 4 millones de celdas llegaban a ~470 MB de pico y ~60 s de CPU por archivo; con 2 análisis en paralelo rozaban el `mem_limit` de 1 GB del contenedor. Un export de 100.000 filas x 20 columnas sigue entrando.
+- **`/api/wazuh/session`** usa el mismo límite por IP y el mismo cupo de análisis que una subida (en modo demo no pide clave y cada apertura corría un ciclo completo).
+- **El registro del límite por IP ya no crece sin tope:** se barren las entradas inactivas y, si todas están activas, sale la décima parte más antigua (los topes globales se conservan).
+- **`GET /api/sessions/{id}/report.pdf` es de solo lectura:** ya no acepta `client`/`analyst` (un GET que cambia estado se dispara con un `<img>`). Para fijarlos: `POST /report.pdf` o `POST /meta`, como ya hacía la interfaz.
+- **Consulta de reputación:** comprobar «hay una en curso» y marcarla es un solo paso con lock; dos POST simultáneos ya no lanzan dos consultas (doble cuota).
+- **`APP_ACCESS_TOKEN` de menos de 16 caracteres cierra la API (503)** en vez de solo avisar en el log. `/api/health` sigue respondiendo.
+- **CI:** las GitHub Actions se fijan por SHA (Dependabot las sigue actualizando).
+
 ## [1.19.0] - 2026-11-18
 
 ### Añadido

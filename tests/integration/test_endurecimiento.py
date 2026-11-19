@@ -268,7 +268,7 @@ def test_cliente_y_analista_se_recortan_y_quedan_en_una_linea(sesiones):
     assert len(main.SESSIONS[sid].client) == main.MAX_META == len(main.SESSIONS[sid].analyst)
     assert client.post(f"/api/sessions/{sid}/report.html", data={"client": largo}).status_code == 200
     assert len(main.SESSIONS[sid].client) == main.MAX_META
-    assert client.get(f"/api/sessions/{sid}/report.pdf", params={"analyst": "B" * 5000}).status_code == 200
+    assert client.post(f"/api/sessions/{sid}/report.pdf", data={"analyst": "B" * 5000}).status_code == 200
     assert len(main.SESSIONS[sid].analyst) == main.MAX_META
     pid = client.post("/api/phishing/sample").json()["phishing_id"]
     doc = client.post(f"/api/phishing/{pid}/report.html", data={"client": "Z" * 5000}).text

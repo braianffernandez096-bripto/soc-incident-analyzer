@@ -93,7 +93,7 @@ class SafeJSON(JSONResponse):
 
 
 _DOCS = os.environ.get("ENABLE_DOCS", "").strip().lower() in ("1", "true", "yes")      # API docs reveal the full surface: opt-in
-app = FastAPI(title="SOC Incident Analyzer", version="1.19.0", default_response_class=SafeJSON,
+app = FastAPI(title="SOC Incident Analyzer", version="1.19.1", default_response_class=SafeJSON,
               docs_url="/docs" if _DOCS else None, redoc_url="/redoc" if _DOCS else None, openapi_url="/openapi.json" if _DOCS else None)
 
 
@@ -187,8 +187,46 @@ SECURITY_HEADERS = {
 OPEN_API_PATHS = {"/api/health", "/api/auth/status", "/api/wazuh/alerts"}      # la ingesta de Wazuh se autentica con su propia clave (X-Wazuh-Token)
 
 
+MIN_ACCESS_TOKEN = 16
+
+
 def _access_token() -> str:
     return os.environ.get("APP_ACCESS_TOKEN", "").strip()
+
+
+def _token_too_weak(token: str) -> bool:
+    """Una clave definida pero corta es un error de configuración: la API se cierra (falla cerrado) en vez de aceptarla."""
+    return 0 < len(token) < MIN_ACCESS_TOKEN
+
+
+# ---- CSRF ---------------------------------------------------------------------------------------------
+# El chequeo de Host frena el DNS rebinding, pero no que una web cualquiera haga POST a http://127.0.0.1:8000 desde el navegador del
+# analista (multipart/form-data no necesita preflight). Sin APP_ACCESS_TOKEN eso permitía crear sesiones, desalojar las del analista y
+# gastar sus cupos. Los navegadores envían Sec-Fetch-Site y Origin en toda petición que cambia estado: se rechaza lo que no sea del
+# mismo origen. Clientes sin navegador (curl, scripts, Wazuh) no envían esas cabeceras y no se ven afectados.
+UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+SAFE_FETCH_SITES = {"same-origin", "none"}      # «none»: el usuario escribió la URL o usó un marcador
+
+
+def _cross_site(request: Request) -> bool:
+    if request.method not in UNSAFE_METHODS:
+        return False
+    site = request.headers.get("sec-fetch-site", "").strip().lower()
+    if site:
+        # El navegador la fija y una web no puede falsificarla. Decide sola: no depende del Host, que un proxy inverso suele reescribir
+        # (nginx por defecto manda Host: 127.0.0.1:8000 mientras el Origin es el nombre público).
+        return site not in SAFE_FETCH_SITES
+    origin = request.headers.get("origin", "").strip()      # navegadores sin Sec-Fetch-*: se compara el Origin con los nombres permitidos
+    if not origin:
+        return False
+    allowed = _allowed_hosts()
+    if "*" in allowed:
+        return False
+    try:
+        host = urlsplit(origin).hostname      # «null» (iframe aislado, file://) no tiene host: se rechaza
+    except ValueError:
+        return True
+    return not host or host.lower().rstrip(".") not in allowed
 
 
 # ---- allowed Host names (DNS rebinding) ---------------------------------------------------------------
@@ -233,6 +271,12 @@ async def access_control(request: Request, call_next):
     if path not in HOST_EXEMPT_PATHS and not _host_ok(request):
         log.warning("host_rejected host=%r path=%s", request.headers.get("host", "")[:80], path[:80])
         return JSONResponse({"detail": "Nombre de host no permitido. Si accedes a la app con otro nombre, agrégalo en ALLOWED_HOSTS."}, status_code=400)
+    if path not in HOST_EXEMPT_PATHS and _cross_site(request):
+        log.warning("cross_site_rejected method=%s path=%s", request.method, path[:80])
+        return JSONResponse({"detail": "Petición desde otro sitio rechazada (CSRF)."}, status_code=403)
+    if _token_too_weak(token) and path.startswith("/api/") and path != "/api/health":
+        return JSONResponse({"detail": f"APP_ACCESS_TOKEN es demasiado corta (mínimo {MIN_ACCESS_TOKEN} caracteres). "
+                                       "Genera una con: openssl rand -hex 24"}, status_code=503)
     if token and path.startswith("/api/") and path not in OPEN_API_PATHS and not _token_ok(request, token):
         try:
             _rate_limit(request, "/auth-fail", 10, 60)      # only failures count: brute force gets 429
@@ -244,8 +288,9 @@ async def access_control(request: Request, call_next):
     return await call_next(request)
 
 
-if 0 < len(_access_token()) < 16:
-    logging.getLogger("soc.api").warning("access_token_weak length=%d (use 16+ characters)", len(_access_token()))
+if _token_too_weak(_access_token()):
+    logging.getLogger("soc.api").warning("access_token_weak length=%d (use 16+ characters): the API answers 503 until it is fixed",
+                                         len(_access_token()))
 
 
 @app.middleware("http")
@@ -273,9 +318,24 @@ def _rate_limit(request: Request, key: str, limit: int, window: int) -> None:
     _rate_limit_key(request.client.host if request.client else "unknown", key, limit, window)
 
 
+MAX_RATE_KEYS = 10_000          # pares (IP, ruta) en memoria; al pasarlo se barren los que ya no tienen golpes vigentes
+RATE_KEY_IDLE = 600             # segundos sin peticiones tras los que un par se puede borrar (mayor que la ventana más larga, 300 s)
+
+
+def _sweep_hits(now: float) -> None:
+    """Sin esto, cada IP nueva deja una entrada para siempre: con muchas IP (IPv6) la memoria crece sin límite."""
+    for k in [k for k, q in _hits.items() if not q or now - q[-1] > RATE_KEY_IDLE]:
+        del _hits[k]
+    if len(_hits) >= MAX_RATE_KEYS:      # todas activas (ataque con muchas IP): sale la décima parte más antigua, nunca crece sin tope
+        for k in sorted((k for k in _hits if k[0] != "*"), key=lambda k: _hits[k][-1])[: MAX_RATE_KEYS // 10]:   # los topes globales se quedan
+            del _hits[k]
+
+
 def _rate_limit_key(ip: str, key: str, limit: int, window: int) -> None:
     now = time.monotonic()
     with _hits_lock:
+        if len(_hits) >= MAX_RATE_KEYS and (ip, key) not in _hits:
+            _sweep_hits(now)
         q = _hits[(ip, key)]
         while q and now - q[0] > window:
             q.popleft()
@@ -790,10 +850,11 @@ def _intel_worker(s, queries: list[dict], vt: str | None, ab: str | None) -> Non
         s.intel.update(status="error", notices=["No se pudo completar la consulta de reputación."])
 
 
+_INTEL_LOCK = threading.Lock()
+
+
 def _intel_launch(obj, sid: str, iocs: list[dict], request: Request, include_reserved: bool, vt_header, ab_header) -> dict:
     _rate_limit(request, "/api/intel", *RATE_LIMITS["/api/intel"])
-    if obj.intel and obj.intel.get("status") == "running":
-        raise HTTPException(409, "Ya hay una consulta de reputación en curso.")
     vt, ab = _intel_keys(vt_header, ab_header)
     if not (vt or ab):
         raise HTTPException(400, "No hay claves de VirusTotal ni de AbuseIPDB. Defínelas en el archivo .env (VT_API_KEY, ABUSEIPDB_API_KEY) o pégalas en la interfaz.")
@@ -801,8 +862,11 @@ def _intel_launch(obj, sid: str, iocs: list[dict], request: Request, include_res
     if not plan["queries"]:
         raise HTTPException(400, "No hay indicadores públicos para consultar: todas las IP son internas o de documentación.")
     providers = intel_mod.available_providers(vt, ab)
-    obj.intel = {"status": "running", "started": time.time(), "total": len(plan["queries"]), "done": 0, "results": [],
-                 "notices": [], "providers": providers, "queried_at": ""}
+    with _INTEL_LOCK:      # comprobar y marcar «en curso» en un solo paso: dos POST simultáneos no lanzan dos consultas (doble cuota)
+        if obj.intel and obj.intel.get("status") == "running":
+            raise HTTPException(409, "Ya hay una consulta de reputación en curso.")
+        obj.intel = {"status": "running", "started": time.time(), "total": len(plan["queries"]), "done": 0, "results": [],
+                     "notices": [], "providers": providers, "queried_at": ""}
     log.info("intel_start session=%s indicators=%d providers=%s", sid, len(plan["queries"]), ",".join(providers))   # nunca las claves
     threading.Thread(target=_intel_worker, args=(obj, plan["queries"], vt, ab), daemon=True).start()
     return {"job": obj.intel}
@@ -1087,14 +1151,10 @@ def report_pdf_post(sid: str, client: str = Form(""), analyst: str = Form("")):
 
 
 @app.get("/api/sessions/{sid}/report.pdf")
-def report_pdf(sid: str, client: str | None = None, analyst: str | None = None):
-    """Kept for compatibility. Names in a query string end up in access logs: the UI uses the POST route instead."""
-    s = _get(sid)
-    if client is not None:
-        s.client = _meta(client)
-    if analyst is not None:
-        s.analyst = _meta(analyst)
-    return _pdf_response(s)
+def report_pdf(sid: str):
+    """Kept for compatibility, read-only: it no longer takes client/analyst. A GET that changed state could be fired from any
+    page (<img src>, CSRF) and the names ended up in access logs. To set them, use POST /report.pdf or POST /meta."""
+    return _pdf_response(_get(sid))
 
 
 # ---- Wazuh en vivo (opcional: WAZUH_INGEST=on y WAZUH_INGEST_TOKEN de 16+ caracteres) ----------------------------------------
@@ -1186,6 +1246,13 @@ def wazuh_session(request: Request):
         raise HTTPException(404, "El modo Wazuh no está activado en este servidor.")
     if not _access_token() and not wazuh_live.demo():      # live alerts are real data that nobody uploaded: never served without the access key (the demo ones are made up)
         raise HTTPException(403, WAZUH_LOCKED_MSG)
+    # Cada apertura corre un ciclo de análisis, copia el análisis y registra una sesión: mismo cupo y mismos límites que una subida
+    # (en modo demo no hay clave, así que sin esto cualquiera podía tener la CPU ocupada en bucle y desalojar sesiones).
+    _rate_limit(request, "/api/upload", *RATE_LIMITS["/api/upload"])
+    return _with_slot(_open_wazuh_snapshot, _client_ip(request))
+
+
+def _open_wazuh_snapshot(owner: str) -> dict:
     _live_cycle()
     latest = _live().latest
     if not latest:
@@ -1198,7 +1265,7 @@ def wazuh_session(request: Request):
     analysis["wazuh_context"] = wazuh_indexer.configured() and not wazuh_live.demo()
     if wazuh_live.demo():
         analysis["limitations"].append("MODO DEMO: estas alertas son de ejemplo y las genera la propia aplicación (WAZUH_DEMO=on). No vienen de ningún Wazuh ni describen un ataque real.")
-    return _register_session(df.copy(), analysis, "Alertas de Wazuh (demo)" if wazuh_live.demo() else "Alertas de Wazuh (en vivo)", origin="wazuh", owner=_client_ip(request))
+    return _register_session(df.copy(), analysis, "Alertas de Wazuh (demo)" if wazuh_live.demo() else "Alertas de Wazuh (en vivo)", origin="wazuh", owner=owner)
 
 
 @app.get("/api/context/status")

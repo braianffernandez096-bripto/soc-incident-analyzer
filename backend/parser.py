@@ -92,11 +92,13 @@ CSV_EXT = (".csv", ".tsv", ".txt", ".log")
 JSON_EXT = (".json", ".jsonl", ".ndjson")
 SUPPORTED_EXT = EXCEL_EXT + CSV_EXT + JSON_EXT
 
-MAX_UNCOMPRESSED_BYTES = 300 * 1024 * 1024   # un .xlsx es un zip: limita su tamaño descomprimido (zip bomb)
+MAX_UNCOMPRESSED_BYTES = 150 * 1024 * 1024   # un .xlsx es un zip: limita su tamaño descomprimido (zip bomb)
 MAX_ROWS = 100_000
 MAX_COLUMNS = 500
 MAX_JSON_DEPTH = 8
-MAX_CELLS = 4_000_000                         # celdas en todas las hojas: 100.000 filas x 40 columnas; más que eso no es un export de logs
+# Celdas en todas las hojas: 100.000 filas x 20 columnas. Medido: abrir 4 millones de celdas con pandas/openpyxl llega a ~470 MB de pico
+# y ~60 s de CPU por archivo; con 2 análisis en paralelo eso roza el mem_limit de 1 GB del contenedor (OOM = se pierden todas las sesiones).
+MAX_CELLS = 2_000_000
 
 
 class ParseError(ValueError):

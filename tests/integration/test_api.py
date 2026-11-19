@@ -55,7 +55,7 @@ def test_markup_hostil_en_celdas_y_portada_no_rompe_el_pdf():
     df, meta = load_events(str(SAMPLE))
     r = _upload_sample(client="<b></font>X", analyst="<script>")
     sid = r.json()["session_id"]
-    pdf = client.get(f"/api/sessions/{sid}/report.pdf", params={"client": "</para><b>", "analyst": "&<>"})
+    pdf = client.post(f"/api/sessions/{sid}/report.pdf", data={"client": "</para><b>", "analyst": "&<>"})
     assert pdf.status_code == 200 and pdf.content.startswith(b"%PDF")
 
 

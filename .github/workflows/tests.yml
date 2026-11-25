@@ -14,7 +14,7 @@ jobs:
     name: Tests y cobertura
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
@@ -36,7 +36,7 @@ jobs:
     name: Seguridad (bandit + pip-audit)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
@@ -57,7 +57,7 @@ jobs:
       LOGHUB_COMMIT: dd61d0952749ee7963bde24220d1be5ede023033
       LOGHUB_SHA256: 1e4912727fa88245113d41b16a0cd25ceadba7f931e1c406542885b91254264f
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
@@ -85,7 +85,7 @@ jobs:
     name: Imagen Docker (build + Trivy)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Construir la imagen
         run: docker build -t soc-incident-analyzer:ci .
       # Trivy se ejecuta como contenedor (mismo origen que la imagen base) en lugar de instalar el binario
@@ -110,7 +110,7 @@ jobs:
     name: Pruebas de navegador (Playwright)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
@@ -125,7 +125,7 @@ jobs:
     name: SBOM (CycloneDX)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Construir la imagen
         run: docker build -t soc-incident-analyzer:ci .
       # Mismo Trivy fijado que en el job de la imagen: lista los componentes (Python y sistema) en formato CycloneDX.
